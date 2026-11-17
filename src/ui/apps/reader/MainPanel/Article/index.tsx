@@ -1,30 +1,27 @@
 import { useEffect } from 'react'
-import { observer } from 'mobx-react-lite'
-import { store } from '@/ui/store'
-import Toolbar from './Toolbar'
+import { ReaderModel } from '@/ui/hooks/use-reader-model'
+import { AsyncState } from '@/ui/components/async-state'
+import { ArticleToolbar } from '../../components/toolbar'
 import Content from './content'
 
-const { readerStore } = store
-
-function Article() {
-  const { activeId } = readerStore
-
+export default function Article({ model }: { model: ReaderModel }) {
+  const article = model.activeArticle
   useEffect(() => {
-    if (activeId) {
-      readerStore.markRead(activeId!)
-    }
-  })
+    if (article?.id && !article.read) model.markRead(1, [article.id])
+  }, [article?.id])
 
   return (
-    <div className="h-[100%] flex flex-col">
-      <div className="h-12 flex items-center">
-        <Toolbar />
-      </div>
-      <div className="flex-1 overflow-auto">
-        <Content />
-      </div>
-    </div>
+    <>
+      <ArticleToolbar model={model} />
+      {model.detail.isPending || model.detail.isError ? (
+        <AsyncState error={model.detail.isError} retry={() => model.detail.refetch()} />
+      ) : article ? (
+        <div key={article.id} className="min-h-0 flex-1 overflow-y-auto">
+          <Content model={model} />
+        </div>
+      ) : (
+        <AsyncState error retry={model.fold} />
+      )}
+    </>
   )
 }
-
-export default observer(Article)

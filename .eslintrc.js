@@ -26,7 +26,7 @@ module.exports = {
     },
   },
   rules: {
-    'max-len': ['error', { code: 120 }],
+    'max-len': ['error', { code: 120, ignoreStrings: true, ignoreTemplateLiterals: true }],
     complexity: ['error', { max: 10 }],
     semi: ['error', 'never'],
     'no-confusing-arrow': ['off'],
@@ -61,4 +61,11 @@ module.exports = {
     }],
     'import/prefer-default-export': ['off'],
   },
+  overrides: [
+    {
+      // Reusable shadcn primitives forward native and Radix accessibility props.
+      files: ['src/ui/components/**/*.tsx'],
+      rules: { 'react/jsx-props-no-spreading': 'off' },
+    },
+  ],
 }

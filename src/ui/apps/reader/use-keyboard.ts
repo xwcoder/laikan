@@ -1,47 +1,99 @@
-import { makeKeyboard, Handler } from '@/ui/hooks/keyboard'
-import { store } from '@/ui/store'
+import {
+  useEffect, useRef, Dispatch, SetStateAction,
+} from 'react'
+import { ReaderModel } from '@/ui/hooks/use-reader-model'
 import { openExternal } from '@/base/browser/shell'
+import { useAppStore } from '@/ui/store'
 
-const { readerStore } = store
+const isEditing = (event: KeyboardEvent) => event.isComposing
+  || event.metaKey
+  || event.ctrlKey
+  || event.altKey
+  || !!(event.target as HTMLElement).closest('input, textarea, select, [contenteditable="true"]')
 
-const { useKeyboard, register } = makeKeyboard({ app: 'reader' })
+const shouldIgnore = (event: KeyboardEvent, showHelp: boolean) => isEditing(event)
+  || (!showHelp && !!document.querySelector('[role="dialog"]'))
 
-export default useKeyboard
-
-const iregister = (k: string[], fn: Handler) => {
-  const isLocked = () => readerStore.showKeyboardPanel
-
-  const handler: Handler = (event, ks) => {
-    if (isLocked()) {
-      return
-    }
-
-    fn(event, ks)
+function getActions(model: ReaderModel) {
+  const actions: Record<string, () => unknown> = {
+    j: () => model.move(1),
+    k: () => model.move(-1),
+    o: () => model.activeId !== null && model.open(model.activeId),
+    u: model.fold,
+    s: () => model.toggleStar(),
+    v: () => model.opened && model.activeArticle && openExternal(model.activeArticle.url),
+    x: () => model.activeId !== null && model.toggleSelected(model.activeId),
+    'shift+i': () => model.markRead(1),
+    'shift+u': () => model.markRead(0),
+    gi: () => model.changeTab('unread'),
+    gs: () => model.changeTab('starred'),
+    ga: () => model.changeTab('all'),
+    '*a': () => model.select(model.articles.map((article) => article.id!)),
+    '*n': () => model.select([]),
   }
-
-  register(k, handler)
+  return actions
 }
 
-register(['shift', '?'], () => readerStore.toggleKeyboardPanel())
+const run = (action: () => unknown) => {
+  Promise.resolve()
+    .then(action)
+    .catch((error: Error) => useAppStore.getState().setError(error.message))
+}
 
-iregister(['j'], () => readerStore.moveNext())
-iregister(['k'], () => readerStore.movePrev())
+const shortcutKey = (sequence: string, event: KeyboardEvent) => {
+  const key = event.key.toLowerCase()
+  return sequence ? `${sequence}${key}` : event.shiftKey ? `shift+${key}` : key
+}
 
-iregister(['o'], () => readerStore.open())
-iregister(['u'], () => readerStore.fold())
-iregister(['s'], () => readerStore.toggleStarred())
-iregister(['v'], () => {
-  if (readerStore.opened) {
-    openExternal(readerStore.activeArticle?.url!)
-  }
-})
+export default function useKeyboard(
+  model: ReaderModel,
+  showHelp: boolean,
+  setHelp: Dispatch<SetStateAction<boolean>>,
+) {
+  const modelRef = useRef(model)
+  const helpRef = useRef(showHelp)
+  modelRef.current = model
+  helpRef.current = showHelp
 
-iregister(['x'], () => readerStore.toggleSelected())
-iregister(['*', 'a'], () => readerStore.selectAll())
-iregister(['*', 'n'], () => readerStore.deselectAll())
-iregister(['shift', 'i'], () => readerStore.markRead())
-iregister(['shift', 'u'], () => readerStore.markUnread())
-
-iregister(['g', 's'], () => readerStore.changeTab('starred'))
-iregister(['g', 'a'], () => readerStore.changeTab('all'))
-iregister(['g', 'i'], () => readerStore.changeTab('unread'))
+  useEffect(() => {
+    let sequence = ''
+    let timer: ReturnType<typeof setTimeout>
+    const clear = () => {
+      sequence = ''
+    }
+    const keydown = (event: KeyboardEvent) => {
+      if (shouldIgnore(event, helpRef.current)) {
+        clear()
+        return
+      }
+      if (event.key === '?') {
+        event.preventDefault()
+        setHelp((value) => !value)
+        return
+      }
+      if (helpRef.current) return
+      const key = event.key.toLowerCase()
+      const actions = getActions(modelRef.current)
+      if (key === 'g' || key === '*') {
+        sequence = key
+        clearTimeout(timer)
+        timer = setTimeout(clear, 700)
+        event.preventDefault()
+        return
+      }
+      const shortcut = shortcutKey(sequence, event)
+      clear()
+      if (actions[shortcut]) {
+        event.preventDefault()
+        run(actions[shortcut])
+      }
+    }
+    document.addEventListener('keydown', keydown)
+    window.addEventListener('blur', clear)
+    return () => {
+      clearTimeout(timer)
+      document.removeEventListener('keydown', keydown)
+      window.removeEventListener('blur', clear)
+    }
+  }, [setHelp])
+}

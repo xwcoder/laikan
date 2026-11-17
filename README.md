@@ -26,13 +26,49 @@ restarts the main process when it changes, and reloads preload changes.
 ```sh
 npm run lint       # ESLint and TypeScript checks
 npm run build      # Type-check and build all three processes into dist/
-npm start          # Build and preview the production application
+npm start          # Preview the built production application
 npm run test:smoke # Build and verify startup, SQLite, IPC and renderer isolation
 ```
 
 Electron is upgraded to the npm `latest` stable release, 45.3.3, as checked on
 2026-11-17. Commit `package-lock.json` when updating dependencies so local builds
 and CI use the same versions.
+
+## UI architecture
+
+The renderer uses local [shadcn/ui](https://ui.shadcn.com/) components backed by
+Radix primitives, Lucide icons, and Tailwind CSS **4.3.5** (npm `latest`, checked on
+2026-11-17). Tailwind runs through `@tailwindcss/vite`; its configuration lives in
+CSS rather than a JavaScript Tailwind or PostCSS configuration. `components.json`
+configures shadcn's source aliases for adding more components.
+
+- Reusable controls live in `src/ui/components/ui/`. Application styles use
+  Tailwind utilities; `src/ui/style.css` defines semantic colors and radii for
+  both themes. Change those variables to update the application theme.
+- Component forms, dialogs and other private UI state use React `useState`.
+  Zustand stores in `src/ui/store/` contain shared client state such as the
+  active app, reader tab, page, focused article and selected article IDs.
+- All IPC-backed feeds, article lists/details, feed previews and saved settings
+  use TanStack Query in `src/ui/query/`. Writes use mutations and invalidate
+  affected queries after success. Background feed and settings IPC events also
+  invalidate the cache; server data is never copied into Zustand.
+
+Use the navigation theme button to switch light/dark, or select Light, Dark or
+System in Settings. The system option follows OS theme changes. Theme, language
+and reader font size are saved through the existing Electron settings service.
+
+Internationalization uses `react-i18next` with one bundled JSON resource per
+language: `src/i18n/en-US.json` and `src/i18n/zh-CN.json`. Keep their keys aligned
+and use `useTranslation()` for UI text. Dates and pagination use the active
+language; unsupported system locales fall back to English. All resources work
+offline in packaged builds.
+
+`npm run test:smoke` additionally exercises the production UI with a local RSS
+fixture: theme/language persistence and system theme changes, feed previews and
+subscriptions, pagination, read/star mutations, font size, bulk keyboard
+shortcuts, push-driven cache updates, feed deletion and failed mutations. It
+uses an isolated temporary data directory. Set `EMO_SMOKE_SCREENSHOTS` to an
+output directory to capture representative screens.
 
 ## Packaging and releases
 

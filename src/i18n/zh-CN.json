@@ -3,9 +3,19 @@
     "list": {
       "unread": "未读",
       "starred": "星标",
-      "all": "全部"
+      "all": "全部",
+      "empty": "暂无文章",
+      "emptyDescription": "订阅一个频道，或切换其他列表。",
+      "feeds": "订阅频道",
+      "noFeeds": "订阅的频道会显示在这里。",
+      "selectAll": "选择全部文章",
+      "selectArticle": "选择文章：{{title}}",
+      "range": "第 {{start}}–{{end}} 条，共 {{count}} 条",
+      "previousPage": "上一页",
+      "nextPage": "下一页",
+      "previousArticle": "上一篇",
+      "nextArticle": "下一篇"
     },
-
     "action": {
       "delete": "删除",
       "markRead": "标记为已读",
@@ -17,9 +27,12 @@
         "success": "已复制到剪贴板"
       },
       "fontIncrease": "更大",
-      "fontDecrease": "更小"
+      "fontDecrease": "更小",
+      "star": "添加星标",
+      "unstar": "取消星标",
+      "back": "返回列表",
+      "copyError": "复制链接失败。"
     },
-
     "form": {
       "title": "订阅频道",
       "url": {
@@ -31,9 +44,12 @@
       "buttons": {
         "subscribe": "订阅",
         "close": "关闭"
-      }
+      },
+      "description": "添加 RSS 或 Atom 频道，开始阅读。",
+      "invalid": "请输入有效的 HTTP 或 HTTPS 频道地址。",
+      "notFeed": "此地址未返回有效的 RSS 或 Atom 频道。",
+      "checking": "正在检查频道…"
     },
-
     "keyboard": {
       "title": "快捷键",
       "keys": {
@@ -55,24 +71,38 @@
       }
     }
   },
-
   "settings": {
     "appearance": {
       "title": "外观",
       "light": "浅色",
       "dark": "深色",
-      "auto": "自动"
+      "auto": "跟随系统",
+      "description": "选择浅色、深色，或跟随系统。"
     },
-
     "locale": {
-      "title": "语言"
+      "title": "语言",
+      "description": "切换后立即应用到整个界面。"
     },
-
     "dataPath": {
       "title": "选择数据存储位置",
       "browserBtn": "选择",
       "setToDefaultBtn": "设置为默认目录",
-      "applyBtn": "重启生效"
-    }
+      "applyBtn": "重启生效",
+      "description": "更改数据目录后，应用将重新启动。"
+    },
+    "description": "自定义你的阅读体验。"
+  },
+  "common": {
+    "loading": "加载中…",
+    "loadError": "数据加载失败。",
+    "saveError": "保存失败。",
+    "retry": "重试",
+    "close": "关闭",
+    "then": "然后",
+    "reader": "阅读器",
+    "settings": "设置",
+    "toggleTheme": "切换明暗主题",
+    "light": "浅色",
+    "dark": "深色"
   }
 }

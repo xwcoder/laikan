@@ -18,17 +18,9 @@ router.get('/feed/preflight', async (_, url: string) => {
 })
 
 router.post('/feed', async (_, { url, title }: Pick<Feed, 'url'|'title'>) => {
-  let feed: Feed = { url, title }
-
-  try {
-    const feedRemote = await parseURL(url)
-    feed = {
-      ...feedRemote,
-      ...feed,
-    }
-  } catch (e) {
-    logger.error(`[Reader] post/feed parse error: ${url}`, e)
-  }
+  const feedRemote = await parseURL(url)
+  if (!feedRemote) throw new Error('Invalid RSS or Atom feed')
+  const feed: Feed = { ...feedRemote, url, title }
 
   // insert feed
   await feedService.upsert(feed)

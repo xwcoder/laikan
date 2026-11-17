@@ -1,32 +1,38 @@
-import { observer } from 'mobx-react-lite'
-import { store } from '@/ui/store'
+import { useEffect } from 'react'
+import { Inbox } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { ReaderModel } from '@/ui/hooks/use-reader-model'
+import { AsyncState } from '@/ui/components/async-state'
 
 import Item from './item'
 import Toolbar from './toolbar'
-import Pagination from './pagination'
 
-const { readerStore } = store
+export default function List({ model }: { model: ReaderModel }) {
+  const { t } = useTranslation()
+  const { articles, activeId } = model
 
-function List() {
-  const { articles } = readerStore
-
-  const items = articles.map((item) => <Item key={item.id} article={item} />)
+  useEffect(() => {
+    document.querySelector(`[data-list-item-id="${activeId}"]`)?.scrollIntoView({ block: 'nearest' })
+  }, [activeId])
 
   return (
-    <div className="h-[100%] flex flex-col">
-      <div className="h-12 flex items-center">
-        <div>
-          <Toolbar />
+    <>
+      <Toolbar model={model} />
+      {model.list.isPending || model.list.isError ? (
+        <AsyncState error={model.list.isError} retry={() => model.list.refetch()} />
+      ) : (
+        <div className="list-container min-h-0 flex-1 overflow-y-auto pb-6">
+          {articles.length ? (
+            articles.map((article) => <Item key={article.id} model={model} article={article} />)
+          ) : (
+            <div className="flex h-full min-h-52 flex-col items-center justify-center gap-2 p-8 text-center text-muted-foreground">
+              <Inbox className="mb-2 size-9 opacity-60" />
+              <h2 className="font-medium text-foreground">{t('reader.list.empty')}</h2>
+              <p className="text-xs">{t('reader.list.emptyDescription')}</p>
+            </div>
+          )}
         </div>
-        <div className="ml-auto px-4">
-          <Pagination />
-        </div>
-      </div>
-      <div className="list-container flex-1 pb-10 overflow-auto">
-        {items}
-      </div>
-    </div>
+      )}
+    </>
   )
 }
-
-export default observer(List)

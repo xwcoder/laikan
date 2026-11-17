@@ -1,6 +1,7 @@
 import db, { run, get, all } from '@/services/db/electron-main/db'
 import { push } from '@/services/push/electron-main/push'
 import { Feed } from '@/types/reader'
+import { logger } from '@/services/logger/electron-main/logger'
 
 export const upsert = (feed: Feed) => {
   const {
@@ -53,17 +54,17 @@ export const getOne = (id: number): Promise<Feed | undefined> => {
   return get(sql, id)
 }
 
-export const deleteById = (id: number) => new Promise<void>((resolve) => {
+export const deleteById = (id: number) => new Promise<void>((resolve, reject) => {
   db.serialize(async () => {
     try {
       await run('BEGIN TRANSACTION')
       await run('delete from feeds where id = ?', id)
       await run('delete from articles where feedId = ?', id)
       await run('COMMIT')
-    } catch {
-      await run('ROLLBACK')
-    } finally {
       resolve()
+    } catch (error) {
+      await run('ROLLBACK').catch((rollbackError) => logger.error('[Reader] Rollback error', rollbackError))
+      reject(error)
     }
   })
 })

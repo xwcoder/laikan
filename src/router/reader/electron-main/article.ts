@@ -1,6 +1,8 @@
 import * as articleService from '@/services/reader/electron-main/article'
 import { router } from './router'
 
+router.get('/article', (_, id: number) => articleService.getById(id))
+
 router.get('/articles', async (_, params) => {
   const { count, rows } = await articleService.find(params)
   return {

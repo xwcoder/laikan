@@ -1,114 +1,132 @@
-import { PropsWithChildren, useState } from 'react'
-import { observer } from 'mobx-react-lite'
-import intl from 'react-intl-universal'
-import {
-  Radio,
-  RadioGroup,
-  Input,
-  Button,
-} from '@fluentui/react-components'
-import { store } from '@/ui/store'
-import { labels as locales } from '@/i18n'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { FolderOpen } from 'lucide-react'
+import { languages } from '@/i18n'
+import { Appearance, Locale } from '@/types/settings'
+import { useSettings, useUpdateSettings } from '@/ui/query/settings'
+import { useAppStore } from '@/ui/store'
 import { openDirectory } from '@/base/browser/shell'
+import { Button } from '@/ui/components/ui/button'
+import { Input } from '@/ui/components/ui/input'
+import { RadioGroup, RadioGroupItem } from '@/ui/components/ui/radio-group'
+import { Separator } from '@/ui/components/ui/separator'
 
-const { settingStore } = store
+export default function Settings() {
+  const { t } = useTranslation()
+  const { data } = useSettings()
+  const update = useUpdateSettings()
+  const [draftPath, setDraftPath] = useState<string | null>(null)
+  const [browsing, setBrowsing] = useState(false)
+  const dataPath = draftPath ?? data?.dataPath ?? ''
 
-type ItemProps = PropsWithChildren<{
-  title?: string
-}>
-
-function Item({ title, children }: ItemProps) {
-  return (
-    <div>
-      <div className="font-bold">
-        {title}
-      </div>
-      {children}
-    </div>
-  )
-}
-
-function Settings() {
-  const {
-    appearance,
-    appearances,
-    locale,
-    dataPath: activeDataPath,
-    defaultDataPath,
-  } = settingStore
-
-  const [dataPath, setDataPath] = useState(activeDataPath)
-
-  const directorBrowserHandler = async () => {
-    const { canceled, filePaths } = await openDirectory({
-      properties: ['createDirectory'],
-      defaultPath: dataPath,
-    })
-
-    if (canceled) {
-      return
+  const browse = async () => {
+    setBrowsing(true)
+    try {
+      const result = await openDirectory({ properties: ['createDirectory'], defaultPath: dataPath })
+      if (!result.canceled && result.filePaths[0]) setDraftPath(result.filePaths[0])
+    } catch (error) {
+      useAppStore.getState().setError((error as Error).message)
+    } finally {
+      setBrowsing(false)
     }
-
-    const path = filePaths[0]
-    setDataPath(path)
   }
 
   return (
-    <div className="h-[100vh] py-10 px-10">
-      <div className="max-w-[500px] mx-auto flex flex-col gap-y-5">
-        <Item title={intl.get('settings.appearance.title')}>
+    <div className="undraggle flex-1 overflow-y-auto px-8 py-8">
+      <div className="mx-auto max-w-2xl space-y-8">
+        <header>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('common.settings')}</h1>
+          <p className="mt-2 text-muted-foreground">{t('settings.description')}</p>
+        </header>
+        <section className="space-y-4" aria-labelledby="appearance-title">
+          <div>
+            <h2 id="appearance-title" className="font-semibold">
+              {t('settings.appearance.title')}
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">{t('settings.appearance.description')}</p>
+          </div>
           <RadioGroup
-            value={appearance}
-            onChange={(_, data) => settingStore.setAppearance(data.value as any)}
+            aria-labelledby="appearance-title"
+            value={data?.appearance}
+            disabled={update.isPending}
+            onValueChange={(value) => update.mutate({ path: 'appearance', value: value as Appearance })}
+            className="grid-cols-3"
           >
-            {appearances.map((v) => <Radio key={v} value={v} label={intl.get(`settings.appearance.${v}`)} />)}
+            {(['light', 'dark', 'auto'] as const).map((value) => (
+              <label
+                htmlFor={`setting-${value}`}
+                key={value}
+                className="flex cursor-pointer items-center gap-3 rounded-lg border bg-card p-4 has-[[data-state=checked]]:border-primary"
+              >
+                <RadioGroupItem
+                  id={`setting-${value}`}
+                  value={value}
+                  aria-label={t(`settings.appearance.${value}`)}
+                />
+                {t(`settings.appearance.${value}`)}
+              </label>
+            ))}
           </RadioGroup>
-        </Item>
-        <Item title={intl.get('settings.locale.title')}>
+        </section>
+        <Separator />
+        <section className="space-y-4" aria-labelledby="locale-title">
+          <div>
+            <h2 id="locale-title" className="font-semibold">
+              {t('settings.locale.title')}
+            </h2>
+            <p className="mt-1 text-muted-foreground">{t('settings.locale.description')}</p>
+          </div>
           <RadioGroup
-            value={locale}
-            onChange={(_, data) => settingStore.setLocale(data.value)}
+            aria-labelledby="locale-title"
+            value={data?.locale}
+            disabled={update.isPending}
+            onValueChange={(value) => update.mutate({ path: 'locale', value: value as Locale })}
+            className="grid-cols-2"
           >
-            {locales.map((v) => <Radio key={v.value} value={v.value} label={v.label} />)}
+            {languages.map(({ value, label }) => (
+              <label
+                htmlFor={`setting-${value}`}
+                key={value}
+                className="flex cursor-pointer items-center gap-3 rounded-lg border bg-card p-4 has-[[data-state=checked]]:border-primary"
+              >
+                <RadioGroupItem id={`setting-${value}`} value={value} aria-label={label} />
+                {label}
+              </label>
+            ))}
           </RadioGroup>
-        </Item>
-        <Item title={intl.get('settings.dataPath.title')}>
-          <div className="pt-1 flex gap-2">
-            <Input
-              value={dataPath}
-              className="flex-1"
-              appearance="filled-darker"
-            />
-            <Button
-              size="small"
-              appearance="primary"
-              onClick={directorBrowserHandler}
-            >
-              {intl.get('settings.dataPath.browserBtn')}
+        </section>
+        <Separator />
+        <section className="space-y-4" aria-labelledby="path-title">
+          <div>
+            <h2 id="path-title" className="font-semibold">
+              {t('settings.dataPath.title')}
+            </h2>
+            <p className="mt-1 text-muted-foreground">{t('settings.dataPath.description')}</p>
+          </div>
+          <div className="flex gap-2">
+            <Input aria-labelledby="path-title" value={dataPath} readOnly />
+            <Button variant="outline" disabled={browsing} onClick={browse}>
+              <FolderOpen />
+              {t('settings.dataPath.browserBtn')}
             </Button>
           </div>
-          <div className="pt-2 flex justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <Button
-              size="small"
-              appearance="secondary"
-              disabled={dataPath === defaultDataPath}
-              onClick={() => setDataPath(defaultDataPath)}
+              variant="outline"
+              disabled={dataPath === data?.defaultDataPath || update.isPending}
+              onClick={() => setDraftPath(data?.defaultDataPath ?? '')}
             >
-              {intl.get('settings.dataPath.setToDefaultBtn')}
+              {t('settings.dataPath.setToDefaultBtn')}
             </Button>
             <Button
-              size="small"
-              appearance="secondary"
-              disabled={dataPath === activeDataPath}
-              onClick={() => settingStore.setDataPath(dataPath)}
+              disabled={!dataPath || dataPath === data?.dataPath || update.isPending}
+              onClick={() => update.mutate({ path: 'dataPath', value: dataPath })}
             >
-              {intl.get('settings.dataPath.applyBtn')}
+              {t('settings.dataPath.applyBtn')}
             </Button>
           </div>
-        </Item>
+        </section>
       </div>
     </div>
   )
 }
-
-export default observer(Settings)

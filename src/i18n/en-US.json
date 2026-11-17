@@ -3,9 +3,19 @@
     "list": {
       "unread": "Unread",
       "starred": "Starred",
-      "all": "All"
+      "all": "All",
+      "empty": "No articles here",
+      "emptyDescription": "Subscribe to a feed or choose another view.",
+      "feeds": "Subscriptions",
+      "noFeeds": "Your subscriptions will appear here.",
+      "selectAll": "Select all articles",
+      "selectArticle": "Select article: {{title}}",
+      "range": "{{start}}–{{end}} of {{count}}",
+      "previousPage": "Previous page",
+      "nextPage": "Next page",
+      "previousArticle": "Previous article",
+      "nextArticle": "Next article"
     },
-
     "action": {
       "delete": "Delete",
       "markRead": "Mark as read",
@@ -17,11 +27,14 @@
         "success": "Copied"
       },
       "fontIncrease": "Larger",
-      "fontDecrease": "Smaller"
+      "fontDecrease": "Smaller",
+      "star": "Add star",
+      "unstar": "Remove star",
+      "back": "Back to list",
+      "copyError": "Unable to copy the link."
     },
-
     "form": {
-      "title": "Subscribe a Channel",
+      "title": "Subscribe to a feed",
       "url": {
         "label": "URL (supports rss and atom)"
       },
@@ -31,13 +44,16 @@
       "buttons": {
         "subscribe": "Subscribe",
         "close": "Close"
-      }
+      },
+      "description": "Add an RSS or Atom feed to your reader.",
+      "invalid": "Enter a valid HTTP or HTTPS feed URL.",
+      "notFeed": "This URL did not return a valid RSS or Atom feed.",
+      "checking": "Checking feed…"
     },
-
     "keyboard": {
       "title": "Keyboard shortcuts",
       "keys": {
-        "sw": "Toggle shortcurts help",
+        "sw": "Toggle shortcuts help",
         "gi": "Go to Unread",
         "gs": "Go to Starred",
         "ga": "Go to All",
@@ -55,24 +71,38 @@
       }
     }
   },
-
   "settings": {
     "appearance": {
       "title": "Appearance",
       "light": "Light",
       "dark": "Dark",
-      "auto": "Auto"
+      "auto": "System",
+      "description": "Choose a theme or follow your system settings."
     },
-
     "locale": {
-      "title": "Language"
+      "title": "Language",
+      "description": "Changes apply immediately throughout the app."
     },
-
     "dataPath": {
       "title": "Choose directory to store data",
-      "browserBtn": "Browser",
+      "browserBtn": "Browse",
       "setToDefaultBtn": "Set To Default Directory",
-      "applyBtn": "Restart & Apply"
-    }
+      "applyBtn": "Restart & Apply",
+      "description": "Changing the data directory restarts the application."
+    },
+    "description": "Personalize your reading experience."
+  },
+  "common": {
+    "loading": "Loading…",
+    "loadError": "Unable to load data.",
+    "saveError": "Unable to save changes.",
+    "retry": "Try again",
+    "close": "Close",
+    "then": "then",
+    "reader": "Reader",
+    "settings": "Settings",
+    "toggleTheme": "Toggle light / dark theme",
+    "light": "Light",
+    "dark": "Dark"
   }
 }

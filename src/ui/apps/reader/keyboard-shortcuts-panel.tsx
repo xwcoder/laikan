@@ -1,148 +1,52 @@
-import { observer } from 'mobx-react-lite'
-import intl from 'react-intl-universal'
-import { store } from '@/ui/store'
-import {
-  Dialog,
-  DialogSurface,
-  DialogBody,
-  DialogTitle,
-  DialogContent,
-  makeStyles,
-  tokens,
-} from '@fluentui/react-components'
+import { useTranslation } from 'react-i18next'
+import { Dialog, DialogContent, DialogTitle } from '@/ui/components/ui/dialog'
 
-const { readerStore } = store
+const shortcuts = [
+  ['?', 'sw'],
+  ['g i', 'gi'],
+  ['g s', 'gs'],
+  ['g a', 'ga'],
+  ['* a', 'selectAll'],
+  ['* n', 'deselect'],
+  ['x', 'x'],
+  ['s', 's'],
+  ['j', 'j'],
+  ['k', 'k'],
+  ['o', 'o'],
+  ['u', 'u'],
+  ['v', 'v'],
+  ['Shift+i', 'shifti'],
+  ['Shift+u', 'shiftu'],
+] as const
 
-const useStyles = makeStyles({
-  key: {
-    color: tokens.colorPaletteMarigoldForeground3,
-    fontWeight: tokens.fontWeightBold,
-  },
-})
-
-function KeyboardShortcutsPanel() {
-  const { showKeyboardPanel } = readerStore
-  const styles = useStyles()
-
-  const shortcuts = [
-    {
-      keys: ['?'],
-      text: intl.get('reader.keyboard.keys.sw'),
-    },
-    {
-      keys: ['g', 'i'],
-      text: intl.get('reader.keyboard.keys.gi'),
-    },
-    {
-      keys: ['g', 's'],
-      text: intl.get('reader.keyboard.keys.gs'),
-    },
-    {
-      keys: ['g', 'a'],
-      text: intl.get('reader.keyboard.keys.ga'),
-    },
-    {
-      keys: ['*', 'a'],
-      text: intl.get('reader.keyboard.keys.selectAll'),
-    },
-    {
-      keys: ['*', 'n'],
-      text: intl.get('reader.keyboard.keys.deselect'),
-    },
-    {
-      keys: ['x'],
-      text: intl.get('reader.keyboard.keys.x'),
-    },
-    {
-      keys: ['s'],
-      text: intl.get('reader.keyboard.keys.s'),
-    },
-    {
-      keys: ['j'],
-      text: intl.get('reader.keyboard.keys.j'),
-    },
-    {
-      keys: ['k'],
-      text: intl.get('reader.keyboard.keys.k'),
-    },
-    {
-      keys: ['o'],
-      text: intl.get('reader.keyboard.keys.o'),
-    },
-    {
-      keys: ['u'],
-      text: intl.get('reader.keyboard.keys.u'),
-    },
-    {
-      keys: ['v'],
-      text: intl.get('reader.keyboard.keys.v'),
-    },
-    {
-      keys: ['shift', 'i'],
-      connector: '+',
-      text: intl.get('reader.keyboard.keys.shifti'),
-    },
-    {
-      keys: ['shift', 'u'],
-      text: intl.get('reader.keyboard.keys.shiftu'),
-      connector: '+',
-    },
-  ].map((item) => {
-    const keys = item.keys.map((k, index, v) => (
-      <span
-        key={k}
-      >
-        <span
-          className={styles.key}
-        >
-          {k}
-        </span>
-        {index !== v.length - 1 ? (
-          <span>
-            {' '}
-            {item.connector ?? 'then'}
-            {' '}
-          </span>
-        ) : null}
-      </span>
-    ))
-
-    return (
-      <div
-        key={item.keys.join('')}
-      >
-        <span
-          className="inline-block w-16 text-right"
-        >
-          {keys}
-        </span>
-        {' '}
-        :
-        {' '}
-        {item.text}
-      </div>
-    )
-  })
-
+export default function KeyboardShortcutsPanel({
+  open,
+  onOpenChange,
+}: {
+  open: boolean
+  onOpenChange: (value: boolean) => void
+}) {
+  const { t } = useTranslation()
   return (
-    <Dialog
-      open={showKeyboardPanel}
-      onOpenChange={() => readerStore.closeKeyboardPanel()}
-    >
-      <DialogSurface>
-        <DialogBody>
-          <DialogTitle>
-            {intl.get('reader.keyboard.title')}
-          </DialogTitle>
-          <DialogContent>
-            <div className="grid grid-cols-2 gap-y-2 gap-x-5">
-              {shortcuts}
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent aria-describedby={undefined}>
+        <DialogTitle>{t('reader.keyboard.title')}</DialogTitle>
+        <dl className="grid gap-3">
+          {shortcuts.map(([keys, text]) => (
+            <div key={text} className="flex items-center justify-between gap-5">
+              <dt className="text-sm text-muted-foreground">{t(`reader.keyboard.keys.${text}`)}</dt>
+              <dd className="flex shrink-0 gap-1 text-xs">
+                {keys.split(' ').map((key, index) => (
+                  <span key={key}>
+                    {index > 0 && <span className="mx-1 text-muted-foreground">{t('common.then')}</span>}
+                    <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono">{key}</kbd>
+                  </span>
+                ))}
+              </dd>
             </div>
-          </DialogContent>
-        </DialogBody>
-      </DialogSurface>
+          ))}
+        </dl>
+      </DialogContent>
     </Dialog>
   )
 }
-
-export default observer(KeyboardShortcutsPanel)

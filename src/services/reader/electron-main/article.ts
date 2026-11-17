@@ -1,6 +1,10 @@
 import db, { get, all, run } from '@/services/db/electron-main/db'
 import { Article, Tab } from '@/types/reader'
 
+export const getById = async (id: number): Promise<Article | null> => (
+  await get<Article | undefined>('select * from articles where id = ?', id)
+) ?? null
+
 export const upsert = (articles: Article | Article[]) => new Promise<void>((resolve, reject) => {
   const items = Array.isArray(articles) ? articles : [articles]
 

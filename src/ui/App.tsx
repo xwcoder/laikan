@@ -1,42 +1,68 @@
-import { ReactNode } from 'react'
-import {
-  FluentProvider,
-  webLightTheme,
-  webDarkTheme,
-} from '@fluentui/react-components'
-import { observer } from 'mobx-react-lite'
-
+import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
+import { X } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import Nav from '@/ui/Nav'
-import { store } from '@/ui/store'
+import { useAppStore } from '@/ui/store'
 import ReaderApp from '@/ui/apps/reader'
 import Settings from '@/ui/apps/settings'
-import { Apps } from '@/types/common'
+import { usePreferences } from '@/ui/hooks/use-preferences'
+import { readerKeys } from '@/ui/query/reader'
+import { settingsOptions } from '@/ui/query/settings'
+import * as remote from '@/services/remote/browser/remote'
+import { Button } from '@/ui/components/ui/button'
+import { AsyncState } from '@/ui/components/async-state'
 
-const apps: { [key in Apps]?: () => ReactNode } = {
-  reader: () => <ReaderApp />,
-  settings: () => <Settings />,
-}
+export default function App() {
+  const { t, i18n } = useTranslation()
+  const { app, error, setError } = useAppStore()
+  const settings = usePreferences()
+  const client = useQueryClient()
 
-function App() {
-  const theme = store.appearance === 'dark' ? webDarkTheme : webLightTheme
+  useEffect(
+    () => remote.on('/reader/feed', () => {
+      client.invalidateQueries({ queryKey: readerKeys.all })
+    }),
+    [client],
+  )
 
-  const renderApplication = apps[store.app] || apps.reader
+  useEffect(
+    () => remote.on('/settings/change', () => {
+      client.invalidateQueries({ queryKey: settingsOptions.queryKey })
+    }),
+    [client],
+  )
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { locale } = store
+  useEffect(() => {
+    document.documentElement.lang = i18n.resolvedLanguage ?? 'en-US'
+  }, [i18n.resolvedLanguage])
 
   return (
-    <FluentProvider theme={theme}>
-      <div className="w-[100vw] h-[100vh] grid grid-cols-[60px_1fr]">
-        <div className="draggle h-[100vh]">
-          <Nav />
-        </div>
-        <div className="h-[100vh]">
-          {renderApplication!()}
-        </div>
-      </div>
-    </FluentProvider>
+    <div className="grid h-screen grid-cols-[60px_minmax(0,1fr)] bg-sidebar text-foreground">
+      <Nav />
+      <main className="flex min-h-0 min-w-0 flex-col">
+        <div className="draggle h-7 shrink-0" />
+        {error && (
+          <div
+            role="alert"
+            className="undraggle mx-4 flex items-center gap-3 rounded-md border border-destructive/30 bg-destructive/10 px-4 py-2 text-destructive"
+          >
+            <span className="min-w-0 flex-1 break-words">
+              {t('common.saveError')}
+            </span>
+            <Button variant="ghost" size="icon" aria-label={t('common.close')} onClick={() => setError(null)}>
+              <X />
+            </Button>
+          </div>
+        )}
+        {settings.isPending || settings.isError ? (
+          <AsyncState error={settings.isError} retry={() => settings.refetch()} />
+        ) : app === 'settings' ? (
+          <Settings />
+        ) : (
+          <ReaderApp />
+        )}
+      </main>
+    </div>
   )
 }
-
-export default observer(App)

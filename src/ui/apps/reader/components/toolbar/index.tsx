@@ -1,6 +1,79 @@
-export { default as Button } from './button'
-export { default as RefreshButton } from './refresh-button'
-export { default as DeleteButton } from './delete-button'
-export { default as MarkReadButton } from './mark-read-button'
-export { default as StarButton } from './star-button'
-export { default as CopyButton } from './copy-button'
+import {
+  ArrowLeft, ExternalLink, Mail, MailOpen, Star, AArrowDown, AArrowUp,
+} from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { ReaderModel } from '@/ui/hooks/use-reader-model'
+import { Article } from '@/types/reader'
+import { IconButton } from '@/ui/components/icon-button'
+import { openExternal } from '@/base/browser/shell'
+import { cn } from '@/ui/lib/utils'
+
+export function StarButton({ model, article }: { model: ReaderModel; article: Article }) {
+  const { t } = useTranslation()
+  return (
+    <IconButton
+      label={t(article.starred ? 'reader.action.unstar' : 'reader.action.star')}
+      aria-pressed={!!article.starred}
+      className={cn('size-8', !!article.starred && 'text-star hover:text-star')}
+      disabled={model.writing}
+      onClick={() => model.toggleStar(article.id!)}
+    >
+      <Star className={cn(!!article.starred && 'fill-current')} />
+    </IconButton>
+  )
+}
+
+export function MarkReadButton({ model }: { model: ReaderModel }) {
+  const { t } = useTranslation()
+  const targets = model.opened && model.activeArticle
+    ? [model.activeArticle]
+    : model.articles.filter((a) => model.selectedIds.includes(a.id!))
+  const read = !targets.some((article) => !article.read)
+  return (
+    <IconButton
+      label={t(read ? 'reader.action.markUnread' : 'reader.action.markRead')}
+      disabled={!targets.length || model.writing}
+      onClick={model.toggleRead}
+    >
+      {read ? <Mail /> : <MailOpen />}
+    </IconButton>
+  )
+}
+
+export function ArticleToolbar({ model }: { model: ReaderModel }) {
+  const { t } = useTranslation()
+  const article = model.activeArticle
+  return (
+    <div className="flex h-12 shrink-0 items-center gap-1 border-b px-2">
+      <IconButton label={t('reader.action.back')} onClick={model.fold}>
+        <ArrowLeft />
+      </IconButton>
+      <div className="mx-2 h-5 border-l" />
+      <MarkReadButton model={model} />
+      {article && <StarButton model={model} article={article} />}
+      <IconButton
+        label={t('reader.action.openExternal')}
+        disabled={!article}
+        onClick={() => article && openExternal(article.url)}
+      >
+        <ExternalLink />
+      </IconButton>
+      <div className="ml-auto flex">
+        <IconButton
+          label={t('reader.action.fontDecrease')}
+          disabled={model.fontSize <= 12 || model.updatingFont}
+          onClick={() => model.changeFont(-1)}
+        >
+          <AArrowDown />
+        </IconButton>
+        <IconButton
+          label={t('reader.action.fontIncrease')}
+          disabled={model.fontSize >= 24 || model.updatingFont}
+          onClick={() => model.changeFont(1)}
+        >
+          <AArrowUp />
+        </IconButton>
+      </div>
+    </div>
+  )
+}

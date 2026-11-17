@@ -10,10 +10,10 @@ export type Article = {
   starred?: 0 | 1
   read?: 0 | 1
   feedId?: number
-
-  // TODO move to another type
-  selected?: boolean
 }
+
+export type ArticlePage = { count: number, data: Article[] }
+export type ArticleFilter = { tab: Tab | number, page: number, size: number }
 
 export type Feed = {
   id?: number

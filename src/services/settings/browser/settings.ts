@@ -1,5 +1,5 @@
 import fetch from '@/base/browser/fetch'
+import { Settings } from '@/types/settings'
 
-export const get = (path?: string) => fetch('/settings/get', path)
-
-export const set = (path: string, value: any) => fetch('/settings/set', { path, value })
+export const get = (): Promise<Settings> => fetch('/settings/get')
+export const set = (path: string, value: unknown): Promise<void> => fetch('/settings/set', { path, value })

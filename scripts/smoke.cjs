@@ -12,7 +12,7 @@ if (!process.versions.electron) {
     const result = spawnSync(require('electron'), [__filename, ...process.argv.slice(2)], {
       env,
       stdio: 'inherit',
-      timeout: 45000,
+      timeout: 75000,
     })
     if (result.error) throw result.error
     process.exitCode = result.status ?? 1
@@ -33,7 +33,7 @@ if (!process.versions.electron) {
   }
   process.on('uncaughtException', fail)
   process.on('unhandledRejection', fail)
-  setTimeout(() => fail(new Error('Application smoke test timed out')), 30000).unref()
+  setTimeout(() => fail(new Error('Application smoke test timed out')), 65000).unref()
 
   app.on('browser-window-created', (_, window) => {
     const contents = window.webContents
@@ -84,6 +84,7 @@ if (!process.versions.electron) {
         contents.send('/smoke/event', { ok: false })
         await new Promise(resolve => setTimeout(resolve, 100))
         assert.equal(await contents.executeJavaScript('window.__smokeEvents.length'), 1)
+        await require('./renderer-smoke.cjs')(contents, require('electron').nativeTheme)
         console.log(`Smoke passed: Electron ${process.versions.electron}; React, Tailwind, SQLite, settings IPC, event subscription/removal and sandbox isolation`)
         app.exit(0)
       } catch (error) {
