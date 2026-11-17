@@ -38,7 +38,7 @@ export default function App() {
   }, [i18n.resolvedLanguage])
 
   return (
-    <div className="grid h-screen grid-cols-[60px_minmax(0,1fr)] bg-sidebar text-foreground">
+    <div className="grid h-screen grid-cols-[80px_minmax(0,1fr)] bg-sidebar text-foreground">
       <Nav />
       <main className="flex min-h-0 min-w-0 flex-col">
         <div className="draggle h-7 shrink-0" />

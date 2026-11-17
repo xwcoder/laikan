@@ -15,7 +15,7 @@ export default function Reader() {
     <>
       <div className="grid min-h-0 flex-1 grid-cols-[190px_minmax(0,1fr)] lg:grid-cols-[240px_minmax(0,1fr)]">
         <aside className="undraggle min-h-0 overflow-y-auto px-3 py-3">
-          <SidePanel model={model} onHelp={() => setShowKeyboard(true)} />
+          <SidePanel model={model} />
         </aside>
         <div className="undraggle min-h-0 min-w-0 pr-4 pb-4">
           <div className="flex h-full flex-col overflow-hidden rounded-xl border bg-card shadow-xs">

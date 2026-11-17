@@ -40,8 +40,8 @@ export class Window {
       minHeight: 600,
       titleBarStyle: 'hidden',
       trafficLightPosition: {
-        x: 3,
-        y: 6,
+        x: 10,
+        y: 10,
       },
       show: false,
       icon: !isMac && !isWin ? path.join(__dirname, '../../assets/icons/icon.png') : undefined,

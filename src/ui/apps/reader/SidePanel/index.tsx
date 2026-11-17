@@ -1,5 +1,5 @@
 import {
-  Inbox, Star, Newspaper, Keyboard, Rss, Copy, Trash2,
+  Inbox, Star, Newspaper, Rss, Copy, Trash2,
 } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -12,7 +12,7 @@ import { AsyncState } from '@/ui/components/async-state'
 import { cn } from '@/ui/lib/utils'
 import AddButton from './Toolbar/add-btn'
 
-export default function SidePanel({ model, onHelp }: { model: ReaderModel; onHelp: () => void }) {
+export default function SidePanel({ model }: { model: ReaderModel }) {
   const { t } = useTranslation()
   const [copyStatus, setCopyStatus] = useState<'success' | 'error' | null>(null)
   const unreadCount = model.feeds.data?.reduce((sum, feed) => sum + (feed.unreadCount ?? 0), 0) ?? 0
@@ -105,10 +105,6 @@ export default function SidePanel({ model, onHelp }: { model: ReaderModel; onHel
       <p role="status" className="px-2 text-xs text-muted-foreground">
         {copyStatus && t(copyStatus === 'success' ? 'reader.action.copy.success' : 'reader.action.copyError')}
       </p>
-      <Button variant="ghost" className="mt-auto justify-start text-muted-foreground" onClick={onHelp}>
-        <Keyboard />
-        {t('reader.keyboard.title')}
-      </Button>
     </div>
   )
 }
