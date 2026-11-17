@@ -47,15 +47,19 @@ configures shadcn's source aliases for adding more components.
   both themes. Change those variables to update the application theme.
 - Component forms, dialogs and other private UI state use React `useState`.
   Zustand stores in `src/ui/store/` contain shared client state such as the
-  active app, reader tab, page, focused article and selected article IDs.
+  reader tab, page, focused article and selected article IDs.
 - All IPC-backed feeds, article lists/details, feed previews and saved settings
   use TanStack Query in `src/ui/query/`. Writes use mutations and invalidate
   affected queries after success. Background feed and settings IPC events also
   invalidate the cache; server data is never copied into Zustand.
 
-Use the navigation theme button to switch light/dark, or select Light, Dark or
-System in Settings. The system option follows OS theme changes. Theme, language
-and reader font size are saved through the existing Electron settings service.
+Open Settings using the gear fixed at the bottom of the subscription sidebar.
+Settings appear in a centered modal; select Light, Dark or System there. The
+system option follows OS theme changes. Theme and language changes save
+immediately through the existing Electron settings service, as does reader font
+size. Closing the modal with its close button, Escape or an outside click keeps
+your reading position. An unapplied data-directory draft is discarded on close;
+changing the active directory still requires Restart & Apply.
 
 Internationalization uses `react-i18next` with one bundled JSON resource per
 language: `src/i18n/en-US.json` and `src/i18n/zh-CN.json`. Keep their keys aligned
@@ -66,7 +70,9 @@ offline in packaged builds.
 `npm run test:smoke` additionally exercises the production UI with a local RSS
 fixture: theme/language persistence and system theme changes, feed previews and
 subscriptions, pagination, read/star mutations, font size, bulk keyboard
-shortcuts, push-driven cache updates, feed deletion and failed mutations. It
+shortcuts, push-driven cache updates, feed deletion and failed mutations. It also
+checks settings-modal dismissal, focus return, small-window scrolling, discarded
+directory drafts and preservation of reader state while changing settings. It
 uses an isolated temporary data directory. Set `EMO_SMOKE_SCREENSHOTS` to an
 output directory to capture representative screens.
 

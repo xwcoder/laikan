@@ -37,6 +37,8 @@ if (!process.versions.electron) {
 
   app.on('browser-window-created', (_, window) => {
     const contents = window.webContents
+    // Unpackaged builds open docked DevTools, which would shrink the test viewport.
+    contents.on('devtools-opened', () => contents.closeDevTools())
     contents.on('preload-error', (_, preloadPath, error) => fail(error))
     contents.on('did-fail-load', (_, code, message) => fail(new Error(`${code}: ${message}`)))
     contents.once('did-finish-load', async () => {

@@ -56,7 +56,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
 
   // Theme/language mutations must update both the UI and the persisted settings.
   await wait('document.querySelector("[data-tab=unread]")')
-  await click('[data-nav=settings]')
+  await click('[data-settings-trigger]')
   await wait('document.querySelector("[role=radio][value=light]")')
   await click('[role=radio][value=light]')
   await wait('!document.documentElement.classList.contains("dark")')
@@ -84,12 +84,13 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
   await wait('document.querySelector("[data-tab=unread]") && document.documentElement.lang === "zh-CN"')
   assert.equal(await run('document.documentElement.classList.contains("dark")'), true)
   assert.ok((await run('document.body.textContent')).includes('未读'))
-  await click('[data-nav=settings]')
+  await click('[data-settings-trigger]')
   await wait('document.querySelector("[role=radio][value=en-US]")')
   await click('[role=radio][value=en-US]')
   await wait('document.documentElement.lang === "en-US"')
-  await click('[data-nav=reader]')
-  await wait('document.querySelector("[data-tab=unread]")')
+  await click('[role=dialog] > button[aria-label=Close]')
+  await wait('!document.querySelector("[role=dialog]")')
+  await require('./settings-modal-smoke.cjs')(contents, { run, wait, click, press, snapshot })
 
   let fixtureCount = 52
   const server = http.createServer((request, response) => {
@@ -97,7 +98,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     if (request.url === '/invalid') { response.end('<html>Not a feed</html>'); return }
     const items = Array.from({ length: request.url === '/empty' ? 0 : fixtureCount }, (_, index) => `
       <item><title>Fixture article ${index + 1}</title><link>https://example.com/article/${index + 1}</link>
-      <description><![CDATA[<p>Fixture content ${index + 1}</p><p><a href="/relative">Relative link</a></p>
+      <description><![CDATA[<p>Fixture content ${index + 1}</p>${"<p>Reading position fixture.</p>".repeat(40)}<p><a href="/relative">Relative link</a></p>
       <img src="data:," onerror="window.__rssScriptRan = true"><script>window.__rssScriptRan = true</script>]]></description>
       <pubDate>Tue, 17 Nov 2026 08:00:00 GMT</pubDate></item>`).join('')
     response.end(`<?xml version="1.0"?><rss version="2.0"><channel><title>Fixture feed</title>
@@ -141,6 +142,30 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     assert.equal(await run('!!window.__rssScriptRan'), false, 'RSS markup must be sanitized')
     assert.equal(await run('document.querySelectorAll(".article-content script, .article-content [onerror]").length'), 0)
     assert.equal(await run('getComputedStyle(document.querySelector(".article-content")).fontSize'), '14px')
+
+    // The reading view and its scroll position survive modal interaction and setting writes.
+    await run(`(() => {
+      window.__smokeArticle = document.querySelector('article')
+      window.__smokeArticle.parentElement.scrollTop = 240
+      window.__smokeArticleScroll = window.__smokeArticle.parentElement.scrollTop
+    })()`)
+    assert.ok(await run('window.__smokeArticleScroll > 0'))
+    await click('[data-settings-trigger]')
+    await wait('document.querySelector("[data-settings-body]")')
+    await press('u'); await press('s'); await press('?', true)
+    assert.equal(await run('document.querySelectorAll("[role=dialog]").length'), 1)
+    assert.equal((await run(`window.emo.fetch('/reader/get/article', ${firstId})`)).starred, 1)
+    await click('[role=radio][value=light]')
+    await wait('!document.documentElement.classList.contains("dark")')
+    await wait('!document.querySelector("[role=radio][value=dark]").disabled')
+    await click('[role=radio][value=dark]')
+    await wait('document.documentElement.classList.contains("dark")')
+    await snapshot('settings-over-article')
+    await click('[role=dialog] > button[aria-label=Close]')
+    await wait('!document.querySelector("[role=dialog]")')
+    assert.equal(await run('window.__smokeArticle === document.querySelector("article")'), true)
+    assert.equal(await run('window.__smokeArticle.parentElement.scrollTop === window.__smokeArticleScroll'), true)
+
     await click('[aria-label="Larger"]')
     await wait('getComputedStyle(document.querySelector(".article-content")).fontSize === "15px"')
     await click('[aria-label="Smaller"]')
@@ -168,6 +193,19 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await wait('document.querySelectorAll("[data-list-item-id]").length === 50')
     await press('*', true); await press('a')
     await wait('document.querySelectorAll("[data-list-item-id] [role=checkbox][data-state=checked]").length === 50')
+    await run(`(() => {
+      window.__smokeList = document.querySelector('.list-container')
+      window.__smokeList.scrollTop = 300
+      window.__smokeListScroll = window.__smokeList.scrollTop
+    })()`)
+    await click('[data-settings-trigger]')
+    await wait('document.querySelector("[data-settings-body]")')
+    await press('x')
+    await press('Escape')
+    await wait('!document.querySelector("[role=dialog]")')
+    assert.equal(await run('window.__smokeList === document.querySelector(".list-container")'), true)
+    assert.equal(await run('window.__smokeList.scrollTop === window.__smokeListScroll'), true)
+    assert.equal(await run('document.querySelectorAll("[data-list-item-id] [role=checkbox][data-state=checked]").length'), 50)
     await press('I', true)
     await wait(`window.emo.fetch('/reader/get/articles', { tab: 'unread', page: 1, size: 50 }).then(result => result.count === 2)`)
     // Keep the sequence alive through a real background refresh and React renders.
