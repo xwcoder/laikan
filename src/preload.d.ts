@@ -4,9 +4,7 @@ import type { OpenDialogOptions, OpenDialogReturnValue } from 'electron'
 type EMO = {
   fetch: (ch: string, data?: any) => any
 
-  on: (ch: string, listener: Listener) => any
-
-  removeListener: (ch: string, listener: Listener) => any
+  on: (ch: string, listener: Listener) => () => void
 
   openExternal: (url: string) => void
 

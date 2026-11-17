@@ -57,7 +57,7 @@ export class ReaderStore {
   }
 
   private initListeners() {
-    remote.on('/reader/feed', (_, feeds: Feed | Feed[] = []) => {
+    remote.on('/reader/feed', (feeds: Feed | Feed[] = []) => {
       runInAction(() => {
         if (Array.isArray(feeds)) {
           this.feeds = feeds

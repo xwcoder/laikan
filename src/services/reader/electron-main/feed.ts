@@ -60,7 +60,7 @@ export const deleteById = (id: number) => new Promise<void>((resolve) => {
       await run('delete from feeds where id = ?', id)
       await run('delete from articles where feedId = ?', id)
       await run('COMMIT')
-    } catch (e) {
+    } catch {
       await run('ROLLBACK')
     } finally {
       resolve()

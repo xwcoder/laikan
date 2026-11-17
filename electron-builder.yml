@@ -1,0 +1,38 @@
+appId: com.xwcoder.emo
+productName: emo
+directories:
+  output: release
+  buildResources: assets/icons
+files:
+  - dist/**/*
+  - assets/icons/icon.png
+asar: true
+asarUnpack:
+  - node_modules/sqlite3/**/*
+npmRebuild: true
+artifactName: ${name}-${version}-${os}-${arch}.${ext}
+mac:
+  category: public.app-category.news
+  icon: assets/icons/icon.icns
+  target:
+    - dmg
+    - zip
+win:
+  icon: assets/icons/icon.ico
+  target:
+    - nsis
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+linux:
+  category: News
+  icon: assets/icons/icon.png
+  target:
+    - AppImage
+    - deb
+    - rpm
+publish:
+  provider: github
+  owner: xwcoder
+  repo: emo
+  releaseType: draft

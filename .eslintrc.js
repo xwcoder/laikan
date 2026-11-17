@@ -21,7 +21,7 @@ module.exports = {
     'import/resolver': {
       typescript: {},
       node: {
-        extensions: ['.ts', '.tsx', '.js', '.jsx'],
+        extensions: ['.ts', '.tsx', '.js', '.jsx', '.mts'],
       },
     },
   },
@@ -45,15 +45,18 @@ module.exports = {
       jsx: 'never',
       ts: 'never',
       tsx: 'never',
+      mts: 'never',
       json: 'always',
     }],
     'import/no-extraneous-dependencies': ['error', {
       devDependencies: [
         '**/*.test.js',
         '**/*.spec.js',
-        'build/**/*',
+        'src/ui/**',
+        'src/i18n/**',
         './*.js',
         './*.ts',
+        './*.mts',
       ],
     }],
     'import/prefer-default-export': ['off'],

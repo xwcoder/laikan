@@ -44,9 +44,12 @@ export class Window {
         y: 6,
       },
       show: false,
-      icon: !isDev && !isMac && !isWin ? path.join(__dirname, '../assets/icons/icon.png') : undefined,
+      icon: !isMac && !isWin ? path.join(__dirname, '../../assets/icons/icon.png') : undefined,
       webPreferences: {
-        preload: path.join(app.getAppPath(), 'dist/preload.js'),
+        preload: path.join(__dirname, '../preload/index.js'),
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: true,
         defaultFontFamily: {
           standard: isMac ? 'PingFang SC' : isWin ? 'Microsoft Yahei' : 'Times New Roman',
         },
@@ -64,10 +67,10 @@ export class Window {
       }
     })
 
-    if (isDev) {
-      this.window.loadURL('http://localhost:4000')
+    if (isDev && process.env.ELECTRON_RENDERER_URL) {
+      this.window.loadURL(process.env.ELECTRON_RENDERER_URL)
     } else {
-      this.window.loadFile('dist/ui/index.html')
+      this.window.loadFile(path.join(__dirname, '../renderer/index.html'))
     }
   }
 
