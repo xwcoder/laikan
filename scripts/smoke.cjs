@@ -87,6 +87,7 @@ if (!process.versions.electron) {
         await new Promise(resolve => setTimeout(resolve, 100))
         assert.equal(await contents.executeJavaScript('window.__smokeEvents.length'), 1)
         await require('./renderer-smoke.cjs')(contents, require('electron').nativeTheme)
+        await require('./rss-smoke.cjs')(contents)
         console.log(`Smoke passed: Electron ${process.versions.electron}; React, Tailwind, SQLite, settings IPC, event subscription/removal and sandbox isolation`)
         app.exit(0)
       } catch (error) {

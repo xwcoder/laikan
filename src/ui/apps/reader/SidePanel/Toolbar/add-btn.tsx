@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { Plus, LoaderCircle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
+import { FeedError } from '@/base/common/feed-error'
 import { preflightOptions, useSubscribe } from '@/ui/query/reader'
 import { Button } from '@/ui/components/ui/button'
 import { Input } from '@/ui/components/ui/input'
@@ -56,8 +57,10 @@ export default function AddButton() {
       if (id !== request.current) return
       if (!feed) setError(t('reader.form.notFeed'))
       else if (currentTitle.current === previousTitle) setTitle(feed.title)
-    } catch {
-      if (id === request.current) setError(t('reader.form.notFeed'))
+    } catch (failure) {
+      if (id === request.current) {
+        setError(t(failure instanceof FeedError ? `reader.form.errors.${failure.kind}` : 'reader.form.notFeed'))
+      }
     } finally {
       if (id === request.current) setChecking(false)
     }
@@ -128,6 +131,11 @@ export default function AddButton() {
               onChange={(event) => setTitle(event.target.value)}
             />
           </div>
+          {subscribe.error instanceof FeedError && (
+            <p role="alert" className="text-sm text-destructive">
+              {t(`reader.form.errors.${subscribe.error.kind}`)}
+            </p>
+          )}
           {checking && (
             <p role="status" className="flex items-center gap-2 text-xs text-muted-foreground">
               <LoaderCircle className="size-3 animate-spin" />

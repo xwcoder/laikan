@@ -10,13 +10,14 @@
     "start": "electron-vite preview",
     "build": "npm run type && npm run clean && electron-vite build",
     "lint": "npm run eslint && npm run type",
-    "eslint": "eslint src/ electron.vite.config.mts --ext .ts,.tsx,.js,.jsx,.mts",
+    "eslint": "eslint src/ tests/ electron.vite.config.mts --ext .ts,.tsx,.js,.jsx,.mts",
     "type": "tsc --noEmit",
     "package": "npm run build && electron-builder --dir --publish never",
     "make": "npm run build && electron-builder --publish never",
     "publish": "npm run build && electron-builder --publish always",
     "test:smoke": "npm run build && node scripts/smoke.cjs",
-    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\""
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "test": "node --import tsx --test tests/*.test.ts"
   },
   "keywords": [
     "electron",
@@ -46,7 +47,6 @@
     "@types/node": "^24.19.2",
     "@types/react": "^18.2.21",
     "@types/react-dom": "^18.2.7",
-    "@types/xml2js": "^0.4.12",
     "@typescript-eslint/eslint-plugin": "^8.73.0",
     "@typescript-eslint/parser": "^8.73.0",
     "@vitejs/plugin-react": "^6.3.0",
@@ -70,6 +70,7 @@
     "react-i18next": "^18.0.2",
     "tailwind-merge": "^3.7.0",
     "tailwindcss": "^4.3.5",
+    "tsx": "^4.23.15",
     "typescript": "~6.0.3",
     "vite": "^8.3.8",
     "zustand": "^5.1.0"
@@ -77,9 +78,10 @@
   "dependencies": {
     "lodash.get": "^4.4.2",
     "lodash.set": "^4.3.2",
+    "parse5": "^8.1.1",
+    "saxes": "^6.0.0",
     "sqlite3": "^5.1.7",
-    "winston": "^3.11.0",
-    "xml2js": "^0.6.2"
+    "winston": "^3.11.0"
   },
   "engines": {
     "node": ">=24.0.0"

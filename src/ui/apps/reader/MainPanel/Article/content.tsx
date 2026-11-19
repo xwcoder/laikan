@@ -1,11 +1,12 @@
 /* eslint-disable react/no-danger */
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import DOMPurify from 'dompurify'
 import { ReaderModel } from '@/ui/hooks/use-reader-model'
 import { formatDate } from '@/ui/lib/date'
 import { openExternal } from '@/base/browser/shell'
 import { cn } from '@/ui/lib/utils'
+import { articleContent } from '@/ui/lib/article-content'
+import { externalUrl } from '@/base/common/url'
 
 const fontSizes: Record<number, string> = {
   12: 'text-[12px]',
@@ -26,15 +27,13 @@ const fontSizes: Record<number, string> = {
 export default function Content({ model }: { model: ReaderModel }) {
   const { i18n } = useTranslation()
   const article = model.activeArticle
+  const feed = model.feeds.data?.find((item) => item.id === article?.feedId)
+  const base = article?.contentBase || article?.url || feed?.link || feed?.url
   const content = useMemo(
-    () => DOMPurify.sanitize(article?.content ?? '', {
-      FORBID_TAGS: ['style', 'form', 'input', 'button'],
-      FORBID_ATTR: ['style', 'class', 'id'],
-    }),
-    [article?.content],
+    () => articleContent(article?.content ?? '', base),
+    [article?.content, base],
   )
   if (!article) return null
-  const feed = model.feeds.data?.find((item) => item.id === article.feedId)
 
   return (
     <article className="mx-auto max-w-4xl px-8 pt-8 pb-16">
@@ -55,8 +54,8 @@ export default function Content({ model }: { model: ReaderModel }) {
           const anchor = (event.target as Element).closest('a')
           if (!anchor?.href) return
           event.preventDefault()
-          const url = new URL(anchor.getAttribute('href')!, article.url)
-          if (['http:', 'https:', 'mailto:'].includes(url.protocol)) openExternal(url.href)
+          const url = externalUrl(anchor.getAttribute('href')!, base)
+          if (url) openExternal(url)
         }}
         role="presentation"
         dangerouslySetInnerHTML={{ __html: content }}

@@ -111,3 +111,5 @@
   max-width: 100%;
   height: auto;
 }
+
+.article-content [data-feed-text] { white-space: pre-wrap; }

@@ -63,6 +63,14 @@ module.exports = {
   },
   overrides: [
     {
+      files: ['tests/**/*.test.ts'],
+      rules: {
+        // Repeated fixture values make expectations independent and readable.
+        'sonarjs/no-duplicate-string': 'off',
+        'no-script-url': 'off',
+      },
+    },
+    {
       // Reusable shadcn primitives forward native and Radix accessibility props.
       files: ['src/ui/components/**/*.tsx'],
       rules: { 'react/jsx-props-no-spreading': 'off' },

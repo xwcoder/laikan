@@ -1,5 +1,5 @@
 {
-  "include": ["src/**/*", "electron.vite.config.mts"],
+  "include": ["src/**/*", "tests/**/*", "electron.vite.config.mts"],
   "compilerOptions": {
     "target": "ES2023",
     "lib": ["DOM", "ESNext"],

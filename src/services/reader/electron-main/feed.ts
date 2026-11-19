@@ -1,7 +1,8 @@
-import db, { run, get, all } from '@/services/db/electron-main/db'
+import {
+  run, get, all, transaction,
+} from '@/services/db/electron-main/db'
 import { push } from '@/services/push/electron-main/push'
 import { Feed } from '@/types/reader'
-import { logger } from '@/services/logger/electron-main/logger'
 
 export const upsert = (feed: Feed) => {
   const {
@@ -54,20 +55,14 @@ export const getOne = (id: number): Promise<Feed | undefined> => {
   return get(sql, id)
 }
 
-export const deleteById = (id: number) => new Promise<void>((resolve, reject) => {
-  db.serialize(async () => {
-    try {
-      await run('BEGIN TRANSACTION')
-      await run('delete from feeds where id = ?', id)
-      await run('delete from articles where feedId = ?', id)
-      await run('COMMIT')
-      resolve()
-    } catch (error) {
-      await run('ROLLBACK').catch((rollbackError) => logger.error('[Reader] Rollback error', rollbackError))
-      reject(error)
-    }
-  })
+export const deleteById = (id: number) => transaction(async () => {
+  await run('DELETE FROM articles WHERE feedId = ?', id)
+  await run('DELETE FROM feeds WHERE id = ?', id)
 })
+
+export const updateValidators = (id: number, etag?: string, lastModified?: string) => (
+  run('UPDATE feeds SET etag = ?, lastModified = ? WHERE id = ?', etag ?? null, lastModified ?? null, id)
+)
 
 export const pushAll = async () => {
   const feeds = await getAll()

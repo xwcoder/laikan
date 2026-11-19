@@ -26,6 +26,8 @@ jobs:
         run: npm ci
       - name: Check
         run: npm run lint
+      - name: Parser and storage regression tests
+        run: npm test
       - name: Install Linux packaging tools
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install --no-install-recommends -y rpm

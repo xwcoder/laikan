@@ -48,7 +48,16 @@
       "description": "Add an RSS or Atom feed to your reader.",
       "invalid": "Enter a valid HTTP or HTTPS feed URL.",
       "notFeed": "This URL did not return a valid RSS or Atom feed.",
-      "checking": "Checking feed…"
+      "checking": "Checking feed…",
+      "errors": {
+        "http": "The feed server returned an error. Please try again later.",
+        "timeout": "The feed request timed out. Please try again.",
+        "network": "Unable to connect to the feed server.",
+        "encoding": "The feed character encoding is invalid or unsupported.",
+        "xml": "The feed contains invalid XML.",
+        "format": "This address does not contain a supported RSS or Atom feed.",
+        "limit": "This feed is too large to import. Choose a feed with fewer articles."
+      }
     },
     "keyboard": {
       "title": "Keyboard shortcuts",

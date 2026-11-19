@@ -59,7 +59,7 @@ export class Router {
     this.use(ch, handler)
   }
 
-  listen() {
+  listen(ready?: Promise<unknown>) {
     if (this.listened) {
       return
     }
@@ -72,7 +72,8 @@ export class Router {
           .forEach(([ch, handler]) => {
             ipcMain.handle(ch, async (_, data) => {
               try {
-                return handler(ch, data)
+                await ready
+                return await handler(ch, data)
               } catch (e) {
                 return Promise.reject(e)
               }

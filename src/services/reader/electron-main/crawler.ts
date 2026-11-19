@@ -1,71 +1,45 @@
-import * as feedService from '@/services/reader/electron-main/feed'
-import * as articleService from '@/services/reader/electron-main/article'
-import { parseURL } from '@/base/node/feed'
+import { fetchFeed } from '@/base/node/feed'
+import { runConcurrent } from '@/base/common/async'
+import { transaction } from '@/services/db/electron-main/db'
 import { logger } from '@/services/logger/electron-main/logger'
 import { Feed } from '@/types/reader'
+import * as feedService from './feed'
+import * as articleService from './article'
 
-const crawlOne = async (f: Feed) => {
-  const { url, id } = f
+const crawlOne = async (source: Feed) => {
   try {
-    const feed = await parseURL(url)
-
-    if (!feed) {
+    const result = await fetchFeed(source.url, {
+      force: true, etag: source.etag, lastModified: source.lastModified,
+    })
+    if (result.status === 'not-modified') {
+      await feedService.updateValidators(source.id!, result.etag, result.lastModified)
       return
     }
-
-    const items = (feed.items || []).map((v) => ({
-      ...v,
-      feedId: id,
-    }))
-
-    if (!items || !items.length) {
-      return
-    }
-
-    await articleService.upsert(items)
-    feedService.pushOne(id!)
-  } catch (e) {
-    logger.error(`[Reader] crawl error: ${url}`, e)
+    const saved = await transaction(async () => {
+      // A feed can be deleted while its HTTP request is still in flight.
+      if (!await feedService.getOne(source.id!)) return false
+      await articleService.upsert((result.feed.items ?? []).map((article) => ({ ...article, feedId: source.id })))
+      await feedService.updateValidators(source.id!, result.etag, result.lastModified)
+      return true
+    })
+    if (saved) await feedService.pushOne(source.id!)
+  } catch (error) {
+    logger.error('[Reader] Feed refresh failed', error)
   }
 }
 
-const conQueue = <T>(args: T[], limit: number, fn: (p: T) => Promise<any>) => new Promise<void>((resolve) => {
-  const len = Math.min(args.length, limit)
-  let index = 0
-
-  const run = () => {
-    const arg = args[index]
-    index += 1
-
-    fn(arg)
-      .finally(() => {
-        if (index < args.length) {
-          run()
-        } else {
-          resolve()
-        }
-      })
-  }
-
-  for (let i = 0; i < len; i += 1) {
-    run()
-  }
-})
-
 export const startCrawler = () => {
-  let timer: any
+  let timer: ReturnType<typeof setTimeout>
   const crawl = async () => {
-    clearTimeout(timer)
-
     try {
       const feeds = await feedService.getAll()
-      await conQueue(feeds, 10, crawlOne)
-    } catch (e) {
-      logger.error('[Reader] Crawl error', e)
+      await runConcurrent(feeds, 4, crawlOne)
+    } catch (error) {
+      logger.error('[Reader] Crawl error', error)
     } finally {
       timer = setTimeout(crawl, 15 * 60e3)
     }
   }
-
-  setTimeout(crawl, 3e3)
+  timer = setTimeout(crawl, 3e3)
+  return () => clearTimeout(timer)
 }

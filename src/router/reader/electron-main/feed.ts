@@ -1,8 +1,10 @@
 import { Feed } from '@/types/reader'
 import * as feedService from '@/services/reader/electron-main/feed'
 import * as articleService from '@/services/reader/electron-main/article'
-import { parseURL } from '@/base/node/feed'
+import { parseURL, FeedError } from '@/base/node/feed'
 import { logger } from '@/services/logger/electron-main/logger'
+import { httpUrl } from '@/base/common/url'
+import { transaction } from '@/services/db/electron-main/db'
 import { router } from './router'
 
 router.get('/feed/preflight', async (_, url: string) => {
@@ -13,36 +15,32 @@ router.get('/feed/preflight', async (_, url: string) => {
     return feed
   } catch (e) {
     logger.error('[Reader] feed/preflight error:', e)
-    return null
+    return { error: e instanceof FeedError ? e.kind : 'network' }
   }
 })
 
 router.post('/feed', async (_, { url, title }: Pick<Feed, 'url'|'title'>) => {
-  const feedRemote = await parseURL(url)
-  if (!feedRemote) throw new Error('Invalid RSS or Atom feed')
-  const feed: Feed = { ...feedRemote, url, title }
-
-  // insert feed
-  await feedService.upsert(feed)
-
-  if (!feed.items || !feed.items.length) {
-    return
+  const normalized = httpUrl(url)
+  if (!normalized) throw new Error('Feed URL must use HTTP or HTTPS')
+  if (typeof title !== 'string' || !title.trim()) throw new Error('Feed title is required')
+  const existing = await feedService.getByUrl(normalized) ?? await feedService.getByUrl(url)
+  let parsed: Feed
+  try {
+    parsed = await parseURL(normalized, { force: !!existing })
+  } catch (error) {
+    if (error instanceof FeedError) return { error: error.kind }
+    throw error
   }
-
-  const ifeed = await feedService.getByUrl(url)
-
-  if (!ifeed) {
-    return
-  }
-
-  // insert articles
-  const items = feed.items.map((v) => ({
-    ...v,
-    feedId: ifeed.id,
-  }))
-  await articleService.upsert(items)
-
-  feedService.pushOne(ifeed.id!)
+  const id = await transaction(async () => {
+    const feed: Feed = { ...parsed, url: existing?.url ?? parsed.url, title: title.trim() }
+    await feedService.upsert(feed)
+    const saved = (await feedService.getByUrl(feed.url))!
+    await articleService.upsert((feed.items ?? []).map((article) => ({ ...article, feedId: saved.id })))
+    await feedService.updateValidators(saved.id!, feed.etag, feed.lastModified)
+    return saved.id!
+  })
+  await feedService.pushOne(id)
+  return undefined
 })
 
 router.get('/feed/all', async () => feedService.getAll())

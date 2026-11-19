@@ -5,6 +5,9 @@ export type Article = {
   title: string
   url: string
   content: string
+  externalId?: string
+  identityKey?: string
+  contentBase?: string
   pubTime?: string
   author?: string
   starred?: 0 | 1
@@ -24,4 +27,6 @@ export type Feed = {
   unreadCount?: number
   items?: Article[]
   createTime?: string
+  etag?: string
+  lastModified?: string
 }

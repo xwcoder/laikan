@@ -25,6 +25,7 @@ restarts the main process when it changes, and reloads preload changes.
 
 ```sh
 npm run lint       # ESLint and TypeScript checks
+npm test           # RSS/Atom, HTTP, concurrency and SQLite regression tests
 npm run build      # Type-check and build all three processes into dist/
 npm start          # Preview the built production application
 npm run test:smoke # Build and verify startup, SQLite, IPC and renderer isolation
@@ -109,6 +110,27 @@ credentials can be supplied through electron-builder's environment variables;
 the included GitHub workflow produces unsigned builds.
 
 ## Reader
+RSS 2.0, RSS 1.0/RDF and Atom feeds are normalized before storage. Atom text,
+HTML and XHTML content retain their semantics, summary-only feeds are supported,
+and namespace prefixes do not affect format detection. Links and media resources
+are resolved using redirect URLs and inherited `xml:base` values. Response bytes
+are decoded using BOM, HTTP charset or XML declarations, with UTF-8 as the default.
+
+Requests have a 20-second deadline and a 10 MiB body limit. XML/HTML depth and
+node counts and the 5,000-article feed limit bound parsing work; parsing yields
+between chunks so it does not monopolize the main process. Up to four feeds
+refresh concurrently. ETag and Last-Modified validators are saved only after a
+successful import; unchanged feeds can return HTTP 304. A bounded 30-second
+cache lets preview and initial subscription share the same parsed result.
+
+Article identity uses RSS GUID / Atom ID, with URL and content-hash fallbacks.
+Articles without browser links remain readable. Existing databases migrate
+transactionally while preserving article IDs, read/star state and timestamps;
+legacy rows are adopted by URL when their source next refreshes. Imports are
+atomic, database operations cannot interleave with another transaction, and a
+failed migration rolls back to the original tables. Data already overwritten by
+older versions can only be recovered if the feed still supplies those articles.
+
 ![Reader screenshot](./docs/images/screenshot.png)
 
 ### Keyboard shortcus

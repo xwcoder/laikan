@@ -7,6 +7,7 @@ import { Article } from '@/types/reader'
 import { IconButton } from '@/ui/components/icon-button'
 import { openExternal } from '@/base/browser/shell'
 import { cn } from '@/ui/lib/utils'
+import { httpUrl } from '@/base/common/url'
 
 export function StarButton({ model, article }: { model: ReaderModel; article: Article }) {
   const { t } = useTranslation()
@@ -43,6 +44,7 @@ export function MarkReadButton({ model }: { model: ReaderModel }) {
 export function ArticleToolbar({ model }: { model: ReaderModel }) {
   const { t } = useTranslation()
   const article = model.activeArticle
+  const url = httpUrl(article?.url)
   return (
     <div className="flex h-12 shrink-0 items-center gap-1 border-b px-2">
       <IconButton label={t('reader.action.back')} onClick={model.fold}>
@@ -53,8 +55,8 @@ export function ArticleToolbar({ model }: { model: ReaderModel }) {
       {article && <StarButton model={model} article={article} />}
       <IconButton
         label={t('reader.action.openExternal')}
-        disabled={!article}
-        onClick={() => article && openExternal(article.url)}
+        disabled={!url}
+        onClick={() => url && openExternal(url)}
       >
         <ExternalLink />
       </IconButton>

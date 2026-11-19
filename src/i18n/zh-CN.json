@@ -48,7 +48,16 @@
       "description": "添加 RSS 或 Atom 频道，开始阅读。",
       "invalid": "请输入有效的 HTTP 或 HTTPS 频道地址。",
       "notFeed": "此地址未返回有效的 RSS 或 Atom 频道。",
-      "checking": "正在检查频道…"
+      "checking": "正在检查频道…",
+      "errors": {
+        "http": "频道服务器返回了错误，请稍后重试。",
+        "timeout": "获取频道超时，请重试。",
+        "network": "无法连接频道服务器，请检查网络。",
+        "encoding": "频道的字符编码无效或暂不支持。",
+        "xml": "频道的 XML 格式无效。",
+        "format": "此地址不是受支持的 RSS 或 Atom 频道。",
+        "limit": "频道内容过大，无法导入，请选择条目较少的订阅地址。"
+      }
     },
     "keyboard": {
       "title": "快捷键",
