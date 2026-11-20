@@ -9,7 +9,7 @@ type ReaderState = {
   opened: boolean
   selectedIds: number[]
   changeTab: (tab: Tab | number) => void
-  changePage: (page: number) => void
+  changePage: (page: number, activeId?: number | null) => void
   activate: (id: number | null) => void
   open: (id: number) => void
   fold: () => void
@@ -32,8 +32,8 @@ export const useReaderStore = create<ReaderState>((set) => ({
     opened: false,
     selectedIds: [],
   }),
-  changePage: (page) => set({ page, activeId: null, selectedIds: [] }),
-  activate: (activeId) => set({ activeId }),
+  changePage: (page, activeId = null) => set({ page, activeId, selectedIds: [] }),
+  activate: (activeId) => set((state) => (state.activeId === activeId ? state : { activeId })),
   open: (activeId) => set({ activeId, opened: true }),
   fold: () => set({ opened: false }),
   toggleSelected: (id) => set(({ selectedIds }) => ({

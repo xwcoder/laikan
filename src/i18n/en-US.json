@@ -33,6 +33,20 @@
       "back": "Back to list",
       "copyError": "Unable to copy the link."
     },
+    "refresh": {
+      "syncing": "Syncing feeds…",
+      "synced_one": "Synced {{count}} feed",
+      "synced_other": "Synced {{count}} feeds",
+      "partial": "{{succeeded}} synced, {{failed}} failed",
+      "error": "Couldn't sync feeds.",
+      "empty": "No feeds to sync."
+    },
+    "deleteFeed": {
+      "title": "Delete “{{title}}”?",
+      "description": "This permanently deletes the subscription and all its articles, including starred articles.",
+      "error": "Couldn't delete the subscription. Try again.",
+      "deleting": "Deleting…"
+    },
     "content": {
       "loadFullText": "Load full article",
       "showFullText": "Show full article",
@@ -114,6 +128,7 @@
     "loadError": "Unable to load data.",
     "saveError": "Unable to save changes.",
     "retry": "Try again",
+    "cancel": "Cancel",
     "close": "Close",
     "then": "then",
     "reader": "Reader",

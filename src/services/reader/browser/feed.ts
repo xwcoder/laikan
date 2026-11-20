@@ -1,5 +1,5 @@
 import fetch from '@/base/browser/fetch'
-import { Feed } from '@/types/reader'
+import { Feed, FeedRefreshResult } from '@/types/reader'
 import { FeedError, FeedErrorKind } from '@/base/common/feed-error'
 
 type ErrorReply = { error: FeedErrorKind }
@@ -18,3 +18,5 @@ export async function upsert(data: Pick<Feed, 'url' | 'title'>): Promise<void> {
 }
 
 export const deleteById = (id: number): Promise<void> => fetch('/reader/delete/feed', id)
+
+export const refreshAll = (): Promise<FeedRefreshResult> => fetch('/reader/post/feed/refresh')

@@ -57,7 +57,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(element, ${JSON.stringify(value)})
     element.dispatchEvent(new Event('input', { bubbles: true }))
   })()`)
-  const press = (key, shiftKey = false) => run(`document.body.dispatchEvent(new KeyboardEvent('keydown', {
+  const press = (key, shiftKey = false) => run(`document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {
     key: ${JSON.stringify(key)}, shiftKey: ${shiftKey}, bubbles: true, cancelable: true
   }))`)
   const snapshot = async (name) => {
@@ -107,9 +107,22 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
   await require('./settings-modal-smoke.cjs')(contents, { run, wait, click, press, snapshot })
 
   let fixtureCount = 52
+  let failRss = false
+  const rssRequests = []
   const server = http.createServer((request, response) => {
     response.setHeader('content-type', 'application/rss+xml')
     if (request.url === '/invalid') { response.end('<html>Not a feed</html>'); return }
+    if (request.url === '/rss') {
+      const validator = request.headers['if-none-match']
+      rssRequests.push(validator)
+      const etag = `"fixture-${fixtureCount}"`
+      response.setHeader('ETag', etag)
+      if (failRss || validator === etag) {
+        response.statusCode = failRss ? 503 : 304
+        response.end()
+        return
+      }
+    }
     const items = Array.from({ length: request.url === '/empty' ? 0 : fixtureCount }, (_, index) => `
       <item><title>Fixture article ${index + 1}</title><link>https://example.com/article/${index + 1}</link>
       <description><![CDATA[<p>Fixture content ${index + 1}</p>${"<p>Reading position fixture.</p>".repeat(40)}<p><a href="/relative">Relative link</a></p>
@@ -125,6 +138,8 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await wait('document.querySelector("#feed-url")')
     await press('?', true)
     assert.equal(await run('document.querySelectorAll("[role=dialog]").length'), 1, 'A subscription dialog blocks reader shortcuts')
+    contents.focus()
+    await wait('document.hasFocus()')
     await run('document.querySelector("#feed-url").focus()')
     await input('#feed-url', `${base}/rss`)
     await run('document.querySelector("#feed-title").focus()')
@@ -149,6 +164,45 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     const firstId = Number(await run('document.querySelector("[data-list-item-id]").dataset.listItemId'))
     const refreshButton = `[aria-label="${en.reader.action.refresh}"]`
     const starButton = `[data-list-item-id="${firstId}"] [aria-label="${en.reader.action.star}"]`
+    const [focusedId, nextId] = await run(`Array.from(document.querySelectorAll('[data-list-item-id]'))
+      .slice(1, 3).map(row => Number(row.dataset.listItemId))`)
+    const focusedRow = `[data-list-item-id="${focusedId}"]`
+    const nextRow = `[data-list-item-id="${nextId}"]`
+    const focusedIdExpression = 'Number(document.activeElement.closest("[data-list-item-id]")?.dataset.listItemId)'
+    // A focused row control takes precedence over the previously active article.
+    await run(`(() => {
+      const checkbox = document.querySelector('${focusedRow} [role=checkbox]')
+      checkbox.focus()
+      checkbox.dispatchEvent(new KeyboardEvent('keydown', { key: 's', bubbles: true, cancelable: true }))
+    })()`)
+    await wait(`document.querySelector('${focusedRow} [aria-label="Remove star"]')?.disabled === false`)
+    assert.ok(await run(`!!document.querySelector('${starButton}')`), 'The first article must not be starred')
+    await run(`document.querySelector('${focusedRow} [aria-label="Remove star"]').focus()`)
+    contents.sendInputEvent({ type: 'keyDown', keyCode: 'Tab' })
+    contents.sendInputEvent({ type: 'keyUp', keyCode: 'Tab' })
+    await wait(`document.activeElement.matches('${focusedRow} [data-article-open]')`)
+    assert.notEqual(await run('getComputedStyle(document.activeElement).boxShadow'), 'none', 'Tab should show the title focus ring')
+    await press('j')
+    await wait(`${focusedIdExpression} === ${nextId} && document.activeElement.hasAttribute('data-article-open')`)
+    assert.equal(await run('getComputedStyle(document.activeElement).boxShadow'), 'none', 'J/K should use the active row indicator')
+    await press('x')
+    await wait(`document.querySelector('${nextRow} [role=checkbox][data-state=checked]')`)
+    await press('k')
+    await wait(`${focusedIdExpression} === ${focusedId}`)
+    await press('s')
+    await wait(`document.querySelector('${focusedRow} [aria-label="Add star"]')?.disabled === false`)
+    await press('*', true); await press('n')
+    await wait('!document.querySelector("[data-list-item-id] [role=checkbox][data-state=checked]")')
+    const lastOnPage = await run(`(() => {
+      const row = document.querySelector('.list-container [data-list-item-id]:last-child')
+      row.querySelector('[data-article-open]').focus()
+      return Number(row.dataset.listItemId)
+    })()`)
+    await press('j')
+    await wait('document.body.textContent.includes("51–52 of 52") && document.activeElement === document.querySelector("[data-article-open]")')
+    await press('k')
+    await wait(`${focusedIdExpression} === ${lastOnPage}`)
+    await run('document.querySelector("[data-article-open]").focus()')
     await wait(`document.querySelector(${JSON.stringify(refreshButton)})?.disabled === false`)
     await hoverWithoutTooltip(refreshButton)
     await hoverWithoutTooltip(starButton)
@@ -209,6 +263,25 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await wait(`document.querySelector('article h1')?.textContent === ${JSON.stringify(readingTitles[0])}`)
     await click('[aria-label="Back to list"]')
     await wait('document.querySelector("[data-list-item-id]")')
+    const position = await run(`(() => {
+      const viewport = document.querySelector('.list-container')
+      const rows = viewport.querySelectorAll('[data-list-item-id]')
+      const row = rows[22]
+      row.scrollIntoView({ block: 'center' })
+      const button = row.querySelector('[data-article-open]')
+      const offset = row.getBoundingClientRect().top - viewport.getBoundingClientRect().top
+      button.focus({ preventScroll: true })
+      button.click()
+      return { id: Number(row.dataset.listItemId), nextId: Number(rows[23].dataset.listItemId), offset }
+    })()`)
+    await wait('document.querySelector(".article-content")')
+    await wait(`window.emo.fetch('/reader/get/article', ${position.id}).then(article => article.read === 1)`)
+    await click('[aria-label="Back to list"]')
+    await wait(`document.querySelector('.list-container') && !document.querySelector('[data-list-item-id="${position.id}"]')`)
+    const returnedOffset = await run(`document.querySelector('[data-list-item-id="${position.nextId}"]').getBoundingClientRect().top
+      - document.querySelector('.list-container').getBoundingClientRect().top`)
+    assert.ok(Math.abs(returnedOffset - position.offset) <= 1, 'The next unread article should occupy the opened row’s position')
+    assert.equal(await run(focusedIdExpression), position.nextId)
     await press('g'); await press('a')
     await wait('document.querySelector("[data-tab=all]").getAttribute("aria-pressed") === "true"')
     await wait('document.querySelectorAll("[data-list-item-id]").length === 50')
@@ -241,6 +314,35 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await click('[role=dialog] button[aria-label=Close]')
     await wait('!document.querySelector("[role=dialog]")')
 
+    await click('[aria-label="Next page"]')
+    await wait('document.body.textContent.includes("51–53 of 53")')
+    fixtureCount = 54
+    const beforeRefresh = rssRequests.length
+    await click(refreshButton)
+    await wait('document.querySelector(".list-container").parentElement.querySelector("[role=status]")?.textContent === "Synced 1 feed"')
+    assert.ok(rssRequests.slice(beforeRefresh).includes('"fixture-53"'), 'Manual refresh should fetch upstream using the saved validator')
+    assert.ok(await run('document.body.textContent.includes("51–54 of 54")'), 'Refresh should keep the current page')
+    failRss = true
+    await click(refreshButton)
+    await wait('document.body.textContent.includes("0 synced, 1 failed")')
+    assert.ok(await run('document.body.textContent.includes("51–54 of 54")'), 'A failed refresh should keep the current page and cached articles')
+    failRss = false
+    await click('[aria-label="Previous page"]')
+    await wait('document.body.textContent.includes("1–50 of 54")')
+    const anchor = await run(`(() => {
+      const viewport = document.querySelector('.list-container')
+      viewport.scrollTop = 333
+      const top = viewport.getBoundingClientRect().top
+      const row = Array.from(viewport.querySelectorAll('[data-list-item-id]')).find(item => item.getBoundingClientRect().bottom > top)
+      return { id: Number(row.dataset.listItemId), offset: row.getBoundingClientRect().top - top }
+    })()`)
+    fixtureCount = 55
+    await click(refreshButton)
+    await wait('document.body.textContent.includes("1–50 of 55")')
+    const refreshedOffset = await run(`document.querySelector('[data-list-item-id="${anchor.id}"]').getBoundingClientRect().top
+      - document.querySelector('.list-container').getBoundingClientRect().top`)
+    assert.ok(Math.abs(refreshedOffset - anchor.offset) <= 1, 'New articles should not shift the visible rows')
+
     await snapshot('reader-dark-en')
     const feedId = Number(await run('document.querySelector("[data-feed-id]").dataset.feedId'))
     const feedRow = `[data-feed-id="${feedId}"]`
@@ -269,6 +371,20 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await click(feedButton)
     await wait(`document.querySelector(${JSON.stringify(feedButton)}).getAttribute('aria-pressed') === 'true' && ${rowBackground} === '${highlight}'`)
     await click(deleteButton)
+    await wait('document.activeElement.textContent === "Cancel" && document.activeElement.closest("[role=alertdialog]")')
+    assert.match(await run('document.querySelector("[role=alertdialog]").textContent'), /Fixture feed.*including starred articles/)
+    assert.equal((await run('window.emo.fetch("/reader/get/feed/all")')).length, 1)
+    await press('g'); await press('a'); await press('?', true)
+    assert.equal(await run('!!document.querySelector("[role=dialog]")'), false)
+    assert.equal(await run(`document.querySelector(${JSON.stringify(feedButton)}).getAttribute('aria-pressed')`), 'true')
+    await press('Escape')
+    await wait(`!document.querySelector('[role=alertdialog]') && document.activeElement.matches(${JSON.stringify(deleteButton)})`)
+    assert.equal((await run(`window.emo.fetch('/reader/get/article', ${firstId})`)).starred, 1)
+
+    await click(deleteButton)
+    await wait('document.querySelector("[role=alertdialog] button:last-child")')
+    await click('[role=alertdialog] button:last-child')
+    await wait('!document.querySelector("[role=alertdialog]") && document.activeElement.matches("[data-tab=all]")')
     await wait('document.querySelectorAll("[data-feed-id]").length === 0 && document.querySelectorAll("[data-list-item-id]").length === 0')
     assert.deepEqual(await run('window.emo.fetch("/reader/get/feed/all")'), [])
     assert.equal((await run('window.emo.fetch("/reader/get/articles", { tab: "all", page: 1, size: 50 })')).count, 0)
@@ -291,7 +407,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     assert.equal(await run('document.querySelector("#feed-title").value'), 'Invalid feed')
     assert.equal((await run('window.emo.fetch("/reader/get/feed/all")')).length, 1)
     await click('[role=dialog] button[aria-label=Close]')
-    console.log('Renderer smoke passed: persisted light/dark/system themes, zh/en, RSS subscribe/preflight, pagination, read/star, font size, bulk shortcuts, push invalidation, deletion, empty feeds and mutation errors')
+    console.log('Renderer smoke passed: settings, subscriptions, focused shortcuts, reading position, feed refresh, confirmed deletion and mutation errors')
   } finally {
     await new Promise(resolve => server.close(resolve))
   }

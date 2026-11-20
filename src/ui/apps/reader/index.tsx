@@ -25,7 +25,8 @@ export default function Reader() {
         </aside>
         <div className="undraggle min-h-0 min-w-0 pr-4 pb-4">
           <div className="flex h-full flex-col overflow-hidden rounded-xl border bg-card shadow-xs">
-            {model.opened ? <Article model={model} /> : <List model={model} />}
+            <List key={model.tab} model={model} />
+            {model.opened && <Article model={model} />}
           </div>
         </div>
       </div>

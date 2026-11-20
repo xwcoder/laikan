@@ -33,6 +33,20 @@
       "back": "返回列表",
       "copyError": "复制链接失败。"
     },
+    "refresh": {
+      "syncing": "正在同步订阅源…",
+      "synced_one": "已同步 {{count}} 个订阅源",
+      "synced_other": "已同步 {{count}} 个订阅源",
+      "partial": "{{succeeded}} 个成功，{{failed}} 个失败",
+      "error": "无法同步订阅源。",
+      "empty": "暂无可同步的订阅源。"
+    },
+    "deleteFeed": {
+      "title": "删除「{{title}}」？",
+      "description": "此操作会永久删除该订阅源及其所有文章，包括已加星标的文章。",
+      "error": "无法删除订阅源，请重试。",
+      "deleting": "正在删除…"
+    },
     "content": {
       "loadFullText": "加载原文全文",
       "showFullText": "显示原文全文",
@@ -114,6 +128,7 @@
     "loadError": "数据加载失败。",
     "saveError": "保存失败。",
     "retry": "重试",
+    "cancel": "取消",
     "close": "关闭",
     "then": "然后",
     "reader": "阅读器",

@@ -4,6 +4,7 @@ import {
 import { ReaderModel } from '@/ui/hooks/use-reader-model'
 import { openExternal } from '@/base/browser/shell'
 import { useAppStore } from '@/ui/store'
+import { useReaderStore } from '@/ui/store/reader'
 
 const isEditing = (event: KeyboardEvent) => event.isComposing
   || event.metaKey
@@ -12,17 +13,18 @@ const isEditing = (event: KeyboardEvent) => event.isComposing
   || !!(event.target as HTMLElement).closest('input, textarea, select, [contenteditable="true"]')
 
 const shouldIgnore = (event: KeyboardEvent, showHelp: boolean) => isEditing(event)
-  || (!showHelp && !!document.querySelector('[role="dialog"]'))
+  || (!showHelp && !!document.querySelector('[role="dialog"], [role="alertdialog"]'))
 
 function getActions(model: ReaderModel) {
+  const { activeId } = useReaderStore.getState()
   const actions: Record<string, () => unknown> = {
     j: () => model.move(1),
     k: () => model.move(-1),
-    o: () => model.activeId !== null && model.open(model.activeId),
+    o: () => activeId !== null && model.open(activeId),
     u: model.fold,
-    s: () => model.toggleStar(),
+    s: () => model.toggleStar(activeId),
     v: () => model.opened && model.activeArticle && openExternal(model.activeArticle.url),
-    x: () => model.activeId !== null && model.toggleSelected(model.activeId),
+    x: () => activeId !== null && model.toggleSelected(activeId),
     'shift+i': () => model.markRead(1),
     'shift+u': () => model.markRead(0),
     gi: () => model.changeTab('unread'),
@@ -34,10 +36,12 @@ function getActions(model: ReaderModel) {
   return actions
 }
 
-const run = (action: () => unknown) => {
-  Promise.resolve()
-    .then(action)
-    .catch((error: Error) => useAppStore.getState().setError(error.message))
+async function run(action: () => unknown) {
+  try {
+    await action()
+  } catch (error) {
+    useAppStore.getState().setError(error instanceof Error ? error.message : String(error))
+  }
 }
 
 const shortcutKey = (sequence: string, event: KeyboardEvent) => {

@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import { Inbox } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { ReaderModel } from '@/ui/hooks/use-reader-model'
@@ -6,22 +5,34 @@ import { AsyncState } from '@/ui/components/async-state'
 
 import Item from './item'
 import Toolbar from './toolbar'
+import { useListPosition } from './use-list-position'
 
 export default function List({ model }: { model: ReaderModel }) {
   const { t } = useTranslation()
-  const { articles, activeId } = model
-
-  useEffect(() => {
-    document.querySelector(`[data-list-item-id="${activeId}"]`)?.scrollIntoView({ block: 'nearest' })
-  }, [activeId])
+  const { articles } = model
+  const {
+    ref, rememberPosition, onFocus, onBlur,
+  } = useListPosition(model)
+  if (model.opened) return null
+  const refresh = () => {
+    if (model.refresh.isPending) return
+    rememberPosition()
+    model.refresh.mutate()
+  }
 
   return (
     <>
-      <Toolbar model={model} />
+      <Toolbar model={model} onRefresh={refresh} />
       {model.list.isPending || model.list.isError ? (
         <AsyncState error={model.list.isError} retry={() => model.list.refetch()} />
       ) : (
-        <div className="list-container min-h-0 flex-1 overflow-y-auto pb-6">
+        <div
+          ref={ref}
+          onScroll={rememberPosition}
+          onFocus={onFocus}
+          onBlur={onBlur}
+          className="list-container min-h-0 flex-1 overflow-y-auto pb-6 [overflow-anchor:none]"
+        >
           {articles.length ? (
             articles.map((article) => <Item key={article.id} model={model} article={article} />)
           ) : (

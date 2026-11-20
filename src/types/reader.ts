@@ -41,3 +41,5 @@ export type Feed = {
   etag?: string
   lastModified?: string
 }
+
+export type FeedRefreshResult = { succeeded: number, failed: number }

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { QueryClient, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArticleListItem, ArticlePage, Tab } from '@/types/reader'
 import { useReaderStore } from '@/ui/store/reader'
@@ -6,28 +6,34 @@ import {
   articleOptions,
   articlesOptions,
   feedsOptions,
-  readerKeys,
   useDeleteFeed,
   useMarkRead,
+  useRefreshFeeds,
   useStarArticle,
 } from '@/ui/query/reader'
 import { useSettings, useUpdateSettings } from '@/ui/query/settings'
 
 type ReaderState = ReturnType<typeof useReaderStore.getState>
+const emptyArticles: ArticleListItem[] = []
 
 function useSelectionSync(state: ReaderState, result: ArticlePage | undefined) {
   const {
-    opened, activeId, selectedIds, page, size,
+    opened, tab, page, size,
   } = state
   useEffect(() => {
     if (opened || !result) return
-    const ids = result.data.map((article) => article.id!)
-    if (!ids.includes(activeId!)) state.activate(ids[0] ?? null)
-    const selected = selectedIds.filter((id) => ids.includes(id))
-    if (selected.length !== selectedIds.length) state.select(selected)
+    const current = useReaderStore.getState()
+    if (current.opened || current.tab !== tab || current.page !== page) return
     const lastPage = Math.max(1, Math.ceil(result.count / size))
-    if (page > lastPage) state.changePage(lastPage)
-  }, [result, opened, activeId, page, size, selectedIds])
+    if (page > lastPage) {
+      current.changePage(lastPage)
+      return
+    }
+    const ids = result.data.map((article) => article.id!)
+    if (!ids.includes(current.activeId!)) current.activate(ids[0] ?? null)
+    const selected = current.selectedIds.filter((id) => ids.includes(id))
+    if (selected.length !== current.selectedIds.length) current.select(selected)
+  }, [result, opened, tab, page, size])
 }
 
 const hasFilteredArticles = (tab: Tab | number, articles: ArticleListItem[]) => (
@@ -35,35 +41,32 @@ const hasFilteredArticles = (tab: Tab | number, articles: ArticleListItem[]) => 
   || (tab === 'starred' && articles.some((article) => article.starred === 0))
 )
 
-async function movePage(client: QueryClient, state: ReaderState, result: ArticlePage, direction: 1 | -1) {
+async function getPageTarget(client: QueryClient, state: ReaderState, result: ArticlePage, direction: 1 | -1) {
   const { tab, page, size } = state
   const nextPage = direction === 1 && hasFilteredArticles(tab, result.data) ? page : page + direction
-  if (nextPage < 1 || nextPage > Math.ceil(result.count / size)) return
+  if (nextPage < 1 || nextPage > Math.ceil(result.count / size)) return null
   const next = await client.fetchQuery(articlesOptions({ tab, page: nextPage, size }))
-  const current = useReaderStore.getState()
-  // Ignore navigation that completed after switching views or closing the article.
-  if (current.tab !== tab || current.page !== page || current.opened !== state.opened) return
-  if (!next.data.length) return
-  state.changePage(nextPage)
-  state.activate((direction === 1 ? next.data[0] : next.data[next.data.length - 1]).id!)
+  return { page: nextPage, article: direction === 1 ? next.data[0] : next.data.at(-1) }
 }
 
 function useNavigation(state: ReaderState, result: ArticlePage | undefined, fetching: boolean) {
   const client = useQueryClient()
-  const refresh = () => {
-    state.fold()
-    state.select([])
-    if (state.page !== 1) state.changePage(1)
-    client.invalidateQueries({ queryKey: readerKeys.all })
-  }
+  const focusRequest = useRef<number | null>(null)
   const move = async (direction: 1 | -1) => {
     if (fetching || !result?.data.length) return
-    const index = result.data.findIndex((article) => article.id === state.activeId)
-    const next = index + direction
-    if (next >= 0 && next < result.data.length) state.activate(result.data[next].id!)
-    else await movePage(client, state, result, direction)
+    const current = useReaderStore.getState()
+    if (current.tab !== state.tab || current.page !== state.page) return
+    const index = result.data.findIndex((article) => article.id === current.activeId)
+    const article = result.data[index + direction]
+    const next = article ? { page: current.page, article } : await getPageTarget(client, current, result, direction)
+    // A page request can finish after focus or the current view has already changed.
+    if (!next?.article || useReaderStore.getState() !== current) return
+    const id = next.article.id!
+    if (!current.opened) focusRequest.current = id
+    if (next.page === current.page) current.activate(id)
+    else current.changePage(next.page, id)
   }
-  return { refresh, move }
+  return { move, focusRequest }
 }
 
 function getReadTargets(state: ReaderState, articles: ArticleListItem[], activeArticle?: ArticleListItem | null) {
@@ -113,20 +116,20 @@ export function useReaderModel() {
   const detail = useQuery({ ...articleOptions(activeId), enabled: opened && activeId !== null })
   const settings = useSettings()
   const updateSettings = useUpdateSettings()
-  const deleteMutation = useDeleteFeed()
-  const articles = list.data?.data ?? []
+  const refresh = useRefreshFeeds()
+  const deleteMutation = useDeleteFeed((id) => {
+    const current = useReaderStore.getState()
+    if (current.tab === id) current.changeTab('all')
+    else if (current.opened) current.fold()
+  })
+  const articles = list.data?.data ?? emptyArticles
   const activeArticle = opened ? detail.data : articles.find((article) => article.id === activeId)
   const fontSize = Math.max(12, Math.min(24, settings.data?.reader?.fontSize ?? 14))
   const actions = useArticleActions(state, articles, activeArticle)
   const navigation = useNavigation(state, list.data, list.isFetching || actions.writing)
   useSelectionSync(state, list.data)
 
-  const deleteFeed = (id: number) => deleteMutation.mutate(id, {
-    onSuccess: () => {
-      if (useReaderStore.getState().tab === id) state.changeTab('all')
-      else navigation.refresh()
-    },
-  })
+  const deleteFeed = (id: number, onSuccess: () => void) => deleteMutation.mutate(id, { onSuccess })
   const changeFont = (delta: number) => updateSettings.mutate({
     path: 'reader.fontSize',
     value: Math.max(12, Math.min(24, fontSize + delta)),
@@ -143,9 +146,12 @@ export function useReaderModel() {
     activeArticle,
     fontSize,
     count: list.data?.count ?? 0,
+    refresh,
     deleteFeed,
     changeFont,
     deleting: deleteMutation.isPending,
+    deleteFailed: deleteMutation.isError,
+    resetDelete: deleteMutation.reset,
     updatingFont: updateSettings.isPending,
   }
 }

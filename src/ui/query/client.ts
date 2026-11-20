@@ -7,6 +7,8 @@ export const queryClient = new QueryClient({
     mutations: { retry: false },
   },
   mutationCache: new MutationCache({
-    onError: (error) => useAppStore.getState().setError(error.message),
+    onError: (error, _variables, _context, mutation) => {
+      if (!mutation.meta?.inlineError) useAppStore.getState().setError(error.message)
+    },
   }),
 })

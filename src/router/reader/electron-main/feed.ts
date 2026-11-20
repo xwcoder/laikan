@@ -1,6 +1,7 @@
 import { Feed } from '@/types/reader'
 import * as feedService from '@/services/reader/electron-main/feed'
 import * as articleService from '@/services/reader/electron-main/article'
+import { refreshFeeds } from '@/services/reader/electron-main/crawler'
 import { parseURL, FeedError } from '@/base/node/feed'
 import { logger } from '@/services/logger/electron-main/logger'
 import { httpUrl } from '@/base/common/url'
@@ -44,5 +45,7 @@ router.post('/feed', async (_, { url, title }: Pick<Feed, 'url'|'title'>) => {
 })
 
 router.get('/feed/all', async () => feedService.getAll())
+
+router.post('/feed/refresh', () => refreshFeeds())
 
 router.delete('/feed', async (_, id: number) => feedService.deleteById(id))

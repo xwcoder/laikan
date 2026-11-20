@@ -1,7 +1,7 @@
 import {
   Inbox, Star, Newspaper, Rss, Copy, Trash2,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ReaderModel } from '@/ui/hooks/use-reader-model'
 import { Tab } from '@/types/reader'
@@ -10,10 +10,14 @@ import { Separator } from '@/ui/components/ui/separator'
 import { AsyncState } from '@/ui/components/async-state'
 import { cn } from '@/ui/lib/utils'
 import AddButton from './Toolbar/add-btn'
+import DeleteFeedDialog from './delete-feed-dialog'
 
 export default function SidePanel({ model }: { model: ReaderModel }) {
   const { t } = useTranslation()
   const [copyStatus, setCopyStatus] = useState<'success' | 'error' | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number, title: string } | null>(null)
+  const deleteTrigger = useRef<HTMLButtonElement | null>(null)
+  const allTab = useRef<HTMLButtonElement | null>(null)
   const unreadCount = model.feeds.data?.reduce((sum, feed) => sum + (feed.unreadCount ?? 0), 0) ?? 0
   const tabs = [
     { tab: 'unread', Icon: Inbox },
@@ -36,6 +40,7 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
         {tabs.map(({ tab, Icon }) => (
           <Button
             key={tab}
+            ref={tab === 'all' ? allTab : undefined}
             variant="ghost"
             data-tab={tab}
             aria-pressed={model.tab === tab}
@@ -101,7 +106,11 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
                   aria-label={t('reader.action.delete')}
                   className="size-7 hover:bg-foreground/10"
                   disabled={model.deleting}
-                  onClick={() => model.deleteFeed(feed.id!)}
+                  onClick={(event) => {
+                    model.resetDelete()
+                    deleteTrigger.current = event.currentTarget
+                    setDeleteTarget({ id: feed.id!, title: feed.title || feed.url })
+                  }}
                 >
                   <Trash2 />
                 </Button>
@@ -115,6 +124,25 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
       <p role="status" className="px-2 text-xs text-muted-foreground">
         {copyStatus && t(copyStatus === 'success' ? 'reader.action.copy.success' : 'reader.action.copyError')}
       </p>
+      <DeleteFeedDialog
+        title={deleteTarget?.title ?? null}
+        deleting={model.deleting}
+        failed={model.deleteFailed}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (!deleteTarget) return
+          model.deleteFeed(deleteTarget.id, () => {
+            deleteTrigger.current = null
+            setDeleteTarget(null)
+          })
+        }}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault()
+          const trigger = deleteTrigger.current
+          const target = trigger?.isConnected ? trigger : allTab.current
+          target?.focus()
+        }}
+      />
     </div>
   )
 }

@@ -28,6 +28,7 @@ export default function Item({ model, article }: { model: ReaderModel; article: 
       <StarButton model={model} article={article} />
       <button
         type="button"
+        data-article-open
         className="flex min-w-0 flex-1 items-center gap-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         onClick={() => model.open(article.id!)}
       >

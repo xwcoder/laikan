@@ -65,11 +65,24 @@ export function useSubscribe() {
   })
 }
 
-export function useDeleteFeed() {
+export function useRefreshFeeds() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: feedService.refreshAll,
+    meta: { inlineError: true },
+    onSuccess: () => client.invalidateQueries({ queryKey: readerKeys.all }),
+  })
+}
+
+export function useDeleteFeed(onDeleted: (id: number) => void) {
   const client = useQueryClient()
   return useMutation({
     mutationFn: feedService.deleteById,
-    onSuccess: () => client.invalidateQueries({ queryKey: readerKeys.all }),
+    meta: { inlineError: true },
+    onSuccess: (_, id) => {
+      onDeleted(id)
+      return client.invalidateQueries({ queryKey: readerKeys.all })
+    },
   })
 }
 
