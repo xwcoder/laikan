@@ -46,6 +46,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     })()`)
     contents.sendInputEvent({ type: 'mouseMove', ...point })
     await wait(`${element}.matches(':hover')`)
+    return point
   }
   const hoverWithoutTooltip = async (selector) => {
     await hover(selector)
@@ -60,6 +61,10 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
   const press = (key, shiftKey = false) => run(`document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {
     key: ${JSON.stringify(key)}, shiftKey: ${shiftKey}, bubbles: true, cancelable: true
   }))`)
+  const tab = (modifiers = []) => {
+    contents.sendInputEvent({ type: 'keyDown', keyCode: 'Tab', modifiers })
+    contents.sendInputEvent({ type: 'keyUp', keyCode: 'Tab', modifiers })
+  }
   const snapshot = async (name) => {
     const dir = process.env.EMO_SMOKE_SCREENSHOTS
     if (!dir) return
@@ -178,8 +183,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await wait(`document.querySelector('${focusedRow} [aria-label="Remove star"]')?.disabled === false`)
     assert.ok(await run(`!!document.querySelector('${starButton}')`), 'The first article must not be starred')
     await run(`document.querySelector('${focusedRow} [aria-label="Remove star"]').focus()`)
-    contents.sendInputEvent({ type: 'keyDown', keyCode: 'Tab' })
-    contents.sendInputEvent({ type: 'keyUp', keyCode: 'Tab' })
+    tab()
     await wait(`document.activeElement.matches('${focusedRow} [data-article-open]')`)
     assert.notEqual(await run('getComputedStyle(document.activeElement).boxShadow'), 'none', 'Tab should show the title focus ring')
     await press('j')
@@ -350,7 +354,9 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     const copyButton = `${feedRow} [aria-label="${en.reader.action.copy.title}"]`
     const deleteButton = `${feedRow} [aria-label="${en.reader.action.delete}"]`
     const rowElement = `document.querySelector(${JSON.stringify(feedRow)})`
+    const feedElement = `document.querySelector(${JSON.stringify(feedButton)})`
     const rowBackground = `getComputedStyle(${rowElement}).backgroundColor`
+    const actionsStyle = `getComputedStyle(${rowElement}.querySelector('[data-feed-actions]'))`
     const transparent = 'rgba(0, 0, 0, 0)'
 
     // Real mouse movement must preserve the row highlight across both action buttons.
@@ -363,13 +369,24 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
       assert.notEqual(await run(`getComputedStyle(document.querySelector(${JSON.stringify(selector)})).backgroundColor`), transparent)
     }
     await hover('[data-tab=all]')
-    await wait(`${rowBackground} === '${transparent}'`)
-    await run(`document.querySelector(${JSON.stringify(copyButton)}).focus()`)
-    await wait(`${rowBackground} === '${highlight}' && getComputedStyle(document.activeElement.parentElement).opacity === '1'`)
-    await run('document.activeElement.blur()')
+    await wait(`${rowBackground} === '${transparent}' && ${actionsStyle}.opacity === '0'`)
 
-    await click(feedButton)
-    await wait(`document.querySelector(${JSON.stringify(feedButton)}).getAttribute('aria-pressed') === 'true' && ${rowBackground} === '${highlight}'`)
+    const point = await hover(feedButton)
+    contents.sendInputEvent({ type: 'mouseDown', button: 'left', clickCount: 1, ...point })
+    contents.sendInputEvent({ type: 'mouseUp', button: 'left', clickCount: 1, ...point })
+    await wait(`${feedElement}.getAttribute('aria-pressed') === 'true' && document.activeElement === ${feedElement}`)
+    await hover('[data-tab=all]')
+    assert.equal(await run(`${actionsStyle}.opacity`), '0', 'Mouse selection should not keep the actions visible')
+    assert.equal(await run(`${actionsStyle}.pointerEvents`), 'none')
+    await wait(`${rowBackground} === '${highlight}'`)
+    contents.focus()
+    await wait(`document.hasFocus() && document.activeElement === ${feedElement}`)
+    tab()
+    await wait(`document.activeElement.matches(${JSON.stringify(copyButton)}) && ${actionsStyle}.opacity === '1'`)
+    tab(['shift'])
+    await wait(`document.activeElement === ${feedElement} && ${actionsStyle}.opacity === '0'`)
+
+    await hover(feedButton)
     await click(deleteButton)
     await wait('document.activeElement.textContent === "Cancel" && document.activeElement.closest("[role=alertdialog]")')
     assert.match(await run('document.querySelector("[role=alertdialog]").textContent'), /Fixture feed.*including starred articles/)

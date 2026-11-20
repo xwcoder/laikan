@@ -68,7 +68,7 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
             <div
               key={feed.id}
               className={cn(
-                'group relative flex items-center rounded-md transition-colors hover:bg-accent focus-within:bg-accent',
+                'group relative flex items-center rounded-md transition-colors hover:bg-accent has-focus-visible:bg-accent',
                 model.tab === feed.id && 'bg-accent',
               )}
               data-feed-id={feed.id}
@@ -77,7 +77,8 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
                 variant="ghost"
                 aria-pressed={model.tab === feed.id}
                 className={cn(
-                  'w-full justify-start pr-4 hover:bg-transparent group-focus-within:pr-16 group-hover:pr-16',
+                  'w-full justify-start pr-4 hover:bg-transparent group-hover:pr-16',
+                  'group-has-[[data-feed-actions]_:focus-visible]:pr-16',
                   model.tab === feed.id && 'text-primary hover:text-primary',
                 )}
                 onClick={() => model.changeTab(feed.id!)}
@@ -85,12 +86,19 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
                 <Rss className="shrink-0 text-muted-foreground" />
                 <span className={cn('truncate', !!feed.unreadCount && 'font-semibold')}>{feed.title}</span>
                 {!!feed.unreadCount && (
-                  <span className="ml-auto text-xs tabular-nums group-focus-within:hidden group-hover:hidden">
+                  <span className="ml-auto text-xs tabular-nums group-hover:hidden group-has-[[data-feed-actions]_:focus-visible]:hidden">
                     {feed.unreadCount}
                   </span>
                 )}
               </Button>
-              <div className="pointer-events-none absolute right-1 flex opacity-0 group-focus-within:pointer-events-auto group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100">
+              <div
+                data-feed-actions
+                className={cn(
+                  'pointer-events-none absolute right-1 flex opacity-0',
+                  'group-hover:pointer-events-auto group-hover:opacity-100',
+                  'has-focus-visible:pointer-events-auto has-focus-visible:opacity-100',
+                )}
+              >
                 <Button
                   variant="ghost"
                   size="icon"
