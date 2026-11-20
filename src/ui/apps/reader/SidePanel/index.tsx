@@ -7,7 +7,6 @@ import { ReaderModel } from '@/ui/hooks/use-reader-model'
 import { Tab } from '@/types/reader'
 import { Button } from '@/ui/components/ui/button'
 import { Separator } from '@/ui/components/ui/separator'
-import { IconButton } from '@/ui/components/icon-button'
 import { AsyncState } from '@/ui/components/async-state'
 import { cn } from '@/ui/lib/utils'
 import AddButton from './Toolbar/add-btn'
@@ -61,13 +60,20 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
           <AsyncState error={model.feeds.isError} retry={() => model.feeds.refetch()} />
         ) : model.feeds.data.length ? (
           model.feeds.data.map((feed) => (
-            <div key={feed.id} className="group relative flex items-center" data-feed-id={feed.id}>
+            <div
+              key={feed.id}
+              className={cn(
+                'group relative flex items-center rounded-md transition-colors hover:bg-accent focus-within:bg-accent',
+                model.tab === feed.id && 'bg-accent',
+              )}
+              data-feed-id={feed.id}
+            >
               <Button
                 variant="ghost"
                 aria-pressed={model.tab === feed.id}
                 className={cn(
-                  'w-full justify-start pr-4 group-focus-within:pr-16 group-hover:pr-16',
-                  model.tab === feed.id && 'bg-accent text-primary',
+                  'w-full justify-start pr-4 hover:bg-transparent group-focus-within:pr-16 group-hover:pr-16',
+                  model.tab === feed.id && 'text-primary hover:text-primary',
                 )}
                 onClick={() => model.changeTab(feed.id!)}
               >
@@ -79,22 +85,26 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
                   </span>
                 )}
               </Button>
-              <div className="absolute right-0 flex rounded-md bg-accent opacity-0 group-focus-within:opacity-100 group-hover:opacity-100">
-                <IconButton
-                  label={t('reader.action.copy.title')}
-                  className="size-7"
+              <div className="pointer-events-none absolute right-1 flex opacity-0 group-focus-within:pointer-events-auto group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={t('reader.action.copy.title')}
+                  className="size-7 hover:bg-foreground/10"
                   onClick={() => copy(feed.url)}
                 >
                   <Copy />
-                </IconButton>
-                <IconButton
-                  label={t('reader.action.delete')}
-                  className="size-7"
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={t('reader.action.delete')}
+                  className="size-7 hover:bg-foreground/10"
                   disabled={model.deleting}
                   onClick={() => model.deleteFeed(feed.id!)}
                 >
                   <Trash2 />
-                </IconButton>
+                </Button>
               </div>
             </div>
           ))

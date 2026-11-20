@@ -223,9 +223,43 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
 
     await snapshot('reader-dark-en')
     const feedId = Number(await run('document.querySelector("[data-feed-id]").dataset.feedId'))
-    await click(`[data-feed-id="${feedId}"] > button`)
-    await wait(`document.querySelector('[data-feed-id="${feedId}"] > button').getAttribute('aria-pressed') === 'true'`)
-    await click(`[data-feed-id="${feedId}"] [aria-label=Delete]`)
+    const feedRow = `[data-feed-id="${feedId}"]`
+    const feedButton = `${feedRow} > button`
+    const copyButton = `${feedRow} [aria-label="${en.reader.action.copy.title}"]`
+    const deleteButton = `${feedRow} [aria-label="${en.reader.action.delete}"]`
+    const rowElement = `document.querySelector(${JSON.stringify(feedRow)})`
+    const rowBackground = `getComputedStyle(${rowElement}).backgroundColor`
+    const transparent = 'rgba(0, 0, 0, 0)'
+    const hover = async (selector) => {
+      const element = `document.querySelector(${JSON.stringify(selector)})`
+      const point = await run(`(() => {
+        const { x, y, width, height } = ${element}.getBoundingClientRect()
+        return { x: Math.floor(x + width / 2), y: Math.floor(y + height / 2) }
+      })()`)
+      contents.sendInputEvent({ type: 'mouseMove', ...point })
+      await wait(`${element}.matches(':hover')`)
+    }
+
+    // Real mouse movement must preserve the row highlight across both action buttons.
+    await hover(feedButton)
+    await wait(`${rowBackground} !== '${transparent}' && ${rowElement}.getAnimations().length === 0`)
+    const highlight = await run(rowBackground)
+    for (const selector of [copyButton, deleteButton]) {
+      await hover(selector)
+      await new Promise(resolve => setTimeout(resolve, 450))
+      assert.equal(await run(rowBackground), highlight)
+      assert.notEqual(await run(`getComputedStyle(document.querySelector(${JSON.stringify(selector)})).backgroundColor`), transparent)
+      assert.equal(await run('!!document.querySelector("[role=tooltip]")'), false)
+    }
+    await hover('[data-tab=all]')
+    await wait(`${rowBackground} === '${transparent}'`)
+    await run(`document.querySelector(${JSON.stringify(copyButton)}).focus()`)
+    await wait(`${rowBackground} === '${highlight}' && getComputedStyle(document.activeElement.parentElement).opacity === '1'`)
+    await run('document.activeElement.blur()')
+
+    await click(feedButton)
+    await wait(`document.querySelector(${JSON.stringify(feedButton)}).getAttribute('aria-pressed') === 'true' && ${rowBackground} === '${highlight}'`)
+    await click(deleteButton)
     await wait('document.querySelectorAll("[data-feed-id]").length === 0 && document.querySelectorAll("[data-list-item-id]").length === 0')
     assert.deepEqual(await run('window.emo.fetch("/reader/get/feed/all")'), [])
     assert.equal((await run('window.emo.fetch("/reader/get/articles", { tab: "all", page: 1, size: 50 })')).count, 0)
