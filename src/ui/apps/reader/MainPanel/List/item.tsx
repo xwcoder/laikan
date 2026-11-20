@@ -1,12 +1,12 @@
 import { useTranslation } from 'react-i18next'
-import { Article } from '@/types/reader'
+import { ArticleListItem } from '@/types/reader'
 import { ReaderModel } from '@/ui/hooks/use-reader-model'
 import { Checkbox } from '@/ui/components/ui/checkbox'
 import { cn } from '@/ui/lib/utils'
 import { formatDate } from '@/ui/lib/date'
 import { StarButton } from '../../components/toolbar'
 
-export default function Item({ model, article }: { model: ReaderModel; article: Article }) {
+export default function Item({ model, article }: { model: ReaderModel; article: ArticleListItem }) {
   const { t, i18n } = useTranslation()
   const { selectedIds, activeId } = model
   const feed = model.feeds.data?.find((item) => item.id === article.feedId)

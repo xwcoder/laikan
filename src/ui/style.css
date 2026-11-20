@@ -107,9 +107,23 @@
   --tw-prose-td-borders: var(--border);
   overflow-wrap: anywhere;
 }
-.article-content img {
+.article-content :is(img, video, svg) {
   max-width: 100%;
   height: auto;
+}
+
+.article-content audio {
+  max-width: 100%;
+}
+
+.article-content .article-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.article-content pre {
+  overflow-x: auto;
+  overflow-wrap: normal;
 }
 
 .article-content [data-feed-text] { white-space: pre-wrap; }

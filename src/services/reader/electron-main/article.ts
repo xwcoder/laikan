@@ -1,6 +1,31 @@
 import database from '@/services/db/electron-main/db'
+import { httpUrl } from '@/base/common/url'
+import { fetchFullText } from '@/base/node/full-text'
+import { ArticleFullText } from '@/types/reader'
 import { createArticleRepository } from './article-repository'
 
+const repository = createArticleRepository(database)
 export const {
   getById, upsert, find, starred, markRead,
-} = createArticleRepository(database)
+} = repository
+const requests = new Map<string, Promise<ArticleFullText>>()
+
+async function extractAndCache(id: number, url: string, direct: boolean) {
+  const content = await fetchFullText(url, direct)
+  if (!await repository.saveFullText(id, url, content)) throw new Error('Article source changed during extraction')
+  return content
+}
+
+export async function loadFullText(id: number): Promise<ArticleFullText> {
+  if (!Number.isSafeInteger(id) || id < 1) throw new TypeError('Invalid article ID')
+  const article = await getById(id)
+  const url = httpUrl(article?.contentUrl || article?.url)
+  if (!article || !url) throw new Error('No original article address')
+  if (article.fullText) return article.fullText
+  const key = JSON.stringify([id, url])
+  const existing = requests.get(key)
+  if (existing) return existing
+  const pending = extractAndCache(id, url, !!article.contentUrl).finally(() => requests.delete(key))
+  requests.set(key, pending)
+  return pending
+}

@@ -1,7 +1,9 @@
 import { DatabaseClient } from '@/base/node/database'
 import { articleIdentity } from '@/base/node/feed/identity'
 import { httpUrl } from '@/base/common/url'
-import { Article, ArticleFilter } from '@/types/reader'
+import {
+  Article, ArticleDetail, ArticleFilter, ArticleFullText, ArticleListItem,
+} from '@/types/reader'
 
 const columns = [
   'title',
@@ -13,14 +15,26 @@ const columns = [
   'externalId',
   'identityKey',
   'contentBase',
+  'contentSource',
+  'contentUrl',
 ] as const
 const placeholders = columns.map(() => '?').join(',')
+const bodyColumns = ['content', 'contentBase', 'contentSource']
+const rank = (table: string) => `CASE
+  WHEN trim(${table}.content) = '' OR ${table}.contentSource = 'empty' THEN 0
+  WHEN ${table}.contentSource = 'media' THEN 1
+  WHEN ${table}.contentSource = 'summary' THEN 2
+  ELSE 3 END`
 const updates = columns
   .filter((name) => name !== 'feedId' && name !== 'identityKey')
-  .map((name) => `${name}=excluded.${name}`)
+  .map((name) => (bodyColumns.includes(name)
+    ? `${name}=CASE WHEN ${rank('excluded')} >= ${rank('articles')} THEN excluded.${name} ELSE articles.${name} END`
+    : `${name}=excluded.${name}`))
   .join(',')
 const insertSql = `INSERT INTO articles (${columns.join(',')}) VALUES (${placeholders})
   ON CONFLICT(feedId, identityKey) DO UPDATE SET ${updates}`
+const fullTextSource = "COALESCE(NULLIF(articles.contentUrl, ''), articles.url)"
+const listColumns = 'id, title, url, externalId, pubTime, author, read, starred, feedId'
 
 function validate(article: Article) {
   if (typeof article.title !== 'string' || typeof article.content !== 'string') throw new TypeError('Invalid article text')
@@ -36,7 +50,34 @@ function filterSql(tab: ArticleFilter['tab']): { where: string; params: unknown[
 }
 
 export function createArticleRepository(db: DatabaseClient) {
-  const getById = async (id: number): Promise<Article | null> => (await db.get<Article>('SELECT * FROM articles WHERE id = ?', id)) ?? null
+  const getById = async (id: number): Promise<ArticleDetail | null> => {
+    const row = await db.get<Article & { fullTextContent: string | null, fullTextBase: string | null }>(`
+      SELECT articles.*, cached.content AS fullTextContent, cached.contentBase AS fullTextBase
+      FROM articles LEFT JOIN article_full_text AS cached
+        ON cached.articleId = articles.id AND cached.sourceUrl = ${fullTextSource}
+      WHERE articles.id = ?`, id)
+    if (!row) return null
+    const { fullTextContent, fullTextBase, ...article } = row
+    const fullText = fullTextContent && fullTextBase
+      ? { content: fullTextContent, contentBase: fullTextBase }
+      : undefined
+    return { ...article, fullText }
+  }
+
+  const saveFullText = async (id: number, url: string, fullText: ArticleFullText) => {
+    const { changes } = await db.run(
+      `INSERT INTO article_full_text (articleId, sourceUrl, content, contentBase)
+      SELECT id, ?, ?, ? FROM articles WHERE id = ? AND ${fullTextSource} = ?
+      ON CONFLICT(articleId) DO UPDATE SET sourceUrl=excluded.sourceUrl,
+        content=excluded.content, contentBase=excluded.contentBase`,
+      url,
+      fullText.content,
+      fullText.contentBase,
+      id,
+      url,
+    )
+    return changes > 0
+  }
 
   const upsert = async (input: Article | Article[]) => {
     const items = Array.isArray(input) ? input : [input]
@@ -55,7 +96,13 @@ export function createArticleRepository(db: DatabaseClient) {
           .map((article) => [`${article.feedId}:${httpUrl(article.url)}`, article.id!]),
       )
       for (const source of items) {
-        const article = { ...source, url: httpUrl(source.url) ?? '', identityKey: articleIdentity(source) }
+        const article = {
+          ...source,
+          url: httpUrl(source.url) ?? '',
+          contentUrl: httpUrl(source.contentUrl ?? undefined),
+          contentSource: source.contentSource ?? (source.content.trim() ? 'full' : 'empty'),
+          identityKey: articleIdentity(source),
+        }
         const legacyId = byUrl.get(`${article.feedId}:${article.url}`)
         if (legacyId !== undefined) {
           // eslint-disable-next-line no-await-in-loop -- Adopt legacy rows within the same ordered transaction.
@@ -85,8 +132,8 @@ export function createArticleRepository(db: DatabaseClient) {
         `SELECT count(*) AS count FROM articles ${where}`,
         ...params,
       )
-      const rows = await db.all<Article>(
-        `SELECT * FROM articles ${where} ORDER BY createTime DESC, id DESC LIMIT ? OFFSET ?`,
+      const rows = await db.all<ArticleListItem>(
+        `SELECT ${listColumns} FROM articles ${where} ORDER BY createTime DESC, id DESC LIMIT ? OFFSET ?`,
         ...params,
         size,
         (page - 1) * size,
@@ -106,6 +153,7 @@ export function createArticleRepository(db: DatabaseClient) {
   }
   return {
     getById,
+    saveFullText,
     upsert,
     find,
     starred,

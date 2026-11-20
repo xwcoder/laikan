@@ -19,7 +19,7 @@ export function externalUrl(value: string | undefined, base?: string): string | 
   }
 }
 
-function resourceUrl(value: string, base?: string): string | undefined {
+export function resourceUrl(value: string, base?: string): string | undefined {
   if (/^data:image\/(?:png|jpeg|gif|webp|avif);base64,[a-z\d+/=\s]+$/i.test(value)) return value
   return httpUrl(value, base)
 }
@@ -52,7 +52,7 @@ export function normalizeSrcset(value: string, base?: string): string | undefine
 
 // Undefined means this is not a URL attribute; null means remove an unsafe URL.
 export function normalizeUrlAttribute(name: string, value: string, base?: string): string | null | undefined {
-  if (name === 'href') return externalUrl(value, base) ?? null
+  if (name === 'href') return value.trim().startsWith('#') ? value.trim() : externalUrl(value, base) ?? null
   if (name === 'srcset' || name === 'imagesrcset') return normalizeSrcset(value, base) ?? null
   if (['src', 'poster', 'background', 'xlink:href'].includes(name)) return resourceUrl(value, base) ?? null
   return undefined

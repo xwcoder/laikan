@@ -11,7 +11,7 @@ I wish to develop **emo** as an **all in one** desktop application. Now, it incl
 
 ## Development
 
-Use Node.js 24 LTS (`nvm use`) and npm. Install the locked dependencies:
+Use Node.js 24 LTS (24.15.0 or later, via `nvm use`) and npm. Install the locked dependencies:
 
 ```sh
 npm ci
@@ -115,8 +115,12 @@ HTML and XHTML content retain their semantics, summary-only feeds are supported,
 and namespace prefixes do not affect format detection. Links and media resources
 are resolved using redirect URLs and inherited `xml:base` values. Response bytes
 are decoded using BOM, HTTP charset or XML declarations, with UTF-8 as the default.
+The reader uses its own typography and colors for feed and extracted content.
+It preserves semantic formatting, local anchors, and images, including supported
+lazy image attributes and image attachments. A body that exceeds the HTML limits
+can fall back to its own summary while the remaining entries are imported.
 
-Requests have a 20-second deadline and a 10 MiB body limit. XML/HTML depth and
+Feed requests have a 20-second deadline and a 10 MiB body limit. XML/HTML depth and
 node counts and the 5,000-article feed limit bound parsing work; parsing yields
 between chunks so it does not monopolize the main process. Up to four feeds
 refresh concurrently. ETag and Last-Modified validators are saved only after a
@@ -130,6 +134,11 @@ legacy rows are adopted by URL when their source next refreshes. Imports are
 atomic, database operations cannot interleave with another transaction, and a
 failed migration rolls back to the original tables. Data already overwritten by
 older versions can only be recovered if the feed still supplies those articles.
+The article list loads metadata. Opening an article loads its body. Refreshing
+a feed retains stored full content when a later entry only supplies a summary.
+For entries with a summary or missing body and a source URL, **Load full article**
+extracts and caches the original page on demand. The request has a 20-second
+deadline and a 3 MiB body limit. The feed content stays available.
 
 ![Reader screenshot](./docs/images/screenshot.png)
 

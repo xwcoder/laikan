@@ -1,13 +1,10 @@
 export type Tab = 'unread' | 'starred' | 'all'
 
-export type Article = {
+export type ArticleListItem = {
   id?: number
   title: string
   url: string
-  content: string
   externalId?: string
-  identityKey?: string
-  contentBase?: string
   pubTime?: string
   author?: string
   starred?: 0 | 1
@@ -15,7 +12,21 @@ export type Article = {
   feedId?: number
 }
 
-export type ArticlePage = { count: number, data: Article[] }
+export type ArticleContentSource = 'full' | 'summary' | 'media' | 'empty'
+
+export type Article = ArticleListItem & {
+  content: string
+  identityKey?: string
+  contentBase?: string | null
+  contentSource?: ArticleContentSource | null
+  contentUrl?: string | null
+}
+
+export type ArticleFullText = { content: string, contentBase: string }
+
+export type ArticleDetail = Article & { fullText?: ArticleFullText }
+
+export type ArticlePage = { count: number, data: ArticleListItem[] }
 export type ArticleFilter = { tab: Tab | number, page: number, size: number }
 
 export type Feed = {

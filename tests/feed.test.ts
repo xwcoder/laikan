@@ -37,6 +37,8 @@ test('Atom text, HTML, XHTML and summary retain their content semantics', async 
   assert.match(articles[3].content, /<p>XHTML<br>body<\/p>/)
   assert.equal(articles[4].content, '<p>Summary body</p>')
   assert.match(articles[5].content, /External body summary/)
+  assert.equal(articles[5].contentUrl, 'https://example.com/body')
+  assert.equal(articles[5].contentSource, 'summary')
   assert.equal(articles[0].author, 'Feed Author')
   assert.equal(articles[0].pubTime, '2026-11-19T02:00:00.000Z')
 })
@@ -133,7 +135,58 @@ test('malformed XML and excessive nesting fail explicitly', async () => {
     kind: 'limit',
   })
   assert.equal(await parseString('<html><body>Not a feed</body></html>'), null)
-  await assert.rejects(parseString(atom(entry(`<content type="html"><![CDATA[${'<div>'.repeat(140)}body${'</div>'.repeat(140)}]]></content>`))), { kind: 'limit' })
+})
+
+test('an over-limit HTML body falls back per entry while other entries still import', async () => {
+  const deep = `<content type="html"><![CDATA[${'<div>'.repeat(140)}body${'</div>'.repeat(140)}]]></content>`
+  const entries = [
+    entry(`${deep}<summary>Readable summary</summary>`),
+    entry(deep, 'urn:deep-without-summary'),
+    entry('<content>Healthy article</content>', 'urn:healthy'),
+  ]
+  const items = (await parseString(atom(entries.join(''))))!.items!
+  assert.deepEqual(items.map((item) => item.contentSource), ['summary', 'empty', 'full'])
+  assert.match(items[0].content, /Readable summary/)
+  assert.equal(items[1].content, '')
+  assert.match(items[2].content, /Healthy article/)
+})
+
+test('body selection uses readable text or media and accepts MIME parameters', async () => {
+  const items = (await parseString(atom([
+    entry('<content type="text">  </content><summary>Text fallback</summary>'),
+    entry('<content type="html">&lt;p&gt;&amp;nbsp;&lt;/p&gt;</content><summary>HTML fallback</summary>', 'urn:blank'),
+    entry('<content type="text/html; charset=UTF-8">&lt;p&gt;Full HTML&lt;/p&gt;</content>', 'urn:mime'),
+    entry('<content type="text/markdown"># Text</content>', 'urn:text'),
+    entry('<content type="html">&lt;img src="https://example.com/photo.png"&gt;</content>', 'urn:image'),
+  ].join(''))))!.items!
+  assert.deepEqual(items.map((item) => item.contentSource), ['summary', 'summary', 'full', 'full', 'full'])
+  assert.match(items[0].content, /Text fallback/)
+  assert.match(items[1].content, /HTML fallback/)
+  assert.equal(items[2].content, '<p>Full HTML</p>')
+  assert.match(items[3].content, /# Text/)
+  assert.match(items[4].content, /<img\b/)
+})
+
+test('RSS fields use namespace URIs and preserve images and local fragments', async () => {
+  const items = (await parseString(rss(`
+    <item xmlns:x="urn:other" xmlns:c="http://purl.org/rss/1.0/modules/content/">
+      <title>Local anchors</title><x:encoded>Foreign content</x:encoded>
+      <c:encoded xml:base="https://example.com/assets/"><![CDATA[
+        <a href="#section">Jump</a><h2 id="section">Full body</h2><img data-src="photo.png" data-srcset="large.png 2x">
+      ]]></c:encoded>
+    </item>
+    <item><title>Photo enclosure</title><enclosure url="/attachment.jpg" type="image/jpeg"/></item>
+    <item xmlns:m="http://search.yahoo.com/mrss/"><title>Media photo</title><m:group>
+      <m:content url="/media.png" medium="image"/><m:thumbnail url="/thumbnail.png"/>
+    </m:group></item>
+  `), 'https://example.com/feed.xml'))!.items!
+  assert.deepEqual(items.map((item) => item.contentSource), ['full', 'media', 'media'])
+  assert.match(items[0].content, /href="#section"/)
+  assert.match(items[0].content, /src="https:\/\/example.com\/assets\/photo.png"/)
+  assert.match(items[0].content, /srcset="https:\/\/example.com\/assets\/large.png 2x"/)
+  assert.doesNotMatch(items[0].content, /Foreign content|data-src/)
+  assert.match(items[1].content, /src="https:\/\/example.com\/attachment.jpg"/)
+  assert.match(items[2].content, /src="https:\/\/example.com\/media.png"/)
 })
 
 test('cooperative XML chunks preserve Unicode pairs and plain-text whitespace', async () => {

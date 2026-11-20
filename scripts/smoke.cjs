@@ -37,6 +37,8 @@ if (!process.versions.electron) {
 
   app.on('browser-window-created', (_, window) => {
     const contents = window.webContents
+    // Run renderer updates even when the test window is in the background.
+    contents.setBackgroundThrottling(false)
     // Unpackaged builds open docked DevTools, which would shrink the test viewport.
     contents.on('devtools-opened', () => contents.closeDevTools())
     contents.on('preload-error', (_, preloadPath, error) => fail(error))

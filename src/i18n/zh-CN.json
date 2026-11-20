@@ -33,6 +33,14 @@
       "back": "返回列表",
       "copyError": "复制链接失败。"
     },
+    "content": {
+      "loadFullText": "加载原文全文",
+      "showFullText": "显示原文全文",
+      "showFeed": "显示订阅内容",
+      "fullTextError": "暂时无法加载原文全文，可以继续阅读下方的订阅内容。",
+      "empty": "订阅源未提供这篇文章的可读内容。",
+      "table": "文章表格"
+    },
     "form": {
       "title": "订阅频道",
       "url": {

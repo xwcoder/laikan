@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { QueryClient, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Article, ArticlePage, Tab } from '@/types/reader'
+import { ArticleListItem, ArticlePage, Tab } from '@/types/reader'
 import { useReaderStore } from '@/ui/store/reader'
 import {
   articleOptions,
@@ -30,7 +30,7 @@ function useSelectionSync(state: ReaderState, result: ArticlePage | undefined) {
   }, [result, opened, activeId, page, size, selectedIds])
 }
 
-const hasFilteredArticles = (tab: Tab | number, articles: Article[]) => (
+const hasFilteredArticles = (tab: Tab | number, articles: ArticleListItem[]) => (
   (tab === 'unread' && articles.some((article) => article.read === 1))
   || (tab === 'starred' && articles.some((article) => article.starred === 0))
 )
@@ -66,15 +66,15 @@ function useNavigation(state: ReaderState, result: ArticlePage | undefined, fetc
   return { refresh, move }
 }
 
-function getReadTargets(state: ReaderState, articles: Article[], activeArticle: Article | null | undefined) {
+function getReadTargets(state: ReaderState, articles: ArticleListItem[], activeArticle?: ArticleListItem | null) {
   if (state.opened) return activeArticle ? [activeArticle] : []
   return articles.filter((article) => state.selectedIds.includes(article.id!))
 }
 
 function useArticleActions(
   state: ReaderState,
-  articles: Article[],
-  activeArticle: Article | null | undefined,
+  articles: ArticleListItem[],
+  activeArticle?: ArticleListItem | null,
 ) {
   const readMutation = useMarkRead()
   const starMutation = useStarArticle()

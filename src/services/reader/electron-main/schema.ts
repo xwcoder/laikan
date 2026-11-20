@@ -14,6 +14,8 @@ const articleColumns = `
   identityKey TEXT NOT NULL,
   externalId TEXT,
   contentBase TEXT,
+  contentSource TEXT,
+  contentUrl TEXT,
   UNIQUE(feedId, identityKey)
 `
 
@@ -23,7 +25,15 @@ async function migrateArticles(db: DatabaseClient) {
     await db.exec(`CREATE TABLE articles (${articleColumns})`)
     return
   }
-  if (columns.some((column) => column.name === 'identityKey')) return
+  if (columns.some((column) => column.name === 'identityKey')) {
+    if (!columns.some((column) => column.name === 'contentSource')) {
+      await db.exec('ALTER TABLE articles ADD COLUMN contentSource TEXT')
+    }
+    if (!columns.some((column) => column.name === 'contentUrl')) {
+      await db.exec('ALTER TABLE articles ADD COLUMN contentUrl TEXT')
+    }
+    return
+  }
   const author = columns.some((column) => column.name === 'author') ? 'author' : "''"
   // Rebuild the table to remove UNIQUE(url, feedId). Keep every row and its ID/state.
   await db.exec(`
@@ -54,6 +64,12 @@ export async function initReaderSchema(db: DatabaseClient) {
     }
     await migrateArticles(db)
     await db.exec(`
+      CREATE TABLE IF NOT EXISTS article_full_text (
+        articleId INTEGER PRIMARY KEY REFERENCES articles(id) ON DELETE CASCADE,
+        sourceUrl TEXT NOT NULL,
+        content TEXT NOT NULL,
+        contentBase TEXT NOT NULL
+      );
       CREATE INDEX IF NOT EXISTS articles_feed_read ON articles(feedId, read);
       CREATE INDEX IF NOT EXISTS articles_read_time ON articles(read, createTime DESC, id DESC);
       CREATE INDEX IF NOT EXISTS articles_starred_time ON articles(starred, createTime DESC, id DESC);

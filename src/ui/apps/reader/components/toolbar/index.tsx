@@ -3,13 +3,13 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { ReaderModel } from '@/ui/hooks/use-reader-model'
-import { Article } from '@/types/reader'
+import { ArticleListItem } from '@/types/reader'
 import { IconButton } from '@/ui/components/icon-button'
 import { openExternal } from '@/base/browser/shell'
 import { cn } from '@/ui/lib/utils'
 import { httpUrl } from '@/base/common/url'
 
-export function StarButton({ model, article }: { model: ReaderModel; article: Article }) {
+export function StarButton({ model, article }: { model: ReaderModel; article: ArticleListItem }) {
   const { t } = useTranslation()
   return (
     <IconButton

@@ -3,7 +3,9 @@ import {
 } from '@tanstack/react-query'
 import * as feedService from '@/services/reader/browser/feed'
 import * as articleService from '@/services/reader/browser/article'
-import { Article, ArticleFilter, ArticlePage } from '@/types/reader'
+import {
+  ArticleDetail, ArticleFilter, ArticleListItem, ArticlePage,
+} from '@/types/reader'
 
 const writeScope = 'reader-write'
 
@@ -23,12 +25,14 @@ export const articlesOptions = (filter: ArticleFilter) => queryOptions({
 
 // Patch successful writes into cached reading pages before invalidating them.
 // An open article keeps its navigation page until the reader returns to the list.
-function updateArticles(client: QueryClient, ids: number[], patch: Partial<Article>) {
-  const update = (article: Article) => (ids.includes(article.id!) ? { ...article, ...patch } : article)
+function updateArticles(client: QueryClient, ids: number[], patch: Pick<Partial<ArticleListItem>, 'read' | 'starred'>) {
+  const update = <T extends ArticleListItem>(article: T): T => (
+    ids.includes(article.id!) ? { ...article, ...patch } : article
+  )
   client.setQueriesData<ArticlePage>({ queryKey: readerKeys.articles }, (page) => (
     page ? { ...page, data: page.data.map(update) } : page
   ))
-  client.setQueriesData<Article | null>({ queryKey: readerKeys.details }, (article) => (
+  client.setQueriesData<ArticleDetail | null>({ queryKey: readerKeys.details }, (article) => (
     article ? update(article) : article
   ))
   return client.invalidateQueries({ queryKey: readerKeys.all })
@@ -38,6 +42,14 @@ export const articleOptions = (id: number | null) => queryOptions({
   queryFn: () => (id === null ? null : articleService.getById(id)),
   enabled: id !== null,
 })
+
+export function useLoadFullText() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: articleService.loadFullText,
+    onSuccess: (content, id) => (content ? client.invalidateQueries({ queryKey: readerKeys.article(id) }) : undefined),
+  })
+}
 export const preflightOptions = (url: string) => queryOptions({
   queryKey: ['feed-preflight', url],
   queryFn: () => feedService.preflight(url),

@@ -1,12 +1,15 @@
 /* eslint-disable react/no-danger */
-import { useMemo } from 'react'
+import { MouseEvent, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ReaderModel } from '@/ui/hooks/use-reader-model'
 import { formatDate } from '@/ui/lib/date'
 import { openExternal } from '@/base/browser/shell'
 import { cn } from '@/ui/lib/utils'
 import { articleContent } from '@/ui/lib/article-content'
-import { externalUrl } from '@/base/common/url'
+import { externalUrl, httpUrl } from '@/base/common/url'
+import { ArticleDetail } from '@/types/reader'
+import { useLoadFullText } from '@/ui/query/reader'
+import { Button } from '@/ui/components/ui/button'
 
 const fontSizes: Record<number, string> = {
   12: 'text-[12px]',
@@ -24,16 +27,58 @@ const fontSizes: Record<number, string> = {
   24: 'text-[24px]',
 }
 
-export default function Content({ model }: { model: ReaderModel }) {
-  const { i18n } = useTranslation()
-  const article = model.activeArticle
-  const feed = model.feeds.data?.find((item) => item.id === article?.feedId)
-  const base = article?.contentBase || article?.url || feed?.link || feed?.url
-  const content = useMemo(
-    () => articleContent(article?.content ?? '', base),
-    [article?.content, base],
+function openArticleLink(event: MouseEvent<HTMLDivElement>, base?: string) {
+  const anchor = (event.target as Element).closest('a[href]')
+  const href = anchor?.getAttribute('href')
+  if (!href) return
+  event.preventDefault()
+  if (href.startsWith('#')) {
+    const target = event.currentTarget.querySelector(`#${CSS.escape(href.slice(1))}`)
+    target?.scrollIntoView({ block: 'start' })
+    return
+  }
+  const url = externalUrl(href, base)
+  if (url) openExternal(url)
+}
+
+function FullTextControls({
+  article, showFeed, toggle, hasContent,
+}: {
+  article: ArticleDetail, showFeed: boolean, toggle: () => void, hasContent: boolean,
+}) {
+  const { t } = useTranslation()
+  const load = useLoadFullText()
+  if (article.fullText) {
+    return (
+      <Button className="mb-6" variant="outline" size="sm" onClick={toggle}>
+        {t(showFeed ? 'reader.content.showFullText' : 'reader.content.showFeed')}
+      </Button>
+    )
+  }
+  if (!httpUrl(article.contentUrl || article.url) || (article.contentSource === 'full' && hasContent)) return null
+  return (
+    <>
+      <Button className="mb-6" variant="outline" size="sm" disabled={load.isPending} onClick={() => load.mutate(article.id!)}>
+        {t(load.isPending ? 'common.loading' : 'reader.content.loadFullText')}
+      </Button>
+      {(load.isError || load.data === null) && (
+        <p role="status" className="mb-4 text-sm text-muted-foreground">{t('reader.content.fullTextError')}</p>
+      )}
+    </>
   )
-  if (!article) return null
+}
+
+export default function Content({ model, article }: { model: ReaderModel, article: ArticleDetail }) {
+  const { t, i18n } = useTranslation()
+  const [showFeed, setShowFeed] = useState(false)
+  const feed = model.feeds.data?.find((item) => item.id === article.feedId)
+  const displayed = showFeed ? article : article.fullText ?? article
+  const base = displayed.contentBase || httpUrl(article.url) || httpUrl(feed?.link) || feed?.url
+  const tableLabel = t('reader.content.table')
+  const content = useMemo(
+    () => articleContent(displayed.content, { base, articleUrl: article.url, tableLabel }),
+    [displayed.content, base, article.url, tableLabel],
+  )
 
   return (
     <article className="mx-auto max-w-4xl px-8 pt-8 pb-16">
@@ -45,18 +90,19 @@ export default function Content({ model }: { model: ReaderModel }) {
           {formatDate(article.pubTime, i18n.resolvedLanguage ?? 'en-US', true)}
         </time>
       </div>
+      <FullTextControls
+        article={article}
+        showFeed={showFeed}
+        toggle={() => setShowFeed(!showFeed)}
+        hasContent={!!content}
+      />
+      {!content && <p className="text-sm text-muted-foreground">{t('reader.content.empty')}</p>}
       <div
         className={cn(
-          'article-content prose max-w-none prose-headings:font-semibold prose-a:break-all prose-pre:overflow-x-auto',
+          'article-content prose max-w-none prose-headings:font-semibold prose-a:break-all',
           fontSizes[model.fontSize],
         )}
-        onClick={(event) => {
-          const anchor = (event.target as Element).closest('a')
-          if (!anchor?.href) return
-          event.preventDefault()
-          const url = externalUrl(anchor.getAttribute('href')!, base)
-          if (url) openExternal(url)
-        }}
+        onClick={(event) => openArticleLink(event, base)}
         role="presentation"
         dangerouslySetInnerHTML={{ __html: content }}
       />

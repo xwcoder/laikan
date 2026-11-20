@@ -58,6 +58,10 @@ test('legacy migration retains IDs/state and adopts the original row on first re
   await initReaderSchema(db)
   const articles = createArticleRepository(db)
   assert.equal((await articles.getById(7))?.read, 1)
+  await articles.upsert(article('stable-guid', {
+    url: 'https://example.com/one', content: 'Summary', contentSource: 'summary',
+  }))
+  assert.equal((await articles.getById(7))?.content, 'Old body')
   await articles.upsert(article('stable-guid', { url: 'https://example.com/one', title: 'Updated' }))
   const updated = await articles.getById(7)
   assert.equal(updated?.externalId, 'stable-guid')
@@ -68,6 +72,47 @@ test('legacy migration retains IDs/state and adopts the original row on first re
   await articles.upsert([article('without-url-1'), article('without-url-2')])
   await initReaderSchema(db)
   assert.equal((await articles.find({ tab: 'all', page: 1, size: 50 })).count, 3)
+})
+
+test('lower quality refreshes preserve the stored body and its base while same quality revisions update both', async (context) => {
+  const { articles } = await setup(context)
+  const original = article('one', {
+    content: '<p>Original</p>', contentSource: 'full', contentBase: 'https://example.com/original/',
+  })
+  await articles.upsert(original)
+  const { rows } = await articles.find({ tab: 'all', page: 1, size: 50 })
+  const { id } = rows[0]
+  assert.equal('content' in rows[0], false)
+  await articles.upsert(article('one', {
+    content: 'Summary', contentSource: 'summary', contentBase: 'https://example.com/summary/',
+  }))
+  await articles.upsert(article('one', { content: '', contentSource: 'empty', title: 'Updated title' }))
+  const kept = await articles.getById(id!)
+  assert.equal(kept?.title, 'Updated title')
+  assert.equal(kept?.content, original.content)
+  assert.equal(kept?.contentBase, original.contentBase)
+  assert.equal(kept?.contentSource, 'full')
+  await articles.upsert({ ...original, content: 'Revised', contentBase: 'https://example.com/revised/' })
+  const revised = await articles.getById(id!)
+  assert.equal(revised?.content, 'Revised')
+  assert.equal(revised?.contentBase, 'https://example.com/revised/')
+})
+
+test('extracted full text is separate and only valid for the current source URL', async (context) => {
+  const { articles } = await setup(context)
+  const summary = article('one', {
+    url: 'https://example.com/one', content: 'Feed summary', contentSource: 'summary',
+  })
+  await articles.upsert(summary)
+  const { rows } = await articles.find({ tab: 'all', page: 1, size: 50 })
+  const id = rows[0].id!
+  const fullText = { content: 'Original page body', contentBase: 'https://example.com/original/' }
+  assert.equal(await articles.saveFullText(id, summary.url, fullText), true)
+  assert.deepEqual((await articles.getById(id))?.fullText, fullText)
+  assert.equal((await articles.getById(id))?.content, 'Feed summary')
+  await articles.upsert({ ...summary, url: 'https://example.com/changed' })
+  assert.equal(await articles.saveFullText(id, summary.url, fullText), false)
+  assert.equal((await articles.getById(id))?.fullText, undefined)
 })
 
 test('a failed batch rolls back every row and exposes the SQLite error', async (context) => {

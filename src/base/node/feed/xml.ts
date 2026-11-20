@@ -21,18 +21,14 @@ export function attribute(node: XmlElement, local: string, uri = '') {
   return node.attributes.find((attr) => attr.local === local && attr.uri === uri)?.value
 }
 
-export function children(node: XmlElement, name?: string): XmlElement[] {
-  return node.children
-    .filter((element): element is XmlElement => typeof element !== 'string')
-    .filter((element) => name === undefined || element.name === name)
+export function children(node: XmlElement, name?: string, uri?: string): XmlElement[] {
+  return node.children.filter((element): element is XmlElement => (
+    typeof element !== 'string' && (name === undefined || element.name === name) && (uri === undefined || element.uri === uri)
+  ))
 }
 
-export function child(node: XmlElement, name: string): XmlElement | undefined {
-  const matches = children(node, name)
-  const ownNamespace = matches.find((element) => element.uri === node.uri)
-  // Atom extensions such as media:content must not shadow Atom's content element.
-  if (node.uri === ATOM_NAMESPACE) return ownNamespace
-  return ownNamespace ?? matches[0]
+export function child(node: XmlElement, name: string, uri = node.uri): XmlElement | undefined {
+  return children(node, name, uri)[0]
 }
 export const text = (node: XmlElement | undefined): string => node?.children.map((value) => (typeof value === 'string' ? value : text(value))).join('') ?? ''
 

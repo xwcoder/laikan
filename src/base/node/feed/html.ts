@@ -2,6 +2,9 @@ import {
   parseFragment, serialize, defaultTreeAdapter, DefaultTreeAdapterMap,
 } from 'parse5'
 import { httpUrl, normalizeUrlAttribute } from '@/base/common/url'
+import {
+  discardedArticleTags, hasArticleText, mediaSources, replacedMediaAttributes,
+} from '@/base/common/article-html'
 import { FeedError } from './error'
 import { XmlElement } from './xml'
 
@@ -84,44 +87,73 @@ function walkHtml(nodes: HtmlNode[], visit: (node: HtmlNode, inheritedBase?: str
     const resolvedBase = httpUrl(localBase, current.base) ?? current.base
     visit(element, resolvedBase)
     if ('childNodes' in element) {
-      stack.push(
-        ...element.childNodes.map((node) => ({ node, base: resolvedBase, depth: current.depth + 1 })),
-      )
+      for (const node of element.childNodes) stack.push({ node, base: resolvedBase, depth: current.depth + 1 })
     }
   }
 }
 
-export function normalizeHtml(html: string, base?: string): string {
+function normalizeAttributes(node: HtmlNode, base?: string) {
+  if (!('attrs' in node)) return
+  const element = node
+  const get = (name: string) => element.attrs.find((attr) => attr.name === name)?.value
+  const attrs = element.attrs.flatMap((attr) => {
+    const name = attr.prefix ? `${attr.prefix}:${attr.name}` : attr.name
+    const value = normalizeUrlAttribute(name, attr.value, base)
+    if (value === null) return []
+    return [value === undefined ? attr : { ...attr, value }]
+  })
+  if (['img', 'source'].includes(element.tagName)) {
+    const sources = mediaSources(element.tagName, get, base)
+    element.attrs = attrs.filter((attr) => !replacedMediaAttributes.includes(attr.name))
+    if (sources.src) element.attrs.push({ name: 'src', value: sources.src })
+    if (sources.srcset) element.attrs.push({ name: 'srcset', value: sources.srcset })
+  } else {
+    element.attrs = attrs
+  }
+}
+
+const blockTags = new Set([
+  'address', 'blockquote', 'br', 'dd', 'div', 'dt', 'figcaption', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'p',
+  'pre', 'section', 'td', 'th', 'tr',
+])
+
+function isMedia(node: DefaultTreeAdapterMap['element']): boolean {
+  const hasSource = (element: DefaultTreeAdapterMap['element']) => element.attrs.some((attr) => (
+    ['src', 'srcset', 'poster'].includes(attr.name) && attr.value
+  ))
+  if (node.tagName === 'img') return hasSource(node)
+  if (node.tagName === 'svg') return node.childNodes.some((entry) => 'attrs' in entry)
+  if (!['audio', 'video', 'picture'].includes(node.tagName)) return false
+  return hasSource(node) || node.childNodes.some((entry) => 'attrs' in entry && hasSource(entry))
+}
+
+function visibleContent(nodes: HtmlNode[]) {
+  const values: string[] = []
+  let media = false
+  const visit = (node: HtmlNode, depth: number) => {
+    if (depth > 128) throw new FeedError('limit', htmlLimitMessage)
+    if (node.nodeName === '#text' && 'value' in node) values.push(node.value)
+    if (!('attrs' in node) || discardedArticleTags.includes(node.tagName)) return
+    if (node.attrs.some((attr) => attr.name === 'hidden')) return
+    const block = blockTags.has(node.tagName)
+    if (block) values.push(' ')
+    media ||= isMedia(node)
+    node.childNodes.forEach((entry) => visit(entry, depth + 1))
+    if (block) values.push(' ')
+  }
+  nodes.forEach((node) => visit(node, 0))
+  return { text: values.join('').replace(/\s+/gu, ' ').trim(), media }
+}
+
+export function readableHtml(html: string, base?: string) {
+  if (!html.trim()) return undefined
   const fragment = htmlFragment(html)
-  walkHtml(
-    fragment.childNodes,
-    (node, inheritedBase) => {
-      if (!('attrs' in node)) return
-      // URL attributes are normalized before the renderer sanitizes and displays the HTML.
-      const element = node
-      element.attrs = element.attrs.flatMap((attr) => {
-        const name = attr.prefix ? `${attr.prefix}:${attr.name}` : attr.name
-        const value = normalizeUrlAttribute(name, attr.value, inheritedBase)
-        if (value === null) return []
-        return [value === undefined ? attr : { ...attr, value }]
-      })
-    },
-    base,
-  )
-  return serialize(fragment)
+  walkHtml(fragment.childNodes, normalizeAttributes, base)
+  const { text, media } = visibleContent(fragment.childNodes)
+  if (!hasArticleText(text) && !media) return undefined
+  return { html: serialize(fragment), text }
 }
 
 export function plainText(html: string): string {
-  const fragment = htmlFragment(html)
-  const values: string[] = []
-  // Ordered traversal keeps titles containing inline markup in their original order.
-  const collect = (nodes: HtmlNode[], depth = 0) => {
-    if (depth > 128) throw new FeedError('limit', htmlLimitMessage)
-    for (const node of nodes) {
-      if ('value' in node && node.nodeName === '#text') values.push(node.value)
-      if ('childNodes' in node && !['script', 'style'].includes(node.nodeName)) collect(node.childNodes, depth + 1)
-    }
-  }
-  collect(fragment.childNodes)
-  return values.join('').trim()
+  return visibleContent(htmlFragment(html).childNodes).text
 }

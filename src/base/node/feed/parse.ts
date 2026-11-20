@@ -1,5 +1,5 @@
 import { setImmediate } from 'node:timers/promises'
-import { Article, Feed } from '@/types/reader'
+import { Article, ArticleContentSource, Feed } from '@/types/reader'
 import { httpUrl } from '@/base/common/url'
 import {
   ATOM_NAMESPACE,
@@ -13,41 +13,67 @@ import {
   text,
 } from './xml'
 import {
-  escapeHtml, normalizeHtml, plainText, serializeXml,
+  escapeHtml, readableHtml, plainText, serializeXml,
 } from './html'
 import { articleIdentity } from './identity'
 import { FeedError } from './error'
+import { imageAttachments } from './media'
 
-const value = (node: XmlElement, name: string) => text(child(node, name)).trim()
+const contentNamespace = 'http://purl.org/rss/1.0/modules/content/'
+const dcNamespace = 'http://purl.org/dc/elements/1.1/'
+const dcTermsNamespace = 'http://purl.org/dc/terms/'
+const htmlMimeType = 'text/html'
+const xhtmlMimeType = 'application/xhtml+xml'
+const value = (node: XmlElement, name: string, uri = node.uri) => text(child(node, name, uri)).trim()
+const mimeType = (type: string) => type.split(';', 1)[0].trim().toLowerCase()
+
+function readableBody(raw: string, base?: string) {
+  try {
+    return readableHtml(raw, base)
+  } catch (error) {
+    // An oversized body can fall back to the summary while the rest of the feed is imported.
+    if (error instanceof FeedError && error.kind === 'limit') return undefined
+    throw error
+  }
+}
+
+function readableTitle(raw: string) {
+  try {
+    return plainText(raw)
+  } catch (error) {
+    if (error instanceof FeedError && error.kind === 'limit') return ''
+    throw error
+  }
+}
 
 function atomText(node: XmlElement | undefined): string {
   if (!node) return ''
-  return attribute(node, 'type') === 'html' ? plainText(text(node)) : text(node).trim()
+  const type = mimeType(attribute(node, 'type') ?? 'text')
+  if (['html', htmlMimeType].includes(type)) return readableTitle(text(node))
+  if (['xhtml', xhtmlMimeType].includes(type)) return readableTitle(node.children.map(serializeXml).join(''))
+  return text(node).trim()
 }
 
 function atomLink(node: XmlElement): string | undefined {
-  const links = children(node, 'link').filter((link) => link.uri === node.uri && ['alternate', ''].includes(attribute(link, 'rel') ?? ''))
-  const preferred = links.find((link) => ['text/html', 'application/xhtml+xml'].includes(attribute(link, 'type') ?? ''))
-  for (const link of preferred ? [preferred, ...links] : links) {
-    const url = httpUrl(attribute(link, 'href'), link.base)
-    if (url) return url
-  }
-  return undefined
+  const links = children(node, 'link', node.uri)
+    .filter((item) => ['alternate', ''].includes(attribute(item, 'rel') ?? ''))
+  const preferred = links.filter((item) => [htmlMimeType, xhtmlMimeType].includes(mimeType(attribute(item, 'type') ?? '')))
+  return [...preferred, ...links].map((item) => httpUrl(attribute(item, 'href'), item.base)).find(Boolean)
 }
 
 function rssLink(node: XmlElement): string | undefined {
-  const links = children(node, 'link').filter((element) => element.uri !== ATOM_NAMESPACE)
-  const link = links.find((element) => element.uri === node.uri) ?? links[0]
+  const link = child(node, 'link')
   const url = httpUrl(text(link), link?.base)
   if (url) return url
   const guid = child(node, 'guid')
-  if (guid && attribute(guid, 'isPermaLink') !== 'false') return httpUrl(text(guid), guid.base)
+  const permalink = guid && attribute(guid, 'isPermaLink')?.toLowerCase() !== 'false' && httpUrl(text(guid))
+  if (permalink) return permalink
   return httpUrl(attribute(node, 'about', RDF_NAMESPACE), node.base)
 }
 
 function date(node: XmlElement): string | undefined {
-  for (const name of ['pubDate', 'published', 'updated', 'date', 'issued']) {
-    const raw = value(node, name)
+  const dates = ['pubDate', 'published', 'updated', 'date', 'issued'].map((name) => value(node, name))
+  for (const raw of [...dates, value(node, 'date', dcNamespace), value(node, 'issued', dcTermsNamespace)]) {
     const time = raw ? new Date(raw) : null
     if (time && !Number.isNaN(time.getTime())) return time.toISOString()
   }
@@ -55,7 +81,7 @@ function date(node: XmlElement): string | undefined {
 }
 
 function authors(node: XmlElement): string {
-  const people = children(node).filter((element) => ['author', 'creator'].includes(element.name))
+  const people = [...children(node, 'author', node.uri), ...children(node, 'creator', dcNamespace)]
   return people
     .map((person) => value(person, 'name') || text(person).trim())
     .filter(Boolean)
@@ -64,10 +90,10 @@ function authors(node: XmlElement): string {
 
 function atomContent(node: XmlElement | undefined): string {
   if (!node || attribute(node, 'src')) return ''
-  const type = (attribute(node, 'type') ?? 'text').toLowerCase()
-  if (['html', 'text/html'].includes(type)) return text(node)
-  if (['xhtml', 'application/xhtml+xml'].includes(type)) return node.children.map(serializeXml).join('')
-  if (['text', 'text/plain'].includes(type)) return `<div data-feed-text>${escapeHtml(text(node))}</div>`
+  const type = mimeType(attribute(node, 'type') ?? 'text')
+  if (['html', htmlMimeType].includes(type)) return text(node)
+  if (['xhtml', xhtmlMimeType].includes(type)) return node.children.map(serializeXml).join('')
+  if (type === 'text' || type.startsWith('text/')) return `<div data-feed-text>${escapeHtml(text(node))}</div>`
   return ''
 }
 
@@ -88,14 +114,20 @@ function entryBase(
 }
 
 function entryBody(node: XmlElement, atom: boolean, url: string, feedLink?: string) {
-  const primary = child(node, atom ? 'content' : 'encoded')
+  const primary = atom ? child(node, 'content') : child(node, 'encoded', contentNamespace)
   const summary = child(node, atom ? 'summary' : 'description')
   const read = atom ? atomContent : rssContent
-  const body = read(primary)
-  const chosen = body.trim() ? primary : summary
+  const candidates: [XmlElement | undefined, ArticleContentSource][] = [[primary, 'full'], [summary, 'summary']]
+  for (const [candidate, source] of candidates) {
+    const base = entryBase(node, candidate, atom, url, feedLink)
+    const body = readableBody(read(candidate), base)
+    if (body) return { ...body, base, source }
+  }
+  const base = entryBase(node, undefined, atom, url, feedLink)
+  const media = imageAttachments(node, atom)
+  const source: ArticleContentSource = media ? 'media' : 'empty'
   return {
-    raw: body.trim() ? body : read(summary),
-    base: entryBase(node, chosen, atom, url, feedLink),
+    html: media, text: '', base, source,
   }
 }
 
@@ -108,13 +140,16 @@ function parseEntry(node: XmlElement, channel: XmlElement, atom: boolean, feedLi
   const url = (atom ? atomLink(node) : rssLink(node)) ?? ''
   const body = entryBody(node, atom, url, feedLink)
   const titleNode = child(node, 'title')
-  const title = atom ? atomText(titleNode) : plainText(text(titleNode))
+  const title = atom ? atomText(titleNode) : readableTitle(text(titleNode))
+  const externalContent = atom ? child(node, 'content') : undefined
   const article: Article = {
-    title: title || plainText(body.raw).slice(0, 120) || url,
+    title: title || body.text.slice(0, 120) || url,
     url,
     externalId: externalId(node, atom),
-    content: normalizeHtml(body.raw, body.base),
+    content: body.html,
     contentBase: httpUrl(body.base),
+    contentSource: body.source,
+    contentUrl: externalContent && httpUrl(attribute(externalContent, 'src'), externalContent.base),
     pubTime: date(node),
     author: authors(node) || authors(channel),
   }
@@ -124,15 +159,15 @@ function parseEntry(node: XmlElement, channel: XmlElement, atom: boolean, feedLi
 
 function channelFor(root: XmlElement): { channel: XmlElement; atom: boolean; entries: XmlElement[] } | null {
   if (root.name === 'feed' && ['', ATOM_NAMESPACE].includes(root.uri)) {
-    return { channel: root, atom: true, entries: children(root, 'entry').filter((entry) => entry.uri === root.uri) }
+    return { channel: root, atom: true, entries: children(root, 'entry', root.uri) }
   }
   const rdf = root.name === 'RDF' && root.uri === RDF_NAMESPACE
   if (root.name !== 'rss' && !rdf) return null
-  const channel = child(root, 'channel')
+  const channel = child(root, 'channel', rdf ? RSS_NAMESPACE : root.uri)
   if (!channel) throw new FeedError('format', 'RSS channel is missing')
   const entries = rdf
-    ? children(root, 'item').filter((node) => node.uri === RSS_NAMESPACE)
-    : children(channel, 'item')
+    ? children(root, 'item', RSS_NAMESPACE)
+    : children(channel, 'item', channel.uri)
   return { channel, atom: false, entries }
 }
 
@@ -152,8 +187,8 @@ export async function parseString(xml: string, base?: string): Promise<Omit<Feed
     }
   }
   return {
-    title: atom ? atomText(child(channel, 'title')) : plainText(value(channel, 'title')),
-    description: atom ? atomText(child(channel, 'subtitle')) : plainText(value(channel, 'description')),
+    title: atom ? atomText(child(channel, 'title')) : readableTitle(value(channel, 'title')),
+    description: atom ? atomText(child(channel, 'subtitle')) : readableTitle(value(channel, 'description')),
     link,
     items,
   }

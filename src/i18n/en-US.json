@@ -33,6 +33,14 @@
       "back": "Back to list",
       "copyError": "Unable to copy the link."
     },
+    "content": {
+      "loadFullText": "Load full article",
+      "showFullText": "Show full article",
+      "showFeed": "Show feed content",
+      "fullTextError": "Couldn't load the full article. You can still read the feed content below.",
+      "empty": "This feed provided no readable content for this article.",
+      "table": "Article table"
+    },
     "form": {
       "title": "Subscribe to a feed",
       "url": {

@@ -111,6 +111,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await wait('document.querySelector("#feed-url")')
     await press('?', true)
     assert.equal(await run('document.querySelectorAll("[role=dialog]").length'), 1, 'A subscription dialog blocks reader shortcuts')
+    await run('document.querySelector("#feed-url").focus()')
     await input('#feed-url', `${base}/rss`)
     await run('document.querySelector("#feed-title").focus()')
     await wait('document.querySelector("#feed-title").value === "Fixture feed"')
