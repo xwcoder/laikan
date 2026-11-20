@@ -38,6 +38,20 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     if (!element || element.disabled) throw new Error(${JSON.stringify(`Missing or disabled: ${selector}`)})
     element.click()
   })()`)
+  const hover = async (selector) => {
+    const element = `document.querySelector(${JSON.stringify(selector)})`
+    const point = await run(`(() => {
+      const { x, y, width, height } = ${element}.getBoundingClientRect()
+      return { x: Math.floor(x + width / 2), y: Math.floor(y + height / 2) }
+    })()`)
+    contents.sendInputEvent({ type: 'mouseMove', ...point })
+    await wait(`${element}.matches(':hover')`)
+  }
+  const hoverWithoutTooltip = async (selector) => {
+    await hover(selector)
+    await new Promise(resolve => setTimeout(resolve, 450))
+    assert.equal(await run('!!document.querySelector("[role=tooltip]")'), false, `Unexpected tooltip for ${selector}`)
+  }
   const input = (selector, value) => run(`(() => {
     const element = document.querySelector(${JSON.stringify(selector)})
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(element, ${JSON.stringify(value)})
@@ -133,7 +147,13 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
       await wait('document.querySelectorAll("[data-list-item-id]").length === 50')
     }
     const firstId = Number(await run('document.querySelector("[data-list-item-id]").dataset.listItemId'))
-    await click(`[data-list-item-id="${firstId}"] [aria-label="Add star"]`)
+    const refreshButton = `[aria-label="${en.reader.action.refresh}"]`
+    const starButton = `[data-list-item-id="${firstId}"] [aria-label="${en.reader.action.star}"]`
+    await wait(`document.querySelector(${JSON.stringify(refreshButton)})?.disabled === false`)
+    await hoverWithoutTooltip(refreshButton)
+    await hoverWithoutTooltip(starButton)
+    assert.equal(await run('!!document.querySelector("[data-list-item-id] button[title], [data-list-item-id] button [title]")'), false)
+    await click(starButton)
     await wait(`document.querySelector('[data-list-item-id="${firstId}"] [aria-label="Remove star"]')`)
     await click('[data-tab=starred]')
     await wait('document.querySelectorAll("[data-list-item-id]").length === 1')
@@ -230,26 +250,15 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     const rowElement = `document.querySelector(${JSON.stringify(feedRow)})`
     const rowBackground = `getComputedStyle(${rowElement}).backgroundColor`
     const transparent = 'rgba(0, 0, 0, 0)'
-    const hover = async (selector) => {
-      const element = `document.querySelector(${JSON.stringify(selector)})`
-      const point = await run(`(() => {
-        const { x, y, width, height } = ${element}.getBoundingClientRect()
-        return { x: Math.floor(x + width / 2), y: Math.floor(y + height / 2) }
-      })()`)
-      contents.sendInputEvent({ type: 'mouseMove', ...point })
-      await wait(`${element}.matches(':hover')`)
-    }
 
     // Real mouse movement must preserve the row highlight across both action buttons.
     await hover(feedButton)
     await wait(`${rowBackground} !== '${transparent}' && ${rowElement}.getAnimations().length === 0`)
     const highlight = await run(rowBackground)
     for (const selector of [copyButton, deleteButton]) {
-      await hover(selector)
-      await new Promise(resolve => setTimeout(resolve, 450))
+      await hoverWithoutTooltip(selector)
       assert.equal(await run(rowBackground), highlight)
       assert.notEqual(await run(`getComputedStyle(document.querySelector(${JSON.stringify(selector)})).backgroundColor`), transparent)
-      assert.equal(await run('!!document.querySelector("[role=tooltip]")'), false)
     }
     await hover('[data-tab=all]')
     await wait(`${rowBackground} === '${transparent}'`)

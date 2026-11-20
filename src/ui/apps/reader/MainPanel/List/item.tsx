@@ -31,10 +31,7 @@ export default function Item({ model, article }: { model: ReaderModel; article: 
         className="flex min-w-0 flex-1 items-center gap-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         onClick={() => model.open(article.id!)}
       >
-        <span
-          className="hidden w-28 shrink-0 truncate text-xs text-muted-foreground xl:block"
-          title={feed?.title}
-        >
+        <span className="hidden w-28 shrink-0 truncate text-xs text-muted-foreground xl:block">
           {feed?.title}
         </span>
         <span className="min-w-0 flex-1 truncate">{article.title}</span>

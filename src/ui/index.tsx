@@ -4,15 +4,12 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import '@/i18n'
 import App from '@/ui/App'
 import { queryClient } from '@/ui/query/client'
-import { TooltipProvider } from '@/ui/components/ui/tooltip'
 import './style.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider delayDuration={400}>
-        <App />
-      </TooltipProvider>
+      <App />
     </QueryClientProvider>
   </StrictMode>,
 )
