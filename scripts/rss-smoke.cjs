@@ -71,7 +71,7 @@ module.exports = async function rssSmoke(contents) {
     }
     poll()
   })`)
-  const ipc = (channel, value) => run(`window.emo.fetch(${JSON.stringify(channel)}, ${JSON.stringify(value)})`)
+  const ipc = (channel, value) => run(`window.laikan.fetch(${JSON.stringify(channel)}, ${JSON.stringify(value)})`)
   const detail = id => ipc('/reader/get/article', id)
   const chooseArticle = async id => {
     const selector = JSON.stringify(`[data-list-item-id="${id}"] button:last-child`)
@@ -172,7 +172,7 @@ module.exports = async function rssSmoke(contents) {
     const opened = []
     shell.openExternal = async url => { opened.push(url) }
     await run(`['custom-app://action', 'javascript:alert(1)', 'file:///tmp/file', 'https://example.com/', 'mailto:hello@example.com']
-      .forEach(url => window.emo.openExternal(url))`)
+      .forEach(url => window.laikan.openExternal(url))`)
     const deadline = Date.now() + 2000
     while (opened.length < 2 && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 10))
     assert.deepEqual(opened, ['https://example.com/', 'mailto:hello@example.com'])

@@ -4,8 +4,10 @@ import { createDatabaseClient } from '@/base/node/database'
 import { logger } from '@/services/logger/electron-main/logger'
 import * as settingService from '@/services/settings/electron-main/settings'
 
+export const getDatabasePath = (dataPath: string) => path.join(dataPath, 'laikan.db')
+
 const { Database } = verbose()
-const database = new Database(path.join(settingService.get('dataPath'), 'emo.db'))
+const database = new Database(getDatabasePath(settingService.get('dataPath')))
 database.on('error', (error) => logger.error('Database error', error))
 const client = createDatabaseClient(database)
 export const {

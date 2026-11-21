@@ -1,13 +1,12 @@
-# emo
+# 来刊 · Laikan
 [Download](https://github.com/xwcoder/emo/releases) | [Issue](https://github.com/xwcoder/emo/issues/new)
 
-I wish to develop **emo** as an **all in one** desktop application. Now, it includes the following apps:
-  - **Reader** - A rss reader.
+Laikan is a desktop RSS and Atom reader.
 
 ## Features
 - Support dark mode.
-- Support i18n (English and Simplified).
-- Support data sharing and synchronization between devices using cloud storage.
+- Support English and Simplified Chinese.
+- Use a custom folder for the `laikan.db` database, including a cloud-synced folder.
 
 ## Development
 
@@ -34,6 +33,10 @@ npm run test:smoke # Build and verify startup, SQLite, IPC and renderer isolatio
 Electron is upgraded to the npm `latest` stable release, 45.3.3, as checked on
 2026-11-17. Commit `package-lock.json` when updating dependencies so local builds
 and CI use the same versions.
+
+The development profile is `laikan-dev` and the packaged app uses `laikan`, both
+under the platform's application data directory. Settings, window state and the
+default `laikan.db` live in the profile directory.
 
 ## UI architecture
 
@@ -78,7 +81,7 @@ subscriptions, pagination, read/star mutations, font size, bulk keyboard
 shortcuts, push-driven cache updates, feed deletion and failed mutations. It also
 checks settings-modal dismissal, focus return, small-window scrolling, discarded
 directory drafts and preservation of reader state while changing settings. It
-uses an isolated temporary data directory. Set `EMO_SMOKE_SCREENSHOTS` to an
+uses an isolated temporary data directory. Set `LAIKAN_SMOKE_SCREENSHOTS` to an
 output directory to capture representative screens.
 
 ## Packaging and releases

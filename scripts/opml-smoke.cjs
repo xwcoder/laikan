@@ -4,7 +4,7 @@ const path = require('node:path')
 const { dialog } = require('electron')
 
 module.exports = async function opmlSmoke({ run, wait, openSubscriptionMenu }, base) {
-  const directory = fs.mkdtempSync(path.join(process.env.EMO_SMOKE_USER_DATA, 'opml-'))
+  const directory = fs.mkdtempSync(path.join(process.env.LAIKAN_SMOKE_USER_DATA, 'opml-'))
   const importPath = path.join(directory, '订阅.xml')
   const exportPath = path.join(directory, 'subscriptions.opml')
   let selectedPath = importPath
@@ -28,7 +28,7 @@ module.exports = async function opmlSmoke({ run, wait, openSubscriptionMenu }, b
     await wait(`!${busy}`)
     assert.equal(await run(statusText), '', 'OPML operations have no completion text')
   }
-  const feeds = () => run('window.emo.fetch("/reader/get/feed/all")')
+  const feeds = () => run('window.laikan.fetch("/reader/get/feed/all")')
 
   try {
     dialog.showOpenDialog = async (_window, options) => {
@@ -37,7 +37,7 @@ module.exports = async function opmlSmoke({ run, wait, openSubscriptionMenu }, b
       return { canceled: false, filePaths: [selectedPath] }
     }
     dialog.showSaveDialog = async (_window, options) => {
-      assert.equal(options.defaultPath, 'emo-subscriptions.opml')
+      assert.equal(options.defaultPath, 'laikan-subscriptions.opml')
       await pickerGate
       return { canceled: false, filePath: exportPath }
     }
@@ -59,10 +59,11 @@ module.exports = async function opmlSmoke({ run, wait, openSubscriptionMenu }, b
     assert.equal(imported.link, `${base}/home`)
     assert.equal(imported.description, 'Testing OPML')
     await wait(`document.querySelector('[data-feed-id="${imported.id}"]').textContent.includes('News & Updates')`)
-    await wait(`(await window.emo.fetch('/reader/get/articles', { tab: ${imported.id}, page: 1, size: 50 })).count > 0`)
+    await wait(`(await window.laikan.fetch('/reader/get/articles', { tab: ${imported.id}, page: 1, size: 50 })).count > 0`)
 
     await choose('Export')
     const xml = fs.readFileSync(exportPath, 'utf8')
+    assert.match(xml, /<title>来刊订阅<\/title>/)
     assert.match(xml, /text="News &amp; Updates"/)
     assert.match(xml, /description="Testing OPML"/)
     assert.doesNotMatch(xml, /Fixture article/)

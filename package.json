@@ -1,7 +1,9 @@
 {
-  "name": "emo",
+  "name": "laikan",
+  "productName": "来刊",
   "version": "0.1.5",
-  "description": "An all in one application, includes Reader-a rss reader",
+  "description": "A desktop RSS and Atom reader",
+  "desktopName": "laikan.desktop",
   "main": "./dist/main/index.js",
   "scripts": {
     "prepare": "husky install",
@@ -21,7 +23,7 @@
   },
   "keywords": [
     "electron",
-    "emo",
+    "laikan",
     "rss",
     "reader",
     "rss reader"

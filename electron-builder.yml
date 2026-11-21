@@ -1,5 +1,4 @@
-appId: com.xwcoder.emo
-productName: emo
+appId: com.xwcoder.laikan
 directories:
   output: release
   buildResources: assets/icons
@@ -26,6 +25,7 @@ nsis:
   allowToChangeInstallationDirectory: true
 linux:
   category: News
+  syncDesktopName: true
   icon: assets/icons/icon.png
   target:
     - AppImage

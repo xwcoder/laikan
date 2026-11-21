@@ -19,7 +19,7 @@ export const logger = winston.createLogger({
 
     new winston.transports.File({
       level: 'info',
-      filename: path.join(app.getPath('userData'), 'logs/emo.log'),
+      filename: path.join(app.getPath('userData'), 'logs/laikan.log'),
       maxsize: 30 * 1024 * 1024, // 30M
       maxFiles: 30,
     }),

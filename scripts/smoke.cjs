@@ -5,13 +5,13 @@ const path = require('node:path')
 
 if (!process.versions.electron) {
   const { spawnSync } = require('node:child_process')
-  const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'emo-smoke-'))
+  const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'laikan-smoke-'))
   try {
-    const env = { ...process.env, EMO_SMOKE_USER_DATA: userData, ELECTRON_RENDERER_URL: '' }
+    const env = { ...process.env, LAIKAN_SMOKE_USER_DATA: userData, ELECTRON_RENDERER_URL: '' }
     delete env.ELECTRON_RUN_AS_NODE
     const run = (phase, timeout) => {
       const result = spawnSync(require('electron'), [__filename, ...process.argv.slice(2)], {
-        env: { ...env, EMO_SMOKE_PHASE: phase },
+        env: { ...env, LAIKAN_SMOKE_PHASE: phase },
         stdio: 'inherit',
         timeout,
       })
@@ -24,7 +24,7 @@ if (!process.versions.electron) {
   }
 } else {
   const { app } = require('electron')
-  app.setPath('userData', process.env.EMO_SMOKE_USER_DATA)
+  app.commandLine.appendSwitch('user-data-dir', process.env.LAIKAN_SMOKE_USER_DATA)
   app.commandLine.appendSwitch('disable-gpu')
   if (process.env.CI && process.platform === 'linux') {
     app.commandLine.appendSwitch('no-sandbox')
@@ -48,7 +48,7 @@ if (!process.versions.electron) {
     contents.on('did-fail-load', (_, code, message) => fail(new Error(`${code}: ${message}`)))
     contents.once('did-finish-load', async () => {
       try {
-        if (process.env.EMO_SMOKE_PHASE === 'restart') {
+        if (process.env.LAIKAN_SMOKE_PHASE === 'restart') {
           const restored = await contents.executeJavaScript(`(async () => {
             const readerReady = () => document.querySelector('.list-container') && document.querySelector('[data-feed-id]')
             for (let i = 0; i < 250 && !readerReady(); i++) {
@@ -56,7 +56,7 @@ if (!process.versions.electron) {
             }
             if (!readerReady()) throw new Error('Reader did not finish loading after restart')
             return {
-              theme: await window.emo.fetch('/settings/get', 'theme'),
+              theme: await window.laikan.fetch('/settings/get', 'theme'),
               appliedTheme: document.documentElement.dataset.theme,
               dark: document.documentElement.classList.contains('dark'),
             }
@@ -71,21 +71,23 @@ if (!process.versions.electron) {
             await new Promise(resolve => setTimeout(resolve, 20))
           }
           if (!document.querySelector('#root')?.children.length) throw new Error('React did not render')
-          const feeds = await window.emo.fetch('/reader/get/feed/all')
-          await window.emo.fetch('/settings/set', { path: 'appearance', value: 'dark' })
-          const appearance = await window.emo.fetch('/settings/get', 'appearance')
+          const feeds = await window.laikan.fetch('/reader/get/feed/all')
+          await window.laikan.fetch('/settings/set', { path: 'appearance', value: 'dark' })
+          const appearance = await window.laikan.fetch('/settings/get', 'appearance')
           window.__smokeEvents = []
           window.__smokeListener = (...args) => window.__smokeEvents.push(args)
-          window.__smokeUnsubscribe = window.emo.on('/smoke/event', window.__smokeListener)
+          window.__smokeUnsubscribe = window.laikan.on('/smoke/event', window.__smokeListener)
           return {
+            title: document.title,
             feeds,
             appearance,
-            theme: await window.emo.fetch('/settings/get', 'theme'),
+            theme: await window.laikan.fetch('/settings/get', 'theme'),
             onReturnsCleanup: typeof window.__smokeUnsubscribe === 'function',
             nodeIsolated: typeof require === 'undefined' && typeof process === 'undefined',
             tailwindLoaded: getComputedStyle(document.querySelector('.flex')).display === 'flex',
           }
         })()`)
+        assert.equal(result.title, '来刊')
         assert.deepEqual(result.feeds, [])
         assert.equal(result.appearance, 'dark')
         assert.equal(result.theme, 'neutral')
@@ -94,7 +96,8 @@ if (!process.versions.electron) {
         assert.equal(result.tailwindLoaded, true)
         assert.equal(window.webContents.getLastWebPreferences().contextIsolation, true)
         assert.equal(window.webContents.getLastWebPreferences().sandbox, true)
-        assert.ok(fs.existsSync(path.join(process.env.EMO_SMOKE_USER_DATA, 'emo.db')))
+        assert.equal(app.getPath('userData'), process.env.LAIKAN_SMOKE_USER_DATA)
+        assert.ok(fs.existsSync(path.join(process.env.LAIKAN_SMOKE_USER_DATA, 'laikan.db')))
 
         contents.send('/smoke/event', { ok: true })
         const received = await contents.executeJavaScript(`new Promise((resolve, reject) => {

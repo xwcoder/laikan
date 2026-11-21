@@ -1,8 +1,8 @@
 import '@/main/setup'
 import * as fs from 'node:fs'
-import { join } from 'node:path'
 import { app } from 'electron'
 import { isMac } from '@/base/electron-main/env'
+import { getDatabasePath } from '@/services/db/electron-main/db'
 import { createPushChannel } from '@/services/push/electron-main/push'
 import { register as registerCommands } from '@/services/commands/electron-main/commands'
 import { createWindow } from '@/services/window/electron-main/window'
@@ -26,8 +26,9 @@ settingService.on('change', (path, dataPath, oldDataPath) => {
     return
   }
 
-  if (!fs.existsSync(join(dataPath, 'emo.db'))) {
-    fs.renameSync(join(oldDataPath, 'emo.db'), join(dataPath, 'emo.db'))
+  const destination = getDatabasePath(dataPath)
+  if (!fs.existsSync(destination)) {
+    fs.renameSync(getDatabasePath(oldDataPath), destination)
   }
 
   app.relaunch()
