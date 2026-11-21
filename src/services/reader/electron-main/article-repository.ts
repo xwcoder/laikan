@@ -41,9 +41,20 @@ function validate(article: Article) {
   if (!Number.isSafeInteger(article.feedId) || article.feedId! < 1) throw new TypeError('Invalid article feed ID')
 }
 
-function filterSql(tab: ArticleFilter['tab']): { where: string; params: unknown[] } {
+function filterSql(tab: ArticleFilter['tab'], retainedUnreadIds: number[]): { where: string; params: unknown[] } {
   if (typeof tab === 'number' && Number.isSafeInteger(tab) && tab > 0) return { where: 'WHERE feedId = ?', params: [tab] }
-  if (tab === 'unread') return { where: 'WHERE read = 0', params: [] }
+  if (tab === 'unread') {
+    if (!Array.isArray(retainedUnreadIds) || retainedUnreadIds.some((id) => !Number.isSafeInteger(id) || id < 1)) {
+      throw new TypeError('Invalid retained article IDs')
+    }
+    if (retainedUnreadIds.length) {
+      return {
+        where: 'WHERE read = 0 OR id IN (SELECT value FROM json_each(?))',
+        params: [JSON.stringify(retainedUnreadIds)],
+      }
+    }
+    return { where: 'WHERE read = 0', params: [] }
+  }
   if (tab === 'starred') return { where: 'WHERE starred = 1', params: [] }
   if (tab === 'all') return { where: '', params: [] }
   throw new TypeError('Invalid article filter')
@@ -122,11 +133,13 @@ export function createArticleRepository(db: DatabaseClient) {
     })
   }
 
-  const find = async ({ tab, page = 1, size = 50 }: ArticleFilter) => {
+  const find = async ({
+    tab, page = 1, size = 50, retainedUnreadIds = [],
+  }: ArticleFilter) => {
     if (!Number.isSafeInteger(page) || page < 1 || !Number.isSafeInteger(size) || size < 1 || size > 500) {
       throw new RangeError('Invalid article pagination')
     }
-    const { where, params } = filterSql(tab)
+    const { where, params } = filterSql(tab, retainedUnreadIds)
     return db.transaction(async () => {
       const count = await db.get<{ count: number }>(
         `SELECT count(*) AS count FROM articles ${where}`,

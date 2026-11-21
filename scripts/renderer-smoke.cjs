@@ -284,6 +284,8 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await wait(`document.querySelector('article h1')?.textContent === ${JSON.stringify(readingTitles[0])}`)
     await click('[aria-label="Back to list"]')
     await wait('document.querySelector("[data-list-item-id]")')
+    await focusWindow()
+    await wait('document.querySelector(\'[aria-label="Next page"]\')?.disabled === false')
     const position = await run(`(() => {
       const viewport = document.querySelector('.list-container')
       const rows = viewport.querySelectorAll('[data-list-item-id]')
@@ -291,20 +293,58 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
       row.scrollIntoView({ block: 'center' })
       const offset = row.getBoundingClientRect().top - viewport.getBoundingClientRect().top
       row.querySelector('[data-article-open]').focus({ preventScroll: true })
-      return { id: Number(row.dataset.listItemId), nextId: Number(rows[23].dataset.listItemId), offset }
+      return {
+        id: Number(row.dataset.listItemId),
+        nextId: Number(rows[23].dataset.listItemId),
+        ids: Array.from(rows, item => Number(item.dataset.listItemId)),
+        scrollTop: viewport.scrollTop,
+        offset,
+      }
     })()`)
+    await wait(`${focusedIdExpression} === ${position.id}`)
     await press('o')
     await wait('document.querySelector(".article-content")')
     await wait(`window.emo.fetch('/reader/get/article', ${position.id}).then(article => article.read === 1)`)
     await focusWindow()
     contents.sendInputEvent({ type: 'keyDown', keyCode: 'U' })
     contents.sendInputEvent({ type: 'keyUp', keyCode: 'U' })
-    await wait(`document.querySelector('.list-container') && !document.querySelector('[data-list-item-id="${position.id}"]')`)
-    const returnedOffset = await run(`document.querySelector('[data-list-item-id="${position.nextId}"]').getBoundingClientRect().top
+    const keptRow = `[data-list-item-id="${position.id}"]`
+    await wait(`document.querySelector('${keptRow}')?.classList.contains('text-muted-foreground')`)
+    await wait('document.querySelector("[data-tab=unread] span")?.textContent === "49"')
+    const returnedOffset = await run(`document.querySelector('${keptRow}').getBoundingClientRect().top
       - document.querySelector('.list-container').getBoundingClientRect().top`)
-    assert.ok(Math.abs(returnedOffset - position.offset) <= 1, 'The next unread article should occupy the opened row’s position')
-    assert.equal(await run(focusedIdExpression), position.nextId)
+    assert.ok(Math.abs(returnedOffset - position.offset) <= 1, 'The read article should stay in its original row')
+    assert.equal(await run('document.querySelector(".list-container").scrollTop'), position.scrollTop)
+    const visibleIds = 'Array.from(document.querySelectorAll("[data-list-item-id]"), row => Number(row.dataset.listItemId))'
+    assert.deepEqual(await run(visibleIds), position.ids)
+    assert.equal(await run(focusedIdExpression), position.id)
     assert.equal(await run('getComputedStyle(document.activeElement).boxShadow'), 'none', 'Returning with U should use the active row indicator')
+    await wait('document.querySelector(\'[aria-label="Next page"]\')?.disabled === false')
+    await press('j')
+    await wait(`${focusedIdExpression} === ${position.nextId}`)
+
+    // Retained rows still count toward page offsets while browsing the unread list.
+    await run('document.querySelector(".list-container > :last-child [data-article-open]").focus()')
+    await press('j')
+    await wait('document.body.textContent.includes("51–52 of 52") && document.activeElement === document.querySelector("[data-article-open]")')
+    await press('k')
+    await wait(`${focusedIdExpression} === ${position.ids.at(-1)}`)
+    assert.deepEqual(await run(visibleIds), position.ids)
+    await click(refreshButton)
+    await wait(`document.body.textContent.includes('1–49 of 49') && !document.querySelector('${keptRow}')`)
+    await wait('document.querySelector(".list-container").parentElement.querySelector("[role=status]")?.textContent === "Synced 1 feed"')
+
+    const [readBeforeSwitch] = await run(visibleIds)
+    await run('document.querySelector("[data-article-open]").focus()')
+    await press('o')
+    await wait(`window.emo.fetch('/reader/get/article', ${readBeforeSwitch}).then(article => article.read === 1)`)
+    await press('u')
+    const rowBeforeSwitch = `[data-list-item-id="${readBeforeSwitch}"]`
+    await wait(`document.querySelector('${rowBeforeSwitch}')?.classList.contains('text-muted-foreground')`)
+    await press('g'); await press('a')
+    await wait('document.querySelector("[data-tab=all]").ariaPressed === "true"')
+    await press('g'); await press('i')
+    await wait(`document.body.textContent.includes('1–48 of 48') && !document.querySelector('${rowBeforeSwitch}')`)
     await press('g'); await press('a')
     await wait('document.querySelector("[data-tab=all]").getAttribute("aria-pressed") === "true"')
     await wait('document.querySelectorAll("[data-list-item-id]").length === 50')

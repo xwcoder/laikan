@@ -3,6 +3,7 @@ import {
 } from '@tanstack/react-query'
 import * as feedService from '@/services/reader/browser/feed'
 import * as articleService from '@/services/reader/browser/article'
+import { useReaderStore } from '@/ui/store/reader'
 import {
   ArticleDetail, ArticleFilter, ArticleListItem, ArticlePage,
 } from '@/types/reader'
@@ -18,13 +19,21 @@ export const readerKeys = {
 }
 
 export const feedsOptions = queryOptions({ queryKey: readerKeys.feeds, queryFn: feedService.getAll })
-export const articlesOptions = (filter: ArticleFilter) => queryOptions({
-  queryKey: [...readerKeys.articles, filter],
-  queryFn: () => articleService.find(filter),
+export const articlesOptions = (filter: ArticleFilter, unreadVersion: number) => queryOptions({
+  queryKey: [...readerKeys.articles, filter, filter.tab === 'unread' ? unreadVersion : null] as const,
+  queryFn: () => {
+    const state = useReaderStore.getState()
+    const retaining = filter.tab === 'unread' && state.unreadVersion === unreadVersion
+    return articleService.find(retaining ? { ...filter, retainedUnreadIds: [...state.retainedUnreadIds] } : filter)
+  },
+  placeholderData: (previous, query) => {
+    const previousFilter = query?.queryKey[2]
+    if (previousFilter?.tab !== filter.tab) return undefined
+    return previousFilter.page === filter.page && previousFilter.size === filter.size ? previous : undefined
+  },
 })
 
 // Patch successful writes into cached reading pages before invalidating them.
-// An open article keeps its navigation page until the reader returns to the list.
 function updateArticles(client: QueryClient, ids: number[], patch: Pick<Partial<ArticleListItem>, 'read' | 'starred'>) {
   const update = <T extends ArticleListItem>(article: T): T => (
     ids.includes(article.id!) ? { ...article, ...patch } : article
@@ -91,7 +100,14 @@ export function useMarkRead() {
   return useMutation({
     mutationKey: [writeScope],
     scope: { id: writeScope },
-    mutationFn: ({ ids, status }: { ids: number[]; status: 0 | 1 }) => articleService.markRead(ids, status),
+    mutationFn: ({ ids, status }: { ids: number[]; status: 0 | 1; unreadVersion: number }) => (
+      articleService.markRead(ids, status)
+    ),
+    onMutate: ({ ids, status, unreadVersion }) => {
+      const state = useReaderStore.getState()
+      // Reserve these rows before writing so an overlapping list fetch can still include them.
+      if (status === 1 && state.unreadVersion === unreadVersion) state.retainUnread(ids)
+    },
     onSuccess: (_, { ids, status }) => updateArticles(client, ids, { read: status }),
   })
 }

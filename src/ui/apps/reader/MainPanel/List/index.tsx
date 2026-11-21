@@ -17,7 +17,7 @@ export default function List({ model }: { model: ReaderModel }) {
   const refresh = () => {
     if (model.refresh.isPending) return
     rememberPosition()
-    model.refresh.mutate()
+    model.refreshList()
   }
 
   return (

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { QueryClient, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArticleListItem, ArticlePage, Tab } from '@/types/reader'
+import { ArticleListItem, ArticlePage } from '@/types/reader'
 import { useReaderStore } from '@/ui/store/reader'
 import {
   articleOptions,
@@ -36,16 +36,14 @@ function useSelectionSync(state: ReaderState, result: ArticlePage | undefined) {
   }, [result, opened, tab, page, size])
 }
 
-const hasFilteredArticles = (tab: Tab | number, articles: ArticleListItem[]) => (
-  (tab === 'unread' && articles.some((article) => article.read === 1))
-  || (tab === 'starred' && articles.some((article) => article.starred === 0))
-)
-
 async function getPageTarget(client: QueryClient, state: ReaderState, result: ArticlePage, direction: 1 | -1) {
-  const { tab, page, size } = state
-  const nextPage = direction === 1 && hasFilteredArticles(tab, result.data) ? page : page + direction
+  const {
+    tab, page, size, unreadVersion,
+  } = state
+  const hasUnstarred = tab === 'starred' && result.data.some((article) => article.starred === 0)
+  const nextPage = direction === 1 && hasUnstarred ? page : page + direction
   if (nextPage < 1 || nextPage > Math.ceil(result.count / size)) return null
-  const next = await client.fetchQuery(articlesOptions({ tab, page: nextPage, size }))
+  const next = await client.fetchQuery(articlesOptions({ tab, page: nextPage, size }, unreadVersion))
   return { page: nextPage, article: direction === 1 ? next.data[0] : next.data.at(-1) }
 }
 
@@ -83,7 +81,7 @@ function useArticleActions(
   const starMutation = useStarArticle()
   const selectedIds = state.opened && state.activeId !== null ? [state.activeId] : state.selectedIds
   const markRead = (status: 0 | 1, ids = selectedIds) => {
-    if (ids.length) readMutation.mutate({ ids, status })
+    if (ids.length) readMutation.mutate({ ids, status, unreadVersion: state.unreadVersion })
   }
   const toggleRead = () => {
     const targets = getReadTargets(state, articles, activeArticle)
@@ -103,10 +101,10 @@ export function useReaderModel() {
   const state = useReaderStore()
   const client = useQueryClient()
   const {
-    tab, page, size, activeId, opened,
+    tab, page, size, activeId, opened, unreadVersion,
   } = state
   const feeds = useQuery(feedsOptions)
-  const listOptions = articlesOptions({ tab, page, size })
+  const listOptions = articlesOptions({ tab, page, size }, unreadVersion)
   // Keep the current reading sequence stable while read/star writes change list membership.
   // Re-enable stale list fetching on return, or populate a page whose cache has expired.
   const list = useQuery({
@@ -127,8 +125,13 @@ export function useReaderModel() {
   const fontSize = Math.max(12, Math.min(24, settings.data?.reader?.fontSize ?? 14))
   const actions = useArticleActions(state, articles, activeArticle)
   const navigation = useNavigation(state, list.data, list.isFetching || actions.writing)
-  useSelectionSync(state, list.data)
+  useSelectionSync(state, list.isPlaceholderData ? undefined : list.data)
 
+  const refreshList = () => {
+    if (refresh.isPending) return
+    if (tab === 'unread') state.resetUnreadView()
+    refresh.mutate()
+  }
   const deleteFeed = (id: number, onSuccess: () => void) => deleteMutation.mutate(id, { onSuccess })
   const changeFont = (delta: number) => updateSettings.mutate({
     path: 'reader.fontSize',
@@ -147,6 +150,7 @@ export function useReaderModel() {
     fontSize,
     count: list.data?.count ?? 0,
     refresh,
+    refreshList,
     deleteFeed,
     changeFont,
     deleting: deleteMutation.isPending,

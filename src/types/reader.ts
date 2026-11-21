@@ -27,7 +27,7 @@ export type ArticleFullText = { content: string, contentBase: string }
 export type ArticleDetail = Article & { fullText?: ArticleFullText }
 
 export type ArticlePage = { count: number, data: ArticleListItem[] }
-export type ArticleFilter = { tab: Tab | number, page: number, size: number }
+export type ArticleFilter = { tab: Tab | number, page: number, size: number, retainedUnreadIds?: number[] }
 
 export type Feed = {
   id?: number
