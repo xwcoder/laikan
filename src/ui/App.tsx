@@ -35,7 +35,7 @@ export default function App() {
   return (
     <main className="flex h-screen min-h-0 min-w-0 flex-col bg-sidebar text-foreground">
       <div className="draggle h-7 shrink-0" />
-      <ErrorAlert className="mx-4" />
+      <ErrorAlert className="mx-4 w-auto" />
       {settings.data ? <ReaderApp /> : (
         <AsyncState error={settings.isError} retry={() => settings.refetch()} />
       )}

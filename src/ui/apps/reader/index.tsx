@@ -15,7 +15,7 @@ export default function Reader() {
   return (
     <>
       <div className="grid min-h-0 flex-1 grid-cols-[190px_minmax(0,1fr)] lg:grid-cols-[240px_minmax(0,1fr)]">
-        <aside className="undraggle flex min-h-0 flex-col">
+        <aside className="undraggle flex min-h-0 flex-col text-sidebar-foreground">
           <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
             <SidePanel model={model} />
           </div>
@@ -24,7 +24,7 @@ export default function Reader() {
           </div>
         </aside>
         <div className="undraggle min-h-0 min-w-0 pr-4 pb-4">
-          <div className="flex h-full flex-col overflow-hidden rounded-xl border bg-card shadow-xs">
+          <div className="flex h-full flex-col overflow-hidden rounded-xl border bg-card text-card-foreground shadow-xs">
             <List key={model.tab} model={model} />
             {model.opened && <Article model={model} />}
           </div>

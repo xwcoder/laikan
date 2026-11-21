@@ -6,13 +6,17 @@ import { FeedError } from '@/base/common/feed-error'
 import { preflightOptions, useSubscribe } from '@/ui/query/reader'
 import { Button } from '@/ui/components/ui/button'
 import { Input } from '@/ui/components/ui/input'
+import { Label } from '@/ui/components/ui/label'
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
+  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from '@/ui/components/ui/dialog'
+import { LocalizedDialogClose } from '@/ui/components/localized-dialog-close'
 
 const isFeedUrl = (value: string) => URL.canParse(value) && ['http:', 'https:'].includes(new URL(value).protocol)
 
@@ -69,17 +73,15 @@ export default function AddButton() {
   return (
     <Dialog open={open} onOpenChange={changeOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="size-7" aria-label={t('reader.form.title')}>
+        <Button variant="ghost" size="icon-xs" aria-label={t('reader.form.title')}>
           <Plus />
         </Button>
       </DialogTrigger>
-      <DialogContent>
-        <div className="space-y-2">
+      <DialogContent showCloseButton={false} className="undraggle max-h-[85dvh] overflow-y-auto">
+        <DialogHeader className="pr-8">
           <DialogTitle>{t('reader.form.title')}</DialogTitle>
-          <DialogDescription className="text-sm text-muted-foreground">
-            {t('reader.form.description')}
-          </DialogDescription>
-        </div>
+          <DialogDescription>{t('reader.form.description')}</DialogDescription>
+        </DialogHeader>
         <form
           className="space-y-4"
           onSubmit={(event) => {
@@ -99,9 +101,7 @@ export default function AddButton() {
           }}
         >
           <div className="space-y-2">
-            <label htmlFor="feed-url" className="text-sm font-medium">
-              {t('reader.form.url.label')}
-            </label>
+            <Label htmlFor="feed-url">{t('reader.form.url.label')}</Label>
             <Input
               id="feed-url"
               name="url"
@@ -119,9 +119,7 @@ export default function AddButton() {
             />
           </div>
           <div className="space-y-2">
-            <label htmlFor="feed-title" className="text-sm font-medium">
-              {t('reader.form.name.label')}
-            </label>
+            <Label htmlFor="feed-title">{t('reader.form.name.label')}</Label>
             <Input
               id="feed-title"
               name="title"
@@ -147,16 +145,17 @@ export default function AddButton() {
               {error}
             </p>
           )}
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" disabled={subscribe.isPending} onClick={() => changeOpen(false)}>
+          <DialogFooter>
+            <Button type="button" variant="outline" disabled={subscribe.isPending} onClick={() => changeOpen(false)}>
               {t('common.close')}
             </Button>
             <Button type="submit" disabled={!url.trim() || !title.trim() || checking || subscribe.isPending}>
               {subscribe.isPending && <LoaderCircle className="animate-spin" />}
               {t('reader.form.buttons.subscribe')}
             </Button>
-          </div>
+          </DialogFooter>
         </form>
+        <LocalizedDialogClose />
       </DialogContent>
     </Dialog>
   )

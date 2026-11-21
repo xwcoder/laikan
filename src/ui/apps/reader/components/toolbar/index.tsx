@@ -16,11 +16,11 @@ export function StarButton({ model, article }: { model: ReaderModel; article: Ar
     <IconButton
       label={t(article.starred ? 'reader.action.unstar' : 'reader.action.star')}
       aria-pressed={!!article.starred}
-      className={cn('size-8', !!article.starred && 'text-star hover:text-star')}
+      size="icon-sm"
       disabled={model.writing}
       onClick={() => model.toggleStar(article.id!)}
     >
-      <Star className={cn(!!article.starred && 'fill-current')} />
+      <Star className={cn(!!article.starred && 'fill-current text-star')} />
     </IconButton>
   )
 }
@@ -51,7 +51,9 @@ export function ArticleToolbar({ model }: { model: ReaderModel }) {
       <IconButton label={t('reader.action.back')} onClick={model.fold}>
         <ArrowLeft />
       </IconButton>
-      <Separator orientation="vertical" className="mx-2 h-5" />
+      <div className="mx-2 h-5">
+        <Separator orientation="vertical" />
+      </div>
       <MarkReadButton model={model} />
       {article && <StarButton model={model} article={article} />}
       <IconButton

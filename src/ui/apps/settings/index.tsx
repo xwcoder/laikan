@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  FolderOpen, Monitor, Moon, Settings as SettingsIcon, Sun,
-} from 'lucide-react'
+import { FolderOpen, Settings as SettingsIcon } from 'lucide-react'
 import { languages } from '@/i18n'
 import { Appearance, Locale } from '@/types/settings'
 import { useSettings, useUpdateSettings } from '@/ui/query/settings'
@@ -10,20 +8,17 @@ import { useAppStore } from '@/ui/store'
 import { openDirectory } from '@/base/browser/shell'
 import { Button } from '@/ui/components/ui/button'
 import { Input } from '@/ui/components/ui/input'
+import { Label } from '@/ui/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/ui/components/ui/radio-group'
 import { Separator } from '@/ui/components/ui/separator'
 import {
-  Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/ui/components/ui/dialog'
 import { ErrorAlert } from '@/ui/components/error-alert'
+import { LocalizedDialogClose } from '@/ui/components/localized-dialog-close'
 
-const themes = [
-  { value: 'light', Icon: Sun },
-  { value: 'dark', Icon: Moon },
-  { value: 'auto', Icon: Monitor },
-] as const
-
-const segmentedGroupClass = 'grid-flow-col auto-cols-fr gap-0.5 rounded-lg bg-muted p-1'
+const themes: Appearance[] = ['light', 'dark', 'auto']
+const optionsLayout = 'flex flex-wrap gap-x-4 gap-y-3'
 
 function SettingsContent() {
   const { t } = useTranslation()
@@ -47,29 +42,25 @@ function SettingsContent() {
   }
 
   return (
-    <div className="@container min-h-0 space-y-5 overflow-y-auto px-6 pb-6" data-settings-body aria-busy={update.isPending}>
+    <div className="@container -mx-1 min-h-0 space-y-5 overflow-y-auto p-1" data-settings-body aria-busy={update.isPending}>
       <ErrorAlert />
-      <div className="grid items-center gap-x-4 gap-y-2 @min-[24rem]:grid-cols-[1fr_17.5rem] @min-[24rem]:gap-y-4">
+      <div className="grid items-center gap-x-4 gap-y-3 @min-[25rem]:grid-cols-[1fr_17.5rem] @min-[25rem]:gap-y-5">
         <span id="appearance-title" className="font-medium">{t('settings.appearance.title')}</span>
         <RadioGroup
           aria-labelledby="appearance-title"
           orientation="horizontal"
           value={saving?.path === 'appearance' ? saving.value : data?.appearance}
           onValueChange={(value) => update.mutate({ path: 'appearance', value: value as Appearance })}
-          className={segmentedGroupClass}
+          className={optionsLayout}
         >
-          {themes.map(({ value, Icon }) => (
-            <RadioGroupItem
-              key={value}
-              value={value}
-              variant="segment"
-            >
-              <Icon aria-hidden className="size-3.5 shrink-0" />
-              {t(`settings.appearance.${value}`)}
-            </RadioGroupItem>
+          {themes.map((value) => (
+            <div key={value} className="flex items-center gap-2">
+              <RadioGroupItem id={`appearance-${value}`} value={value} />
+              <Label htmlFor={`appearance-${value}`}>{t(`settings.appearance.${value}`)}</Label>
+            </div>
           ))}
         </RadioGroup>
-        <span id="locale-title" className="mt-2 font-medium @min-[24rem]:mt-0">
+        <span id="locale-title" className="mt-2 font-medium @min-[25rem]:mt-0">
           {t('settings.locale.title')}
         </span>
         <RadioGroup
@@ -77,12 +68,13 @@ function SettingsContent() {
           orientation="horizontal"
           value={saving?.path === 'locale' ? saving.value : data?.locale}
           onValueChange={(value) => update.mutate({ path: 'locale', value: value as Locale })}
-          className={segmentedGroupClass}
+          className={optionsLayout}
         >
           {languages.map(({ value, label }) => (
-            <RadioGroupItem key={value} value={value} lang={value} variant="segment">
-              {label}
-            </RadioGroupItem>
+            <div key={value} className="flex items-center gap-2">
+              <RadioGroupItem id={`locale-${value}`} value={value} lang={value} />
+              <Label htmlFor={`locale-${value}`} lang={value}>{label}</Label>
+            </div>
           ))}
         </RadioGroup>
       </div>
@@ -134,22 +126,20 @@ export default function SettingsDialog() {
       <DialogTrigger asChild>
         <Button
           variant="ghost"
-          size="icon"
-          className="size-10 data-[state=open]:bg-accent"
+          size="icon-lg"
           aria-label={t('common.settings')}
           data-settings-trigger
         >
           <SettingsIcon />
         </Button>
       </DialogTrigger>
-      <DialogContent className="grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden p-0">
-        <header className="space-y-1.5 px-6 pt-6 pb-5">
+      <DialogContent showCloseButton={false} className="undraggle max-h-[85dvh] grid-rows-[auto_minmax(0,1fr)]">
+        <DialogHeader className="pr-8">
           <DialogTitle>{t('common.settings')}</DialogTitle>
-          <DialogDescription className="text-sm text-muted-foreground">
-            {t('settings.description')}
-          </DialogDescription>
-        </header>
+          <DialogDescription>{t('settings.description')}</DialogDescription>
+        </DialogHeader>
         <SettingsContent />
+        <LocalizedDialogClose />
       </DialogContent>
     </Dialog>
   )

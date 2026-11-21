@@ -34,10 +34,10 @@ module.exports = async function settingsModalSmoke(contents, { run, wait, click,
         fits: document.documentElement.scrollWidth <= innerWidth && close.top >= 0 && close.bottom <= innerHeight,
       }
     })()`)
-    assert.ok(geometry.width <= 512)
+    assert.ok(geometry.width <= geometry.viewportWidth - 32 + 1, JSON.stringify(geometry))
     assert.ok(geometry.height <= 600 * 0.85 + 1)
     assert.ok(geometry.top >= 0 && geometry.bottom <= 600)
-    assert.equal(geometry.scrollable, false)
+    assert.equal(geometry.scrollable, false, JSON.stringify(geometry))
     await snapshot('settings-modal-small')
     assert.equal(geometry.fits, true, JSON.stringify(geometry))
     // The compact form fits the minimum window. Zoom still requires internal scrolling.

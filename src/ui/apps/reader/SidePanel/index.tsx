@@ -44,7 +44,7 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
             variant="ghost"
             data-tab={tab}
             aria-pressed={model.tab === tab}
-            className={cn('w-full justify-start px-2', model.tab === tab && 'bg-accent font-semibold')}
+            className="w-full justify-start px-2 aria-pressed:bg-sidebar-accent aria-pressed:font-semibold aria-pressed:text-sidebar-accent-foreground"
             onClick={() => model.changeTab(tab as Tab)}
           >
             <Icon />
@@ -55,7 +55,7 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
           </Button>
         ))}
       </div>
-      <Separator className="my-4" />
+      <Separator className="my-4 bg-sidebar-border" />
       <div className="flex items-center justify-between pl-2">
         <h2 className="text-xs font-medium text-muted-foreground">{t('reader.list.feeds')}</h2>
         <AddButton />
@@ -68,8 +68,8 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
             <div
               key={feed.id}
               className={cn(
-                'group relative flex items-center rounded-md transition-colors hover:bg-accent has-focus-visible:bg-accent',
-                model.tab === feed.id && 'bg-accent',
+                'group relative flex items-center rounded-md transition-colors hover:bg-sidebar-accent has-focus-visible:bg-sidebar-accent',
+                model.tab === feed.id && 'bg-sidebar-accent text-sidebar-accent-foreground',
               )}
               data-feed-id={feed.id}
             >
@@ -77,7 +77,7 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
                 variant="ghost"
                 aria-pressed={model.tab === feed.id}
                 className={cn(
-                  'w-full justify-start pr-2 pl-2 hover:bg-transparent group-hover:pr-16',
+                  'w-full justify-start px-2 hover:bg-transparent group-hover:pr-16 dark:hover:bg-transparent',
                   'group-has-[[data-feed-actions]_:focus-visible]:pr-16',
                 )}
                 onClick={() => model.changeTab(feed.id!)}
@@ -100,18 +100,18 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
               >
                 <Button
                   variant="ghost"
-                  size="icon"
+                  size="icon-sm"
                   aria-label={t('reader.action.copy.title')}
-                  className="size-7 hover:bg-foreground/10"
+                  className="hover:bg-background dark:hover:bg-background"
                   onClick={() => copy(feed.url)}
                 >
                   <Copy />
                 </Button>
                 <Button
                   variant="ghost"
-                  size="icon"
+                  size="icon-sm"
                   aria-label={t('reader.action.delete')}
-                  className="size-7 hover:bg-foreground/10"
+                  className="hover:bg-background dark:hover:bg-background"
                   disabled={model.deleting}
                   onClick={(event) => {
                     model.resetDelete()

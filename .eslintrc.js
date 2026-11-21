@@ -1,5 +1,7 @@
 module.exports = {
   root: true,
+  // Keep official shadcn registry sources in their published format.
+  ignorePatterns: ['src/ui/components/ui/'],
   env: {
     browser: true,
     node: true,

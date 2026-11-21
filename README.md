@@ -43,9 +43,11 @@ Radix primitives, Lucide icons, and Tailwind CSS **4.3.5** (npm `latest`, checke
 CSS rather than a JavaScript Tailwind or PostCSS configuration. `components.json`
 configures shadcn's source aliases for adding more components.
 
-- Reusable controls live in `src/ui/components/ui/`. Application styles use
-  Tailwind utilities; `src/ui/style.css` defines semantic colors and radii for
-  both themes. Change those variables to update the application theme.
+- `src/ui/components/ui/` contains official shadcn New York (Tailwind v4)
+  registry sources with the project's import aliases. Compose these components
+  in application code. Use the semantic CSS tokens in `src/ui/style.css` for
+  colors, typography, and radii in both themes. See [shadcn
+  theming](https://ui.shadcn.com/docs/theming).
 - Component forms, dialogs and other private UI state use React `useState`.
   Zustand stores in `src/ui/store/` contain shared client state such as the
   reader tab, page, focused article and selected article IDs.
