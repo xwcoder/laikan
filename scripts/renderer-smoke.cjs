@@ -289,20 +289,22 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
       const rows = viewport.querySelectorAll('[data-list-item-id]')
       const row = rows[22]
       row.scrollIntoView({ block: 'center' })
-      const button = row.querySelector('[data-article-open]')
       const offset = row.getBoundingClientRect().top - viewport.getBoundingClientRect().top
-      button.focus({ preventScroll: true })
-      button.click()
+      row.querySelector('[data-article-open]').focus({ preventScroll: true })
       return { id: Number(row.dataset.listItemId), nextId: Number(rows[23].dataset.listItemId), offset }
     })()`)
+    await press('o')
     await wait('document.querySelector(".article-content")')
     await wait(`window.emo.fetch('/reader/get/article', ${position.id}).then(article => article.read === 1)`)
-    await click('[aria-label="Back to list"]')
+    await focusWindow()
+    contents.sendInputEvent({ type: 'keyDown', keyCode: 'U' })
+    contents.sendInputEvent({ type: 'keyUp', keyCode: 'U' })
     await wait(`document.querySelector('.list-container') && !document.querySelector('[data-list-item-id="${position.id}"]')`)
     const returnedOffset = await run(`document.querySelector('[data-list-item-id="${position.nextId}"]').getBoundingClientRect().top
       - document.querySelector('.list-container').getBoundingClientRect().top`)
     assert.ok(Math.abs(returnedOffset - position.offset) <= 1, 'The next unread article should occupy the opened row’s position')
     assert.equal(await run(focusedIdExpression), position.nextId)
+    assert.equal(await run('getComputedStyle(document.activeElement).boxShadow'), 'none', 'Returning with U should use the active row indicator')
     await press('g'); await press('a')
     await wait('document.querySelector("[data-tab=all]").getAttribute("aria-pressed") === "true"')
     await wait('document.querySelectorAll("[data-list-item-id]").length === 50')

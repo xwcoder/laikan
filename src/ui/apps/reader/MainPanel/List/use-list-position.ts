@@ -50,7 +50,7 @@ function restoreFocus(viewport: HTMLDivElement, visible: Anchor[], previous: Lis
   )[0]
   if (target) {
     getRow(viewport, target.id)?.querySelector<HTMLButtonElement>('button[data-article-open]')
-      ?.focus({ preventScroll: true })
+      ?.focus({ preventScroll: true, focusVisible: false })
   }
 }
 
