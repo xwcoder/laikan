@@ -76,6 +76,7 @@
         "timeout": "The feed request timed out. Please try again.",
         "network": "Unable to connect to the feed server.",
         "encoding": "The feed character encoding is invalid or unsupported.",
+        "empty": "The feed server returned an empty response. Check that the subscription URL still serves a feed.",
         "xml": "The feed contains invalid XML.",
         "format": "This address does not contain a supported RSS or Atom feed.",
         "limit": "This feed is too large to import. Choose a feed with fewer articles."

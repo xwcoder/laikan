@@ -1,4 +1,4 @@
-export type FeedErrorKind = 'http' | 'timeout' | 'network' | 'encoding' | 'xml' | 'format' | 'limit'
+export type FeedErrorKind = 'http' | 'timeout' | 'network' | 'encoding' | 'empty' | 'xml' | 'format' | 'limit'
 
 export class FeedError extends Error {
   constructor(

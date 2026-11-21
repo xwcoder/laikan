@@ -25,7 +25,9 @@ const crawlOne = async (source: Feed) => {
     if (saved) await feedService.pushOne(source.id!)
     return true
   } catch (error) {
-    logger.error('[Reader] Feed refresh failed', error)
+    const host = URL.parse(source.url)?.hostname ?? 'unknown host'
+    const reason = error instanceof Error ? error.message : 'Unknown error'
+    logger.error(`[Reader] Feed refresh failed (feed #${source.id ?? '?'}, ${host}): ${reason}`)
     return false
   }
 }

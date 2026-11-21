@@ -13,6 +13,21 @@ test('HTTP errors are rejected even if the body looks like RSS', async () => {
   await assert.rejects(parseURL('https://example.com/feed'), { kind: 'http' })
 })
 
+test('a successful HTTP response with no body is distinct from a feed with no entries', async () => {
+  const request = mock.method(globalThis, 'fetch', async () => new Response(''))
+  const url = 'https://example.com/feed'
+  await assert.rejects(parseURL(url), { kind: 'empty', message: /empty response \(HTTP 200\)/ })
+  request.mock.mockImplementation(async () => new Response('<rss version="2.0"><channel><title>Feed</title></channel></rss>'))
+  assert.deepEqual((await parseURL(url)).items, [])
+  assert.equal(request.mock.callCount(), 2, 'An empty response must not be cached')
+})
+
+test('network errors keep the system error code in the diagnostic message', async () => {
+  const cause = Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' })
+  mock.method(globalThis, 'fetch', async () => { throw new TypeError('fetch failed', { cause }) })
+  await assert.rejects(parseURL('https://example.com/feed'), { kind: 'network', message: /\(ECONNRESET\)/ })
+})
+
 test('preflight/import reuse a short-lived result and receive independent copies', async () => {
   const request = mock.method(globalThis, 'fetch', async () => new Response(xml))
   const first = await parseURL('https://example.com/feed')

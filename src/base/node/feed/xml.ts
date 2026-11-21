@@ -88,7 +88,7 @@ export async function parseXml(xml: string, base?: string): Promise<XmlElement> 
     parser.close()
   } catch (error) {
     if (error instanceof FeedError) throw error
-    throw new FeedError('xml', 'Invalid XML document', { cause: error })
+    throw new FeedError('xml', `Invalid XML document (line ${parser.line}, column ${parser.column})`, { cause: error })
   }
   if (!root) throw new FeedError('xml', 'Empty XML document')
   return root

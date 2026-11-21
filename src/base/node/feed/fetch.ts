@@ -59,10 +59,9 @@ function requestHeaders(options: FetchOptions) {
 
 async function modifiedResponse(response: Response, url: string, maxBytes: number): Promise<FetchResult> {
   const bytes = await readBody(response, maxBytes)
-  const parsed = await parseString(
-    decode(bytes, response.headers.get('content-type') ?? ''),
-    httpUrl(response.url) ?? url,
-  )
+  const xml = decode(bytes, response.headers.get('content-type') ?? '')
+  if (!xml.trim()) throw new FeedError('empty', `Feed server returned an empty response (HTTP ${response.status})`)
+  const parsed = await parseString(xml, httpUrl(response.url) ?? url)
   if (!parsed) throw new FeedError('format', 'Unsupported RSS or Atom document')
   const feed: Feed = {
     ...parsed,
@@ -91,6 +90,14 @@ async function parseResponse(response: Response, url: string, options: FetchOpti
   return modifiedResponse(response, url, options.maxBytes ?? maxBodySize)
 }
 
+function networkErrorCode(error: unknown): string | undefined {
+  const cause = error instanceof Error ? error.cause : undefined
+  if (cause instanceof Error && 'code' in cause && typeof cause.code === 'string' && /^[A-Z][A-Z0-9_]+$/.test(cause.code)) {
+    return cause.code
+  }
+  return undefined
+}
+
 async function requestFeed(url: string, options: FetchOptions): Promise<FetchResult> {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? 20_000)
@@ -103,7 +110,8 @@ async function requestFeed(url: string, options: FetchOptions): Promise<FetchRes
   } catch (error) {
     if (controller.signal.aborted) throw new FeedError('timeout', 'Feed request timed out', { cause: error })
     if (error instanceof FeedError) throw error
-    throw new FeedError('network', 'Unable to fetch feed', { cause: error })
+    const code = networkErrorCode(error)
+    throw new FeedError('network', code ? `Unable to fetch feed (${code})` : 'Unable to fetch feed', { cause: error })
   } finally {
     clearTimeout(timeout)
   }
