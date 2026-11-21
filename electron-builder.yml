@@ -13,6 +13,8 @@ artifactName: ${name}-${version}-${os}-${arch}.${ext}
 mac:
   category: public.app-category.news
   icon: assets/icons/icon.icns
+  files:
+    - assets/icons/icon-mac.png
   target:
     - dmg
     - zip

@@ -12,5 +12,5 @@ app.setPath('userData', userDataPath)
 app.setPath('sessionData', userDataPath)
 
 if (isDev && isMac) {
-  app.whenReady().then(() => app.dock?.setIcon(join(__dirname, '../../assets/icons/icon.png')))
+  app.whenReady().then(() => app.dock?.setIcon(join(__dirname, '../../assets/icons/icon-mac.png')))
 }
