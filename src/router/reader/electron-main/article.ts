@@ -21,6 +21,8 @@ router.get('/articles', async (_, params) => {
   }
 })
 
+router.get('/articles/unread-count', () => articleService.countUnread())
+
 router.put('/article/starred', (_, { id, status }) => articleService.starred(id, status))
 
 router.put('/article/read', (_, { ids, status }) => articleService.markRead(ids, status))

@@ -6,7 +6,7 @@ import { createArticleRepository } from './article-repository'
 
 const repository = createArticleRepository(database)
 export const {
-  getById, upsert, find, starred, markRead,
+  getById, upsert, find, countUnread, starred, markRead,
 } = repository
 const requests = new Map<string, Promise<ArticleFullText>>()
 

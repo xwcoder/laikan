@@ -5,7 +5,7 @@ import * as feedService from '@/services/reader/browser/feed'
 import * as articleService from '@/services/reader/browser/article'
 import { useReaderStore } from '@/ui/store/reader'
 import {
-  ArticleDetail, ArticleFilter, ArticleListItem, ArticlePage,
+  ArticleDetail, ArticleFilter, ArticleListItem, ArticlePage, Feed,
 } from '@/types/reader'
 
 const writeScope = 'reader-write'
@@ -13,12 +13,17 @@ const writeScope = 'reader-write'
 export const readerKeys = {
   all: ['reader'] as const,
   feeds: ['reader', 'feeds'] as const,
+  unreadCount: ['reader', 'unread-count'] as const,
   articles: ['reader', 'articles'] as const,
   details: ['reader', 'article'] as const,
   article: (id: number | null) => ['reader', 'article', id] as const,
 }
 
 export const feedsOptions = queryOptions({ queryKey: readerKeys.feeds, queryFn: feedService.getAll })
+export const unreadCountOptions = queryOptions({
+  queryKey: readerKeys.unreadCount,
+  queryFn: articleService.countUnread,
+})
 export const articlesOptions = (filter: ArticleFilter, unreadVersion: number) => queryOptions({
   queryKey: [...readerKeys.articles, filter, filter.tab === 'unread' ? unreadVersion : null] as const,
   queryFn: () => {
@@ -66,10 +71,11 @@ export const preflightOptions = (url: string) => queryOptions({
   staleTime: 60_000,
 })
 
-export function useSubscribe() {
+export function useSubscribe(inlineError = false) {
   const client = useQueryClient()
   return useMutation({
     mutationFn: feedService.upsert,
+    meta: { inlineError },
     onSuccess: () => client.invalidateQueries({ queryKey: readerKeys.all }),
   })
 }
@@ -97,13 +103,14 @@ export function useRefreshFeeds() {
   })
 }
 
-export function useDeleteFeed(onDeleted: (id: number) => void) {
+export function useUnsubscribe(onUnsubscribed: (id: number) => void) {
   const client = useQueryClient()
   return useMutation({
-    mutationFn: feedService.deleteById,
+    mutationFn: feedService.unsubscribe,
     meta: { inlineError: true },
     onSuccess: (_, id) => {
-      onDeleted(id)
+      onUnsubscribed(id)
+      client.setQueryData<Feed[]>(readerKeys.feeds, (feeds) => feeds?.filter((feed) => feed.id !== id))
       return client.invalidateQueries({ queryKey: readerKeys.all })
     },
   })

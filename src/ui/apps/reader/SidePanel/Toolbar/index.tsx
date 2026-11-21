@@ -6,14 +6,16 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/ui/components/ui/button'
 import { cn } from '@/ui/lib/utils'
 import { useFeedTransfer } from '@/ui/query/reader'
+import { ReaderModel } from '@/ui/hooks/use-reader-model'
 import AddButton from './add-btn'
+import FeedRecommendations from './feed-recommendations'
 
 const actions = [
   { action: 'import', Icon: ArrowDownToLine },
   { action: 'export', Icon: ArrowUpToLine },
 ] as const
 
-export default function FeedToolbar({ hasFeeds }: { hasFeeds: boolean }) {
+export default function FeedToolbar({ model }: { model: ReaderModel }) {
   const { t } = useTranslation()
   const transfer = useFeedTransfer()
   const { data, isError, variables } = transfer
@@ -25,6 +27,7 @@ export default function FeedToolbar({ hasFeeds }: { hasFeeds: boolean }) {
         <h2 className="text-xs font-medium text-muted-foreground">{t('reader.list.feeds')}</h2>
         <div className="flex items-center gap-1">
           <AddButton />
+          <FeedRecommendations model={model} />
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
               <Button variant="ghost" size="icon-xs" aria-label={t('reader.transfer.menu')}>
@@ -40,7 +43,7 @@ export default function FeedToolbar({ hasFeeds }: { hasFeeds: boolean }) {
                 {actions.map(({ action, Icon }) => (
                   <DropdownMenu.Item
                     key={action}
-                    disabled={transfer.isPending || (action === 'export' && !hasFeeds)}
+                    disabled={transfer.isPending || (action === 'export' && !model.feeds.data?.length)}
                     onSelect={() => transfer.mutate(action)}
                     className={cn(
                       'flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm whitespace-nowrap outline-none',

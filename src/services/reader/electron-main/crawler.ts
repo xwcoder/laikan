@@ -2,27 +2,26 @@ import { fetchFeed } from '@/base/node/feed'
 import { runConcurrent } from '@/base/common/async'
 import { transaction } from '@/services/db/electron-main/db'
 import { logger } from '@/services/logger/electron-main/logger'
-import { Feed, FeedRefreshResult } from '@/types/reader'
+import { FeedRefreshResult } from '@/types/reader'
 import * as feedService from './feed'
 import * as articleService from './article'
 
-const crawlOne = async (source: Feed) => {
+const crawlOne = async (source: feedService.FeedToRefresh) => {
   try {
+    if (!await feedService.isCurrentSubscription(source)) return true
     const result = await fetchFeed(source.url, {
       force: true, etag: source.etag, lastModified: source.lastModified,
     })
-    if (result.status === 'not-modified') {
-      await feedService.updateValidators(source.id!, result.etag, result.lastModified)
-      return true
-    }
     const saved = await transaction(async () => {
-      // A feed can be deleted while its HTTP request is still in flight.
-      if (!await feedService.getOne(source.id!)) return false
-      await articleService.upsert((result.feed.items ?? []).map((article) => ({ ...article, feedId: source.id })))
-      await feedService.updateValidators(source.id!, result.etag, result.lastModified)
-      return true
+      // A request started before cancellation belongs to the previous subscription.
+      if (!await feedService.isCurrentSubscription(source)) return false
+      if (result.status === 'modified') {
+        await articleService.upsert((result.feed.items ?? []).map((article) => ({ ...article, feedId: source.id })))
+      }
+      await feedService.updateValidators(source.id, result.etag, result.lastModified)
+      return result.status === 'modified'
     })
-    if (saved) await feedService.pushOne(source.id!)
+    if (saved) await feedService.pushOne(source.id)
     return true
   } catch (error) {
     const host = URL.parse(source.url)?.hostname ?? 'unknown host'
@@ -32,7 +31,7 @@ const crawlOne = async (source: Feed) => {
   }
 }
 
-async function crawlFeeds(feeds: readonly Feed[]): Promise<FeedRefreshResult> {
+async function crawlFeeds(feeds: readonly feedService.FeedToRefresh[]): Promise<FeedRefreshResult> {
   let failed = 0
   await runConcurrent(feeds, 4, async (feed) => {
     if (!await crawlOne(feed)) failed += 1
@@ -50,12 +49,12 @@ function queueRefresh(refresh: () => Promise<FeedRefreshResult>) {
 }
 
 export function refreshFeeds() {
-  running ??= queueRefresh(async () => crawlFeeds(await feedService.getAll()))
+  running ??= queueRefresh(async () => crawlFeeds(await feedService.getRefreshFeeds()))
     .finally(() => { running = undefined })
   return running
 }
 
-export function refreshImportedFeeds(feeds: readonly Feed[]) {
+export function refreshImportedFeeds(feeds: readonly feedService.FeedToRefresh[]) {
   return queueRefresh(() => crawlFeeds(feeds))
 }
 

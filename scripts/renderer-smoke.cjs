@@ -198,10 +198,25 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
 
   let fixtureCount = 52
   let failRss = false
+  let failRecommendation = false
+  let recommendationRequests = 0
   const rssRequests = []
   const server = http.createServer((request, response) => {
     response.setHeader('content-type', 'application/rss+xml')
     if (request.url === '/invalid') { response.end('<html>Not a feed</html>'); return }
+    if (request.url === '/recommendation') {
+      recommendationRequests += 1
+      if (failRecommendation) {
+        response.statusCode = 503
+        response.end()
+        return
+      }
+      response.end(`<rss version="2.0"><channel><title>Meituan fixture</title><item>
+        <title>Engineering article</title><guid>engineering</guid>
+        <link>https://example.com/engineering</link><description>Engineering notes.</description>
+        </item></channel></rss>`)
+      return
+    }
     if (request.url === '/rss') {
       const validator = request.headers['if-none-match']
       rssRequests.push(validator)
@@ -223,6 +238,13 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
   })
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
   const base = `http://127.0.0.1:${server.address().port}`
+  const recommendedUrl = 'https://tech.meituan.com/rss.xml'
+  const oldRecommendedUrl = 'https://tech.meituan.com/feed/'
+  const networkFetch = globalThis.fetch
+  globalThis.fetch = (url, options) => networkFetch(
+    [recommendedUrl, oldRecommendedUrl].includes(url) ? `${base}/recommendation` : url,
+    options,
+  )
   try {
     await click('[aria-label="Subscribe to a feed"]')
     await wait('document.querySelector("#feed-url")')
@@ -407,6 +429,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await run('document.querySelector(".list-container > :last-child [data-article-open]").focus()')
     await press('j')
     await wait('document.body.textContent.includes("51–52 of 52") && document.activeElement === document.querySelector("[data-article-open]")')
+    await wait('document.querySelector(\'[aria-label="Previous page"]\')?.disabled === false')
     await press('k')
     await wait(`${focusedIdExpression} === ${position.ids.at(-1)}`)
     assert.deepEqual(await run(visibleIds), position.ids)
@@ -462,9 +485,9 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     fixtureCount = 54
     const beforeRefresh = rssRequests.length
     await click(refreshButton)
+    await wait('document.body.textContent.includes("51–54 of 54")')
     await wait('document.querySelector(".list-container").parentElement.querySelector("[role=status]")?.textContent === "Synced 1 feed"')
     assert.ok(rssRequests.slice(beforeRefresh).includes('"fixture-53"'), 'Manual refresh should fetch upstream using the saved validator')
-    assert.ok(await run('document.body.textContent.includes("51–54 of 54")'), 'Refresh should keep the current page')
     failRss = true
     await click(refreshButton)
     await wait('document.body.textContent.includes("0 synced, 1 failed")')
@@ -491,7 +514,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     const feedRow = `[data-feed-id="${feedId}"]`
     const feedButton = `${feedRow} > button`
     const copyButton = `${feedRow} [aria-label="${en.reader.action.copy.title}"]`
-    const deleteButton = `${feedRow} [aria-label="${en.reader.action.delete}"]`
+    const unsubscribeButton = `${feedRow} [aria-label="${en.reader.action.unsubscribe}"]`
     const rowElement = `document.querySelector(${JSON.stringify(feedRow)})`
     const feedElement = `document.querySelector(${JSON.stringify(feedButton)})`
     const rowBackground = `getComputedStyle(${rowElement}).backgroundColor`
@@ -505,7 +528,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await wait(`${rowBackground} !== '${transparent}' && ${rowElement}.getAnimations().length === 0`)
     const highlight = await run(rowBackground)
     assert.notEqual(highlight, currentBackground, 'Hover and selection use distinct sidebar colors')
-    for (const selector of [copyButton, deleteButton]) {
+    for (const selector of [copyButton, unsubscribeButton]) {
       await hoverWithoutTooltip(selector)
       assert.equal(await run(rowBackground), highlight)
       assert.notEqual(await run(`getComputedStyle(document.querySelector(${JSON.stringify(selector)})).backgroundColor`), transparent)
@@ -529,29 +552,98 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     tab(['shift'])
     await wait(`document.activeElement === ${feedElement} && ${actionsStyle}.opacity === '0'`)
 
-    await hover(feedButton)
-    await click(deleteButton)
-    await wait('document.activeElement.textContent === "Cancel" && document.activeElement.closest("[role=alertdialog]")')
-    assert.match(await run('document.querySelector("[role=alertdialog]").textContent'), /Fixture feed.*including starred articles/)
-    assert.equal((await run('window.laikan.fetch("/reader/get/feed/all")')).length, 1)
-    await press('g'); await press('a'); await press('?', true)
-    assert.equal(await run('!!document.querySelector("[role=dialog]")'), false)
-    assert.equal(await run(`document.querySelector(${JSON.stringify(feedButton)}).getAttribute('aria-pressed')`), 'true')
-    await press('Escape')
-    await wait(`!document.querySelector('[role=alertdialog]') && document.activeElement.matches(${JSON.stringify(deleteButton)})`)
-    assert.equal((await run(`window.laikan.fetch('/reader/get/article', ${firstId})`)).starred, 1)
-
-    await click(deleteButton)
-    await wait('document.querySelector("[role=alertdialog] button:last-child")')
-    await click('[role=alertdialog] button:last-child')
-    await wait('!document.querySelector("[role=alertdialog]") && document.activeElement.matches("[data-tab=all]")')
-    await wait('document.querySelectorAll("[data-feed-id]").length === 0 && document.querySelectorAll("[data-list-item-id]").length === 0')
+    const articleBeforeUnsubscribe = await run(`window.laikan.fetch('/reader/get/article', ${firstId})`)
+    const unreadBefore = await run('window.laikan.fetch("/reader/get/articles/unread-count")')
+    await run(`document.querySelector(${JSON.stringify(unsubscribeButton)}).focus()`)
+    await click(unsubscribeButton)
+    if (!await run('matchMedia("(prefers-reduced-motion: reduce)").matches')) {
+      await wait(`document.querySelector('[data-feed-leaving="${feedId}"]')?.inert`)
+    }
+    await wait('document.activeElement.matches("[data-tab=all]") && !document.querySelector("[data-feed-id]")')
+    await wait('document.querySelectorAll("[data-list-item-id]").length === 50')
+    assert.equal(await run('!!document.querySelector("[role=alertdialog]")'), false)
     assert.deepEqual(await run('window.laikan.fetch("/reader/get/feed/all")'), [])
-    assert.equal((await run('window.laikan.fetch("/reader/get/articles", { tab: "all", page: 1, size: 50 })')).count, 0)
+    assert.equal((await run('window.laikan.fetch("/reader/get/articles", { tab: "all", page: 1, size: 50 })')).count, 55)
+    assert.deepEqual(await run(`window.laikan.fetch('/reader/get/article', ${firstId})`), articleBeforeUnsubscribe)
+    assert.equal(articleBeforeUnsubscribe.feedTitle, 'Fixture feed')
+    assert.equal(await run('window.laikan.fetch("/reader/get/articles/unread-count")'), unreadBefore)
     await openSubscriptionMenu()
     assert.equal(await run('document.querySelector("[role=menuitem]:last-child").getAttribute("aria-disabled")'), 'true')
     await press('Escape')
     await wait(`!document.querySelector('[role=menu]') && document.activeElement.matches(${JSON.stringify(subscriptionMenu)})`)
+
+    // The catalog and icons are bundled. Live subscription state comes from the reader.
+    const catalogButton = `[aria-label="${en.reader.recommendations.title}"]`
+    const recommendationRow = '[data-recommended-feed="meituan"]'
+    const recommendationButton = `${recommendationRow} button`
+    const buttonReady = (label) => `(() => {
+      const button = document.querySelector(${JSON.stringify(recommendationButton)})
+      return button?.textContent.trim() === ${JSON.stringify(label)} && button.ariaDisabled === 'false'
+    })()`
+    contents.session.enableNetworkEmulation({ offline: true })
+    try {
+      await click(catalogButton)
+      await wait('document.querySelectorAll("[data-recommended-feed]").length === 28')
+      await wait('document.querySelector("[data-recommended-feed=martinFowler] img")?.naturalWidth > 0')
+      await wait('document.querySelector("[data-recommended-feed=infoqChina] img")?.naturalWidth > 0')
+      await wait(`(() => {
+        const daily = document.querySelector('[data-recommended-feed=zhihuDaily] img')
+        const morning = document.querySelector('[data-recommended-feed=zhihuMorning] img')
+        return daily?.naturalWidth > 0 && daily.src === morning?.src
+      })()`)
+      const header = await run(`(() => {
+        const header = document.querySelector('[data-feed-recommendations] [data-slot=dialog-header]')
+        const center = (element) => {
+          const rect = element.getBoundingClientRect()
+          return rect.top + rect.height / 2
+        }
+        return { height: header.offsetHeight, closeOffset: Math.abs(center(header) - center(header.querySelector('button'))) }
+      })()`)
+      assert.equal(header.height, 52)
+      assert.ok(header.closeOffset <= 1, 'The close button should be centered in the header')
+      const groups = await run(`Array.from(document.querySelectorAll('[data-feed-recommendations] section'), section => [
+        section.querySelector('h3').textContent.trim(), section.querySelectorAll('[data-recommended-feed]').length,
+      ])`)
+      assert.deepEqual(groups, [
+        [en.reader.recommendations.groups.development, 12],
+        [en.reader.recommendations.groups.technology, 3],
+        [en.reader.recommendations.groups.scienceAndHumanities, 5],
+        [en.reader.recommendations.groups.zhihu, 3],
+        [en.reader.recommendations.groups.douban, 5],
+      ])
+      assert.equal(recommendationRequests, 0)
+      await snapshot('recommended-feeds-dark-en')
+    } finally {
+      contents.session.disableNetworkEmulation()
+    }
+
+    await run(`window.laikan.fetch('/reader/post/feed', ${JSON.stringify({ url: oldRecommendedUrl, title: 'Meituan Engineering' })})`)
+    await wait(buttonReady(en.reader.action.unsubscribe))
+    const [meituan] = await run('window.laikan.fetch("/reader/get/feed/all")')
+    const meituanTab = `{ tab: ${meituan.id}, page: 1, size: 50 }`
+    const { data: [meituanArticle] } = await run(`window.laikan.fetch('/reader/get/articles', ${meituanTab})`)
+    await run(`window.laikan.fetch('/reader/put/article/starred', { id: ${meituanArticle.id}, status: 1 })`)
+    await click(recommendationButton)
+    await wait(buttonReady(en.reader.form.buttons.subscribe))
+    await wait(`!document.querySelector('[data-feed-id="${meituan.id}"]')`)
+
+    failRecommendation = true
+    await click(recommendationButton)
+    await wait(`document.querySelector(${JSON.stringify(`${recommendationRow} [role=alert]`)})`)
+    assert.deepEqual(await run('window.laikan.fetch("/reader/get/feed/all")'), [])
+    failRecommendation = false
+    await click(recommendationButton)
+    await wait(buttonReady(en.reader.action.unsubscribe))
+    const [reactivated] = await run('window.laikan.fetch("/reader/get/feed/all")')
+    assert.equal(reactivated.id, meituan.id, 'An older URL should resume the same subscription')
+    const { data: [retained], count } = await run(`window.laikan.fetch('/reader/get/articles', ${meituanTab})`)
+    assert.equal(count, 1)
+    assert.equal(retained.id, meituanArticle.id)
+    assert.equal(retained.starred, 1)
+    await click(recommendationButton)
+    await wait(buttonReady(en.reader.form.buttons.subscribe))
+    await press('Escape')
+    await wait(`!document.querySelector('[data-feed-recommendations]') && document.activeElement.matches(${JSON.stringify(catalogButton)})`)
 
     // Empty feeds still appear after a successful subscription without relying on a crawler push.
     await click('[aria-label="Subscribe to a feed"]')
@@ -573,8 +665,9 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await click('[role=dialog] button[aria-label=Close]')
     await wait('!document.querySelector("[role=dialog]")')
     await require('./opml-smoke.cjs')({ run, wait, openSubscriptionMenu }, base)
-    console.log('Renderer smoke passed: settings, subscriptions, focused shortcuts, reading position, feed refresh, confirmed deletion and mutation errors')
+    console.log('Renderer smoke passed: settings, recommendations, subscription retention, reading position, feed refresh and mutation errors')
   } finally {
+    globalThis.fetch = networkFetch
     await new Promise(resolve => server.close(resolve))
   }
 }

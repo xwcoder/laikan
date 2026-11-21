@@ -72,13 +72,20 @@ module.exports = async function opmlSmoke({ run, wait, openSubscriptionMenu }, b
     await choose('Import')
     assert.equal((await feeds()).length, 3)
 
+    await run(`window.laikan.fetch('/reader/delete/feed', ${imported.id})`)
+    await wait(`!document.querySelector('[data-feed-id="${imported.id}"]')`)
+    await choose('Export')
+    assert.doesNotMatch(fs.readFileSync(exportPath, 'utf8'), /News &amp; Updates/)
     selectedPath = importPath
+    await choose('Import')
+    assert.equal((await feeds()).find(feed => feed.url === `${base}/opml`).id, imported.id)
+
     fs.writeFileSync(importPath, `<opml><body><outline xmlUrl="${base}/must-not-save"/>`)
     await choose('Import')
     assert.equal(await run('document.querySelector("aside [role=alert]")?.textContent.trim()'),
       "The selected file isn't a valid OPML document.")
     assert.equal((await feeds()).length, 3)
-    console.log('OPML smoke passed: sidebar, file pickers, merge, background refresh, round-trip and feedback')
+    console.log('OPML smoke passed: file pickers, merge, background refresh, active export and resubscription')
   } finally {
     dialog.showOpenDialog = openPicker
     dialog.showSaveDialog = savePicker

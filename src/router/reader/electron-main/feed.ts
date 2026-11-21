@@ -33,12 +33,12 @@ router.post('/feed', async (_, { url, title }: Pick<Feed, 'url'|'title'>) => {
     throw error
   }
   const id = await transaction(async () => {
-    const feed: Feed = { ...parsed, url: existing?.url ?? parsed.url, title: title.trim() }
-    await feedService.upsert(feed)
-    const saved = (await feedService.getByUrl(feed.url))!
+    const stored = await feedService.getByUrl(normalized) ?? await feedService.getByUrl(url)
+    const feed: Feed = { ...parsed, url: stored?.url ?? parsed.url, title: title.trim() }
+    const saved = await feedService.upsert(feed)
     await articleService.upsert((feed.items ?? []).map((article) => ({ ...article, feedId: saved.id })))
-    await feedService.updateValidators(saved.id!, feed.etag, feed.lastModified)
-    return saved.id!
+    await feedService.updateValidators(saved.id, feed.etag, feed.lastModified)
+    return saved.id
   })
   await feedService.pushOne(id)
   return undefined
@@ -48,4 +48,8 @@ router.get('/feed/all', async () => feedService.getAll())
 
 router.post('/feed/refresh', () => refreshFeeds())
 
-router.delete('/feed', async (_, id: number) => feedService.deleteById(id))
+router.delete('/feed', async (_, id: number) => {
+  if (!Number.isSafeInteger(id) || id < 1) throw new TypeError('Invalid feed ID')
+  const { changes } = await feedService.unsubscribe(id)
+  if (changes) await feedService.pushAll()
+})

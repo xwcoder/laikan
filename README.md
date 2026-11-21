@@ -78,7 +78,8 @@ offline in packaged builds.
 `npm run test:smoke` additionally exercises the production UI with a local RSS
 fixture: theme/language persistence and system theme changes, feed previews and
 subscriptions, pagination, read/star mutations, font size, bulk keyboard
-shortcuts, push-driven cache updates, feed deletion and failed mutations. It also
+shortcuts, push-driven cache updates, the bundled recommendations, and article
+retention when unsubscribing. It also
 checks settings-modal dismissal, focus return, small-window scrolling, discarded
 directory drafts and preservation of reader state while changing settings. It
 uses an isolated temporary data directory. Set `LAIKAN_SMOKE_SCREENSHOTS` to an

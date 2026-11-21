@@ -17,7 +17,7 @@
       "nextArticle": "下一篇"
     },
     "action": {
-      "delete": "删除",
+      "unsubscribe": "取消订阅",
       "markRead": "标记为已读",
       "markUnread": "标记为未读",
       "refresh": "刷新",
@@ -41,11 +41,55 @@
       "error": "无法同步订阅源。",
       "empty": "暂无可同步的订阅源。"
     },
-    "deleteFeed": {
-      "title": "删除「{{title}}」？",
-      "description": "此操作会永久删除该订阅源及其所有文章，包括已加星标的文章。",
-      "error": "无法删除订阅源，请重试。",
-      "deleting": "正在删除…"
+    "unsubscribe": {
+      "error": "无法取消订阅，请重试。"
+    },
+    "recommendations": {
+      "title": "订阅推荐",
+      "description": "浏览内置推荐源并管理订阅。",
+      "subscribeError": "订阅失败，请重试。",
+      "languages": {
+        "zh-CN": "简体中文",
+        "zh-TW": "繁體中文",
+        "en": "英文"
+      },
+      "groups": {
+        "development": "软件开发",
+        "technology": "科技与数字生活",
+        "scienceAndHumanities": "科学与人文",
+        "zhihu": "知乎",
+        "douban": "豆瓣"
+      },
+      "descriptions": {
+        "martinFowler": "软件架构、设计实践和重构随笔。",
+        "byteByteGo": "用图解读系统设计和大型工程案例。",
+        "meituan": "美团的基础设施、架构和工程实践。",
+        "simonWillison": "关于大语言模型、开发工具和开源实验的长文。",
+        "tonsky": "探讨编程工具、字体和界面设计的个人博客。",
+        "webDevBlog": "Web 平台新功能、Baseline 与浏览器兼容性。",
+        "webDevArticles": "Web 性能、无障碍和浏览器 API 实践指南。",
+        "chrome": "Chrome 团队的产品更新与功能介绍。",
+        "infoqChina": "软件工程、架构与技术产业报道。",
+        "infoqEnglish": "面向开发者的工程新闻、文章和演讲。",
+        "infoqArchitecture": "聚焦软件架构与系统设计的专题源。",
+        "infoqAi": "人工智能、机器学习和数据工程实践。",
+        "ruanyifeng": "科技爱好者周刊分享开源项目、工具和有意思的文章。",
+        "sspai": "应用体验、工作方法与数字生活。",
+        "geekpark": "关注科技产品、创业公司和行业变化。",
+        "zhihuMorning": "知乎专栏整理的科技和商业新闻。",
+        "quanta": "深入浅出地报道数学、物理与生命科学研究。",
+        "ourWorldInData": "用图表和开放数据解释全球趋势。",
+        "theReporter": "从现场采访出发的调查报道与深度专题。",
+        "marginalRevolution": "经济学家对政策、研究和文化的日常评论。",
+        "zhihuDaily": "知乎精选问答与科普文章。",
+        "zhihuHot": "跟踪知乎正在热议的问题。",
+        "doubanBookReviews": "豆瓣读者选出的热门书评。",
+        "doubanNewBooks": "发现近期出版的新书。",
+        "doubanMovieReviews": "豆瓣用户选出的热门长影评。",
+        "doubanWeeklyMovies": "每周更新的口碑电影榜单。",
+        "doubanMusicReviews": "豆瓣听众选出的热门乐评。",
+        "publicDomainReview": "从公共领域档案中发掘作品与历史。"
+      }
     },
     "transfer": {
       "menu": "订阅管理",

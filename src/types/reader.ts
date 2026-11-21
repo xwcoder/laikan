@@ -10,6 +10,7 @@ export type ArticleListItem = {
   starred?: 0 | 1
   read?: 0 | 1
   feedId?: number
+  feedTitle?: string | null
 }
 
 export type ArticleContentSource = 'full' | 'summary' | 'media' | 'empty'
@@ -24,7 +25,11 @@ export type Article = ArticleListItem & {
 
 export type ArticleFullText = { content: string, contentBase: string }
 
-export type ArticleDetail = Article & { fullText?: ArticleFullText }
+export type ArticleDetail = Article & {
+  fullText?: ArticleFullText
+  feedLink?: string | null
+  feedUrl?: string | null
+}
 
 export type ArticlePage = { count: number, data: ArticleListItem[] }
 export type ArticleFilter = { tab: Tab | number, page: number, size: number, retainedUnreadIds?: number[] }

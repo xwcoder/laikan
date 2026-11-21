@@ -71,9 +71,9 @@ function FullTextControls({
 export default function Content({ model, article }: { model: ReaderModel, article: ArticleDetail }) {
   const { t, i18n } = useTranslation()
   const [showFeed, setShowFeed] = useState(false)
-  const feed = model.feeds.data?.find((item) => item.id === article.feedId)
   const displayed = showFeed ? article : article.fullText ?? article
-  const base = displayed.contentBase || httpUrl(article.url) || httpUrl(feed?.link) || feed?.url
+  const base = [displayed.contentBase, article.url, article.feedLink, article.feedUrl]
+    .map((url) => httpUrl(url ?? undefined)).find(Boolean)
   const tableLabel = t('reader.content.table')
   const content = useMemo(
     () => articleContent(displayed.content, { base, articleUrl: article.url, tableLabel }),
@@ -84,8 +84,8 @@ export default function Content({ model, article }: { model: ReaderModel, articl
     <article className="mx-auto max-w-4xl px-8 pt-8 pb-16">
       <h1 className="text-2xl leading-snug font-semibold tracking-tight">{article.title}</h1>
       <div className="mt-4 mb-8 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
-        <span>{feed?.title}</span>
-        {article.author !== feed?.title && <span>{article.author}</span>}
+        <span>{article.feedTitle}</span>
+        {article.author !== article.feedTitle && <span>{article.author}</span>}
         <time dateTime={article.pubTime}>
           {formatDate(article.pubTime, i18n.resolvedLanguage ?? 'en-US', true)}
         </time>

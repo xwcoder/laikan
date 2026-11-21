@@ -17,7 +17,7 @@
       "nextArticle": "Next article"
     },
     "action": {
-      "delete": "Delete",
+      "unsubscribe": "Unsubscribe",
       "markRead": "Mark as read",
       "markUnread": "Mark as unread",
       "refresh": "Refresh",
@@ -41,11 +41,55 @@
       "error": "Couldn't sync feeds.",
       "empty": "No feeds to sync."
     },
-    "deleteFeed": {
-      "title": "Delete “{{title}}”?",
-      "description": "This permanently deletes the subscription and all its articles, including starred articles.",
-      "error": "Couldn't delete the subscription. Try again.",
-      "deleting": "Deleting…"
+    "unsubscribe": {
+      "error": "Couldn't unsubscribe. Try again."
+    },
+    "recommendations": {
+      "title": "Recommended feeds",
+      "description": "Browse the built-in directory and manage your subscriptions.",
+      "subscribeError": "Couldn't subscribe to this feed. Try again.",
+      "languages": {
+        "zh-CN": "Simplified Chinese",
+        "zh-TW": "Traditional Chinese",
+        "en": "English"
+      },
+      "groups": {
+        "development": "Software development",
+        "technology": "Technology and digital life",
+        "scienceAndHumanities": "Science and the humanities",
+        "zhihu": "Zhihu",
+        "douban": "Douban"
+      },
+      "descriptions": {
+        "martinFowler": "Essays and notes on software architecture, design, and refactoring.",
+        "byteByteGo": "Illustrated walkthroughs of system design and engineering case studies.",
+        "meituan": "Infrastructure, architecture, and engineering practices from Meituan.",
+        "simonWillison": "Long-form writing on language models, developer tools, and open-source experiments.",
+        "tonsky": "A personal blog about developer tools, typography, and interface design.",
+        "webDevBlog": "Web platform releases, Baseline, and browser compatibility.",
+        "webDevArticles": "Practical guides to web performance, accessibility, and browser APIs.",
+        "chrome": "Product announcements and feature guides from the Chrome team.",
+        "infoqChina": "Chinese reporting on software engineering, architecture, and the tech industry.",
+        "infoqEnglish": "Engineering news, articles, and talks for software developers.",
+        "infoqArchitecture": "InfoQ’s feed on software architecture and system design.",
+        "infoqAi": "Practices in AI, machine learning, and data engineering.",
+        "ruanyifeng": "A weekly roundup of open-source projects, tools, and articles.",
+        "sspai": "App reviews, workflows, and digital life.",
+        "geekpark": "Reporting on technology products, startups, and changes in the industry.",
+        "zhihuMorning": "Technology and business headlines from a Zhihu column.",
+        "quanta": "Accessible reporting on research in mathematics, physics, and life science.",
+        "ourWorldInData": "Charts and open data explaining global trends.",
+        "theReporter": "Investigations and features grounded in original reporting.",
+        "marginalRevolution": "Economists’ commentary on policy, research, and culture.",
+        "zhihuDaily": "Selected questions, answers, and explainers from Zhihu.",
+        "zhihuHot": "Questions drawing attention on Zhihu.",
+        "doubanBookReviews": "Popular book reviews voted up by Douban readers.",
+        "doubanNewBooks": "Discover newly published books on Douban.",
+        "doubanMovieReviews": "Popular long-form reviews of films and television on Douban.",
+        "doubanWeeklyMovies": "Douban’s weekly chart of well-reviewed films.",
+        "doubanMusicReviews": "Popular music reviews voted up by Douban listeners.",
+        "publicDomainReview": "Essays and curiosities from public-domain archives."
+      }
     },
     "transfer": {
       "menu": "Manage subscriptions",

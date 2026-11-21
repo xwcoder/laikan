@@ -34,7 +34,7 @@ const updates = columns
 const insertSql = `INSERT INTO articles (${columns.join(',')}) VALUES (${placeholders})
   ON CONFLICT(feedId, identityKey) DO UPDATE SET ${updates}`
 const fullTextSource = "COALESCE(NULLIF(articles.contentUrl, ''), articles.url)"
-const listColumns = 'id, title, url, externalId, pubTime, author, read, starred, feedId'
+const listColumns = 'articles.id, articles.title, articles.url, externalId, pubTime, author, read, starred, feedId'
 
 function validate(article: Article) {
   if (typeof article.title !== 'string' || typeof article.content !== 'string') throw new TypeError('Invalid article text')
@@ -49,7 +49,7 @@ function filterSql(tab: ArticleFilter['tab'], retainedUnreadIds: number[]): { wh
     }
     if (retainedUnreadIds.length) {
       return {
-        where: 'WHERE read = 0 OR id IN (SELECT value FROM json_each(?))',
+        where: 'WHERE read = 0 OR articles.id IN (SELECT value FROM json_each(?))',
         params: [JSON.stringify(retainedUnreadIds)],
       }
     }
@@ -62,10 +62,12 @@ function filterSql(tab: ArticleFilter['tab'], retainedUnreadIds: number[]): { wh
 
 export function createArticleRepository(db: DatabaseClient) {
   const getById = async (id: number): Promise<ArticleDetail | null> => {
-    const row = await db.get<Article & { fullTextContent: string | null, fullTextBase: string | null }>(`
-      SELECT articles.*, cached.content AS fullTextContent, cached.contentBase AS fullTextBase
-      FROM articles LEFT JOIN article_full_text AS cached
-        ON cached.articleId = articles.id AND cached.sourceUrl = ${fullTextSource}
+    const row = await db.get<ArticleDetail & { fullTextContent: string | null, fullTextBase: string | null }>(`
+      SELECT articles.*, cached.content AS fullTextContent, cached.contentBase AS fullTextBase,
+        feeds.title AS feedTitle, feeds.link AS feedLink, feeds.url AS feedUrl
+      FROM articles
+      LEFT JOIN article_full_text AS cached ON cached.articleId = articles.id AND cached.sourceUrl = ${fullTextSource}
+      LEFT JOIN feeds ON feeds.id = articles.feedId
       WHERE articles.id = ?`, id)
     if (!row) return null
     const { fullTextContent, fullTextBase, ...article } = row
@@ -146,13 +148,20 @@ export function createArticleRepository(db: DatabaseClient) {
         ...params,
       )
       const rows = await db.all<ArticleListItem>(
-        `SELECT ${listColumns} FROM articles ${where} ORDER BY createTime DESC, id DESC LIMIT ? OFFSET ?`,
+        `SELECT ${listColumns}, feeds.title AS feedTitle
+         FROM articles LEFT JOIN feeds ON feeds.id = articles.feedId
+         ${where} ORDER BY articles.createTime DESC, articles.id DESC LIMIT ? OFFSET ?`,
         ...params,
         size,
         (page - 1) * size,
       )
       return { count: count!.count, rows }
     })
+  }
+
+  const countUnread = async () => {
+    const row = await db.get<{ count: number }>('SELECT count(*) AS count FROM articles WHERE read = 0')
+    return row!.count
   }
 
   const starred = (id: number, status: 0 | 1) => db.run('UPDATE articles SET starred = ? WHERE id = ?', status, id)
@@ -169,6 +178,7 @@ export function createArticleRepository(db: DatabaseClient) {
     saveFullText,
     upsert,
     find,
+    countUnread,
     starred,
     markRead,
   }

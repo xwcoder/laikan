@@ -19,7 +19,7 @@ export async function upsert(data: Pick<Feed, 'url' | 'title'>): Promise<void> {
   if (result?.error) throw new FeedError(result.error, 'Unable to subscribe to feed')
 }
 
-export const deleteById = (id: number): Promise<void> => fetch('/reader/delete/feed', id)
+export const unsubscribe = (id: number): Promise<void> => fetch('/reader/delete/feed', id)
 
 export const refreshAll = (): Promise<FeedRefreshResult> => fetch('/reader/post/feed/refresh')
 

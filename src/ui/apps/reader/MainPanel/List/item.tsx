@@ -10,7 +10,6 @@ export default function Item({ model, article }: { model: ReaderModel; article: 
   const { t, i18n } = useTranslation()
   const { selectedIds, activeId } = model
   const selected = selectedIds.includes(article.id!)
-  const feed = model.feeds.data?.find((item) => item.id === article.feedId)
   return (
     <div
       data-list-item-id={article.id}
@@ -34,7 +33,7 @@ export default function Item({ model, article }: { model: ReaderModel; article: 
         onClick={() => model.open(article.id!)}
       >
         <span className="hidden w-28 shrink-0 truncate text-xs text-muted-foreground xl:block">
-          {feed?.title}
+          {article.feedTitle}
         </span>
         <span className="min-w-0 flex-1 truncate">{article.title}</span>
         <time className="shrink-0 text-xs font-normal text-muted-foreground" dateTime={article.pubTime}>

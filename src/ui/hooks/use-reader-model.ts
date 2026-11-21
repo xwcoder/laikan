@@ -6,10 +6,11 @@ import {
   articleOptions,
   articlesOptions,
   feedsOptions,
-  useDeleteFeed,
+  unreadCountOptions,
   useMarkRead,
   useRefreshFeeds,
   useStarArticle,
+  useUnsubscribe,
 } from '@/ui/query/reader'
 import { useSettings, useUpdateSettings } from '@/ui/query/settings'
 
@@ -97,6 +98,13 @@ function useArticleActions(
   }
 }
 
+function leaveUnsubscribedFeed(id: number) {
+  const current = useReaderStore.getState()
+  if (current.tab !== id) return
+  current.changeTab('all')
+  if (current.opened && current.activeId !== null) current.open(current.activeId)
+}
+
 export function useReaderModel() {
   const state = useReaderStore()
   const client = useQueryClient()
@@ -104,6 +112,7 @@ export function useReaderModel() {
     tab, page, size, activeId, opened, unreadVersion,
   } = state
   const feeds = useQuery(feedsOptions)
+  const unreadCount = useQuery(unreadCountOptions).data ?? 0
   const listOptions = articlesOptions({ tab, page, size }, unreadVersion)
   // Keep the current reading sequence stable while read/star writes change list membership.
   // Re-enable stale list fetching on return, or populate a page whose cache has expired.
@@ -115,11 +124,7 @@ export function useReaderModel() {
   const settings = useSettings()
   const updateSettings = useUpdateSettings()
   const refresh = useRefreshFeeds()
-  const deleteMutation = useDeleteFeed((id) => {
-    const current = useReaderStore.getState()
-    if (current.tab === id) current.changeTab('all')
-    else if (current.opened) current.fold()
-  })
+  const unsubscribe = useUnsubscribe(leaveUnsubscribedFeed)
   const articles = list.data?.data ?? emptyArticles
   const activeArticle = opened ? detail.data : articles.find((article) => article.id === activeId)
   const fontSize = Math.max(12, Math.min(24, settings.data?.reader?.fontSize ?? 14))
@@ -132,7 +137,6 @@ export function useReaderModel() {
     if (tab === 'unread') state.resetUnreadView()
     refresh.mutate()
   }
-  const deleteFeed = (id: number, onSuccess: () => void) => deleteMutation.mutate(id, { onSuccess })
   const changeFont = (delta: number) => updateSettings.mutate({
     path: 'reader.fontSize',
     value: Math.max(12, Math.min(24, fontSize + delta)),
@@ -143,6 +147,7 @@ export function useReaderModel() {
     ...navigation,
     ...actions,
     feeds,
+    unreadCount,
     list,
     detail,
     articles,
@@ -151,11 +156,8 @@ export function useReaderModel() {
     count: list.data?.count ?? 0,
     refresh,
     refreshList,
-    deleteFeed,
     changeFont,
-    deleting: deleteMutation.isPending,
-    deleteFailed: deleteMutation.isError,
-    resetDelete: deleteMutation.reset,
+    unsubscribe,
     updatingFont: updateSettings.isPending,
   }
 }
