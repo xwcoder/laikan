@@ -104,6 +104,14 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     assert.ok(await run('document.activeElement.matches("#settings-theme")'))
   }
   const primaryToken = () => run('getComputedStyle(document.documentElement).getPropertyValue("--primary").trim()')
+  const resolvedColor = (value) => run(`(() => {
+    const probe = document.createElement('span')
+    probe.style.color = ${JSON.stringify(value)}
+    document.body.append(probe)
+    const color = getComputedStyle(probe).color
+    probe.remove()
+    return color
+  })()`)
 
   // Theme/language mutations must update both the UI and the persisted settings.
   await wait('document.querySelector("[data-tab=unread]")')
@@ -212,10 +220,12 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
   try {
     await click('[aria-label="Subscribe to a feed"]')
     await wait('document.querySelector("#feed-url")')
+    const halfOpacityRing = await resolvedColor('color-mix(in oklab, var(--focus-ring) 50%, transparent)')
     await press('?', true)
     assert.equal(await run('document.querySelectorAll("[role=dialog]").length'), 1, 'A subscription dialog blocks reader shortcuts')
     await focusWindow()
     await run('document.querySelector("#feed-url").focus()')
+    await wait(`getComputedStyle(document.querySelector('#feed-url')).boxShadow.includes(${JSON.stringify(halfOpacityRing)})`)
     await input('#feed-url', `${base}/rss`)
     await run('document.querySelector("#feed-title").focus()')
     await wait('document.querySelector("#feed-title").value === "Fixture feed"')
@@ -244,6 +254,8 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     const focusedRow = `[data-list-item-id="${focusedId}"]`
     const nextRow = `[data-list-item-id="${nextId}"]`
     const focusedIdExpression = 'Number(document.activeElement.closest("[data-list-item-id]")?.dataset.listItemId)'
+    const emphasis = await resolvedColor('var(--theme-emphasis)')
+    await wait(`getComputedStyle(document.querySelector('[data-list-item-id]')).borderLeftColor === ${JSON.stringify(emphasis)}`)
     // A focused row control takes precedence over the previously active article.
     await run(`(() => {
       const checkbox = document.querySelector('${focusedRow} [role=checkbox]')
@@ -259,8 +271,13 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await press('j')
     await wait(`${focusedIdExpression} === ${nextId} && document.activeElement.hasAttribute('data-article-open')`)
     assert.equal(await run('getComputedStyle(document.activeElement).boxShadow'), 'none', 'J/K should use the active row indicator')
+    assert.equal(await run(`getComputedStyle(document.querySelector('${nextRow}')).borderLeftColor`), emphasis)
     await press('x')
     await wait(`document.querySelector('${nextRow} [role=checkbox][data-state=checked]')`)
+    assert.equal(
+      await run(`getComputedStyle(document.querySelector('${nextRow}')).backgroundColor`),
+      await resolvedColor('var(--article-selected)'),
+    )
     await press('k')
     await wait(`${focusedIdExpression} === ${focusedId}`)
     await press('s')
@@ -474,11 +491,14 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     const rowBackground = `getComputedStyle(${rowElement}).backgroundColor`
     const actionsStyle = `getComputedStyle(${rowElement}.querySelector('[data-feed-actions]'))`
     const transparent = 'rgba(0, 0, 0, 0)'
+    const currentBackground = await resolvedColor('var(--sidebar-current)')
+    assert.equal(await run('getComputedStyle(document.querySelector("[data-tab][aria-pressed=true]")).backgroundColor'), currentBackground)
 
     // Real mouse movement must preserve the row highlight across both action buttons.
     await hover(feedButton)
     await wait(`${rowBackground} !== '${transparent}' && ${rowElement}.getAnimations().length === 0`)
     const highlight = await run(rowBackground)
+    assert.notEqual(highlight, currentBackground, 'Hover and selection use distinct sidebar colors')
     for (const selector of [copyButton, deleteButton]) {
       await hoverWithoutTooltip(selector)
       assert.equal(await run(rowBackground), highlight)
@@ -494,7 +514,8 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await hover('[data-tab=all]')
     assert.equal(await run(`${actionsStyle}.opacity`), '0', 'Mouse selection should not keep the actions visible')
     assert.equal(await run(`${actionsStyle}.pointerEvents`), 'none')
-    await wait(`${rowBackground} === '${highlight}'`)
+    await wait(`${rowBackground} === '${currentBackground}'`)
+    assert.equal(await run(`getComputedStyle(${feedElement}.querySelector('svg')).color`), emphasis)
     await focusWindow()
     await wait(`document.activeElement === ${feedElement}`)
     tab()

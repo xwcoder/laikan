@@ -44,7 +44,10 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
             variant="ghost"
             data-tab={tab}
             aria-pressed={model.tab === tab}
-            className="w-full justify-start px-2 aria-pressed:bg-sidebar-accent aria-pressed:font-semibold aria-pressed:text-sidebar-accent-foreground"
+            className={cn(
+              'w-full justify-start px-2 aria-pressed:font-semibold aria-pressed:text-sidebar-foreground',
+              'aria-pressed:bg-sidebar-current aria-pressed:hover:bg-sidebar-current aria-pressed:[&>svg]:text-theme-emphasis',
+            )}
             onClick={() => model.changeTab(tab as Tab)}
           >
             <Icon />
@@ -68,8 +71,8 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
             <div
               key={feed.id}
               className={cn(
-                'group relative flex items-center rounded-md transition-colors hover:bg-sidebar-accent has-focus-visible:bg-sidebar-accent',
-                model.tab === feed.id && 'bg-sidebar-accent text-sidebar-accent-foreground',
+                'group relative flex items-center rounded-md transition-colors',
+                model.tab === feed.id ? 'bg-sidebar-current' : 'hover:bg-sidebar-accent has-focus-visible:bg-sidebar-accent',
               )}
               data-feed-id={feed.id}
             >
@@ -78,11 +81,11 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
                 aria-pressed={model.tab === feed.id}
                 className={cn(
                   'w-full justify-start px-2 hover:bg-transparent group-hover:pr-16 dark:hover:bg-transparent',
-                  'group-has-[[data-feed-actions]_:focus-visible]:pr-16',
+                  'group-has-[[data-feed-actions]_:focus-visible]:pr-16 aria-pressed:[&>svg]:text-theme-emphasis',
                 )}
                 onClick={() => model.changeTab(feed.id!)}
               >
-                <Rss className={cn('shrink-0', model.tab !== feed.id && 'text-muted-foreground')} />
+                <Rss className="shrink-0 text-muted-foreground" />
                 <span className={cn('truncate', !!feed.unreadCount && 'font-semibold')}>{feed.title}</span>
                 {!!feed.unreadCount && (
                   <span className="ml-auto text-xs tabular-nums group-hover:hidden group-has-[[data-feed-actions]_:focus-visible]:hidden">

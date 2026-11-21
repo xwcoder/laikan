@@ -9,6 +9,7 @@ import { StarButton } from '../../components/toolbar'
 export default function Item({ model, article }: { model: ReaderModel; article: ArticleListItem }) {
   const { t, i18n } = useTranslation()
   const { selectedIds, activeId } = model
+  const selected = selectedIds.includes(article.id!)
   const feed = model.feeds.data?.find((item) => item.id === article.feedId)
   return (
     <div
@@ -16,13 +17,13 @@ export default function Item({ model, article }: { model: ReaderModel; article: 
       className={cn(
         'relative flex min-h-12 items-center gap-2 border-b px-4 hover:bg-muted/70',
         article.read ? 'bg-muted/40 text-muted-foreground' : 'font-medium',
-        selectedIds.includes(article.id!) && 'bg-accent hover:bg-accent',
-        article.id === activeId && 'border-l-2 border-l-primary pl-3.5',
+        selected && 'bg-article-selected hover:bg-article-selected [--muted-foreground:var(--article-selected-muted)]',
+        article.id === activeId && 'border-l-2 border-l-theme-emphasis pl-3.5',
       )}
     >
       <Checkbox
         aria-label={t('reader.list.selectArticle', { title: article.title })}
-        checked={selectedIds.includes(article.id!)}
+        checked={selected}
         onCheckedChange={() => model.toggleSelected(article.id!)}
       />
       <StarButton model={model} article={article} />
