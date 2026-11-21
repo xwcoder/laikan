@@ -3,6 +3,7 @@ import {
 } from '@/services/db/electron-main/db'
 import { push } from '@/services/push/electron-main/push'
 import { Feed } from '@/types/reader'
+import { httpUrl } from '@/base/common/url'
 
 export const upsert = (feed: Feed) => {
   const {
@@ -44,6 +45,25 @@ export const getAll = (): Promise<Feed[]> => {
 
   return all(sql)
 }
+
+export const getSubscriptions = (): Promise<Feed[]> => (
+  all('SELECT url, title, description, link FROM feeds ORDER BY createTime DESC, id DESC')
+)
+
+export const importSubscriptions = (feeds: readonly Feed[]) => transaction(async () => {
+  const existing = await getSubscriptions()
+  const urls = new Set(existing.map(({ url }) => httpUrl(url) ?? url))
+  const added: Feed[] = []
+  for (const feed of feeds) {
+    if (!urls.has(feed.url)) {
+      // eslint-disable-next-line no-await-in-loop -- Insert each subscription before processing a duplicate.
+      const { lastID } = await upsert(feed)
+      urls.add(feed.url)
+      added.push({ ...feed, id: lastID })
+    }
+  }
+  return added
+})
 
 export const getOne = (id: number): Promise<Feed | undefined> => {
   const sql = `

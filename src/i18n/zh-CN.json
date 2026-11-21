@@ -47,6 +47,18 @@
       "error": "无法删除订阅源，请重试。",
       "deleting": "正在删除…"
     },
+    "transfer": {
+      "menu": "订阅管理",
+      "import": "导入订阅",
+      "export": "导出订阅",
+      "readFile": "无法读取所选文件。",
+      "writeFile": "无法保存 OPML 文件，请尝试其他位置。",
+      "invalidOpml": "所选文件的 OPML 格式有误。",
+      "encoding": "OPML 文件的字符编码无效或不受支持。",
+      "limit": "OPML 文件过大或嵌套层级过多。",
+      "importError": "无法导入订阅，请重试。",
+      "exportError": "无法导出订阅，请重试。"
+    },
     "content": {
       "loadFullText": "加载原文全文",
       "showFullText": "显示原文全文",

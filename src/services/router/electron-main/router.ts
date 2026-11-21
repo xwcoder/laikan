@@ -1,7 +1,7 @@
-import { app, ipcMain } from 'electron'
+import { app, IpcMainInvokeEvent, ipcMain } from 'electron'
 import { logger } from '@/services/logger/electron-main/logger'
 
-type RouteHandler = (ch: string, data?: any) => any
+type RouteHandler = (ch: string, data: any, event: IpcMainInvokeEvent) => any
 
 type Routes = {
   [k: string]: RouteHandler
@@ -70,10 +70,10 @@ export class Router {
       .then(() => {
         Object.entries(this.routes)
           .forEach(([ch, handler]) => {
-            ipcMain.handle(ch, async (_, data) => {
+            ipcMain.handle(ch, async (event, data) => {
               try {
                 await ready
-                return await handler(ch, data)
+                return await handler(ch, data, event)
               } catch (e) {
                 return Promise.reject(e)
               }

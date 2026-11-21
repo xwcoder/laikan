@@ -16,6 +16,7 @@ export const XML_NAMESPACE = 'http://www.w3.org/XML/1998/namespace'
 export const ATOM_NAMESPACE = 'http://www.w3.org/2005/Atom'
 export const RSS_NAMESPACE = 'http://purl.org/rss/1.0/'
 export const RDF_NAMESPACE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
+export const maxXmlBytes = 10 * 1024 * 1024
 
 export function attribute(node: XmlElement, local: string, uri = '') {
   return node.attributes.find((attr) => attr.local === local && attr.uri === uri)?.value
@@ -59,7 +60,7 @@ function xmlElement(tag: SaxesTagNS, parent: XmlElement | undefined, base?: stri
 }
 
 export async function parseXml(xml: string, base?: string): Promise<XmlElement> {
-  if (Buffer.byteLength(xml) > 10 * 1024 * 1024) throw new FeedError('limit', 'Feed exceeds 10 MiB')
+  if (Buffer.byteLength(xml) > maxXmlBytes) throw new FeedError('limit', 'XML document exceeds 10 MiB')
   const parser = new SaxesParser({ xmlns: true })
   const stack: XmlElement[] = []
   let root: XmlElement | undefined

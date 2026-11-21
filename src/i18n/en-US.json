@@ -47,6 +47,18 @@
       "error": "Couldn't delete the subscription. Try again.",
       "deleting": "Deleting…"
     },
+    "transfer": {
+      "menu": "Manage subscriptions",
+      "import": "Import",
+      "export": "Export",
+      "readFile": "Couldn't read the selected file.",
+      "writeFile": "Couldn't save the OPML file. Try another location.",
+      "invalidOpml": "The selected file isn't a valid OPML document.",
+      "encoding": "The OPML file uses an invalid or unsupported character encoding.",
+      "limit": "The OPML file is too large or deeply nested.",
+      "importError": "Couldn't import subscriptions. Try again.",
+      "exportError": "Couldn't export subscriptions. Try again."
+    },
     "content": {
       "loadFullText": "Load full article",
       "showFullText": "Show full article",

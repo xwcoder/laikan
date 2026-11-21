@@ -43,3 +43,9 @@ export type Feed = {
 }
 
 export type FeedRefreshResult = { succeeded: number, failed: number }
+
+export type FeedTransferAction = 'import' | 'export'
+
+export type FeedTransferResult =
+  | { status: 'canceled' | 'imported' | 'exported' | 'noValidFeeds' | 'noNewFeeds' | 'noFeeds' }
+  | { error: 'readFile' | 'writeFile' | 'invalidOpml' | 'encoding' | 'limit' }

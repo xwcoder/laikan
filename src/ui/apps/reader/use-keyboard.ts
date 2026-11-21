@@ -13,7 +13,7 @@ const isEditing = (event: KeyboardEvent) => event.isComposing
   || !!(event.target as HTMLElement).closest('input, textarea, select, [contenteditable="true"]')
 
 const shouldIgnore = (event: KeyboardEvent, showHelp: boolean) => isEditing(event)
-  || (!showHelp && !!document.querySelector('[role="dialog"], [role="alertdialog"]'))
+  || (!showHelp && !!document.querySelector('[role="dialog"], [role="alertdialog"], [role="menu"]'))
 
 function getActions(model: ReaderModel) {
   const { activeId } = useReaderStore.getState()

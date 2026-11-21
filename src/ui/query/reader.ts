@@ -74,6 +74,20 @@ export function useSubscribe() {
   })
 }
 
+export function useFeedTransfer() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: feedService.transfer,
+    meta: { inlineError: true },
+    onSuccess: (result) => {
+      if ('status' in result && result.status === 'imported') {
+        return client.invalidateQueries({ queryKey: readerKeys.all })
+      }
+      return undefined
+    },
+  })
+}
+
 export function useRefreshFeeds() {
   const client = useQueryClient()
   return useMutation({

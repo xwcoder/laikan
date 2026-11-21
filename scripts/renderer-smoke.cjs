@@ -77,6 +77,12 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await click(`[role=radio][value="${locale}"]`)
     await wait(`document.documentElement.lang === "${locale}" && document.querySelector('[role=radio][value="${locale}"]').ariaChecked === 'true'`)
   }
+  const subscriptionMenu = '[aria-label="Manage subscriptions"]'
+  const openSubscriptionMenu = async () => {
+    await run(`document.querySelector(${JSON.stringify(subscriptionMenu)}).focus()`)
+    await press('Enter')
+    await wait('document.querySelector("[role=menu]")')
+  }
 
   const focusWindow = async () => {
     // On macOS, focusing webContents alone can leave keyboard input in the launching app.
@@ -542,6 +548,10 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await wait('document.querySelectorAll("[data-feed-id]").length === 0 && document.querySelectorAll("[data-list-item-id]").length === 0')
     assert.deepEqual(await run('window.emo.fetch("/reader/get/feed/all")'), [])
     assert.equal((await run('window.emo.fetch("/reader/get/articles", { tab: "all", page: 1, size: 50 })')).count, 0)
+    await openSubscriptionMenu()
+    assert.equal(await run('document.querySelector("[role=menuitem]:last-child").getAttribute("aria-disabled")'), 'true')
+    await press('Escape')
+    await wait(`!document.querySelector('[role=menu]') && document.activeElement.matches(${JSON.stringify(subscriptionMenu)})`)
 
     // Empty feeds still appear after a successful subscription without relying on a crawler push.
     await click('[aria-label="Subscribe to a feed"]')
@@ -561,6 +571,8 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     assert.equal(await run('document.querySelector("#feed-title").value'), 'Invalid feed')
     assert.equal((await run('window.emo.fetch("/reader/get/feed/all")')).length, 1)
     await click('[role=dialog] button[aria-label=Close]')
+    await wait('!document.querySelector("[role=dialog]")')
+    await require('./opml-smoke.cjs')({ run, wait, openSubscriptionMenu }, base)
     console.log('Renderer smoke passed: settings, subscriptions, focused shortcuts, reading position, feed refresh, confirmed deletion and mutation errors')
   } finally {
     await new Promise(resolve => server.close(resolve))

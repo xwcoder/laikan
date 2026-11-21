@@ -9,7 +9,7 @@ import { Button } from '@/ui/components/ui/button'
 import { Separator } from '@/ui/components/ui/separator'
 import { AsyncState } from '@/ui/components/async-state'
 import { cn } from '@/ui/lib/utils'
-import AddButton from './Toolbar/add-btn'
+import FeedToolbar from './Toolbar'
 import DeleteFeedDialog from './delete-feed-dialog'
 
 export default function SidePanel({ model }: { model: ReaderModel }) {
@@ -59,10 +59,7 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
         ))}
       </div>
       <Separator className="my-4 bg-sidebar-border" />
-      <div className="flex items-center justify-between pl-2">
-        <h2 className="text-xs font-medium text-muted-foreground">{t('reader.list.feeds')}</h2>
-        <AddButton />
-      </div>
+      <FeedToolbar hasFeeds={!!model.feeds.data?.length} />
       <div className="mt-1 space-y-1">
         {model.feeds.isPending || model.feeds.isError ? (
           <AsyncState error={model.feeds.isError} retry={() => model.feeds.refetch()} />

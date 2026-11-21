@@ -32,8 +32,7 @@ const crawlOne = async (source: Feed) => {
   }
 }
 
-async function crawlFeeds(): Promise<FeedRefreshResult> {
-  const feeds = await feedService.getAll()
+async function crawlFeeds(feeds: readonly Feed[]): Promise<FeedRefreshResult> {
   let failed = 0
   await runConcurrent(feeds, 4, async (feed) => {
     if (!await crawlOne(feed)) failed += 1
@@ -42,10 +41,22 @@ async function crawlFeeds(): Promise<FeedRefreshResult> {
 }
 
 let running: Promise<FeedRefreshResult> | undefined
+let queued: Promise<unknown> = Promise.resolve()
+
+function queueRefresh(refresh: () => Promise<FeedRefreshResult>) {
+  const result = queued.then(refresh)
+  queued = result.catch(() => undefined)
+  return result
+}
 
 export function refreshFeeds() {
-  running ??= crawlFeeds().finally(() => { running = undefined })
+  running ??= queueRefresh(async () => crawlFeeds(await feedService.getAll()))
+    .finally(() => { running = undefined })
   return running
+}
+
+export function refreshImportedFeeds(feeds: readonly Feed[]) {
+  return queueRefresh(() => crawlFeeds(feeds))
 }
 
 export const startCrawler = () => {
