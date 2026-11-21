@@ -13,6 +13,12 @@ import FeedToolbar from './Toolbar'
 
 type FeedRow = { feed: Feed; leaving: boolean }
 
+function SidebarFeedIcon({ icon }: Pick<Feed, 'icon'>) {
+  return icon
+    ? <img src={icon} alt="" className="size-4 shrink-0 rounded-sm object-contain" />
+    : <Rss className="shrink-0 text-muted-foreground" />
+}
+
 function useFeedRows(feeds: Feed[] | undefined) {
   const [rows, setRows] = useState<FeedRow[]>([])
 
@@ -133,7 +139,7 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
                     )}
                     onClick={() => model.changeTab(feed.id!)}
                   >
-                    <Rss className="shrink-0 text-muted-foreground" />
+                    <SidebarFeedIcon icon={feed.icon} />
                     <span className={cn('truncate', !!feed.unreadCount && 'font-semibold')}>{feed.title}</span>
                     {!!feed.unreadCount && (
                     <span className="ml-auto text-xs tabular-nums group-hover:hidden group-has-[[data-feed-actions]_:focus-visible]:hidden">

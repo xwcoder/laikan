@@ -203,6 +203,10 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
   const rssRequests = []
   const server = http.createServer((request, response) => {
     response.setHeader('content-type', 'application/rss+xml')
+    if (request.url === '/home' || request.url === '/favicon.ico') {
+      response.writeHead(404).end()
+      return
+    }
     if (request.url === '/invalid') { response.end('<html>Not a feed</html>'); return }
     if (request.url === '/recommendation') {
       recommendationRequests += 1
@@ -241,10 +245,12 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
   const recommendedUrl = 'https://tech.meituan.com/rss.xml'
   const oldRecommendedUrl = 'https://tech.meituan.com/feed/'
   const networkFetch = globalThis.fetch
-  globalThis.fetch = (url, options) => networkFetch(
-    [recommendedUrl, oldRecommendedUrl].includes(url) ? `${base}/recommendation` : url,
-    options,
-  )
+  globalThis.fetch = (url, options) => {
+    if (['https://example.com/', 'https://example.com/favicon.ico'].includes(url)) {
+      return Promise.resolve(new Response(null, { status: 404 }))
+    }
+    return networkFetch([recommendedUrl, oldRecommendedUrl].includes(url) ? `${base}/recommendation` : url, options)
+  }
   try {
     await click('[aria-label="Subscribe to a feed"]')
     await wait('document.querySelector("#feed-url")')
@@ -620,6 +626,11 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await run(`window.laikan.fetch('/reader/post/feed', ${JSON.stringify({ url: oldRecommendedUrl, title: 'Meituan Engineering' })})`)
     await wait(buttonReady(en.reader.action.unsubscribe))
     const [meituan] = await run('window.laikan.fetch("/reader/get/feed/all")')
+    const bundledIcon = fs.readFileSync(path.join(__dirname, '../src/ui/assets/feed-icons/meituan.png'), 'base64')
+    assert.equal(meituan.icon, `data:image/png;base64,${bundledIcon}`, 'The legacy URL saves the bundled PNG')
+    const meituanIcon = `document.querySelector('[data-feed-id="${meituan.id}"] img')`
+    await wait(`${meituanIcon}?.naturalWidth > 0`)
+    assert.equal(await run(`${meituanIcon}.getBoundingClientRect().width`), 16)
     const meituanTab = `{ tab: ${meituan.id}, page: 1, size: 50 }`
     const { data: [meituanArticle] } = await run(`window.laikan.fetch('/reader/get/articles', ${meituanTab})`)
     await run(`window.laikan.fetch('/reader/put/article/starred', { id: ${meituanArticle.id}, status: 1 })`)
@@ -636,6 +647,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await wait(buttonReady(en.reader.action.unsubscribe))
     const [reactivated] = await run('window.laikan.fetch("/reader/get/feed/all")')
     assert.equal(reactivated.id, meituan.id, 'An older URL should resume the same subscription')
+    assert.equal(reactivated.icon, meituan.icon)
     const { data: [retained], count } = await run(`window.laikan.fetch('/reader/get/articles', ${meituanTab})`)
     assert.equal(count, 1)
     assert.equal(retained.id, meituanArticle.id)

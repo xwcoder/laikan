@@ -5,8 +5,9 @@ import { logger } from '@/services/logger/electron-main/logger'
 import { FeedRefreshResult } from '@/types/reader'
 import * as feedService from './feed'
 import * as articleService from './article'
+import { queueFeedIconRefresh, updateFeedIconSource } from './feed-icon'
 
-const crawlOne = async (source: feedService.FeedToRefresh) => {
+const crawlOne = async (source: feedService.FeedToRefresh, manual: boolean) => {
   try {
     if (!await feedService.isCurrentSubscription(source)) return true
     const result = await fetchFeed(source.url, {
@@ -17,6 +18,7 @@ const crawlOne = async (source: feedService.FeedToRefresh) => {
       if (!await feedService.isCurrentSubscription(source)) return false
       if (result.status === 'modified') {
         await articleService.upsert((result.feed.items ?? []).map((article) => ({ ...article, feedId: source.id })))
+        await updateFeedIconSource(source.id, result.feed)
       }
       await feedService.updateValidators(source.id, result.etag, result.lastModified)
       return result.status === 'modified'
@@ -28,18 +30,20 @@ const crawlOne = async (source: feedService.FeedToRefresh) => {
     const reason = error instanceof Error ? error.message : 'Unknown error'
     logger.error(`[Reader] Feed refresh failed (feed #${source.id ?? '?'}, ${host}): ${reason}`)
     return false
+  } finally {
+    queueFeedIconRefresh(source, manual)
   }
 }
 
-async function crawlFeeds(feeds: readonly feedService.FeedToRefresh[]): Promise<FeedRefreshResult> {
+async function crawlFeeds(feeds: readonly feedService.FeedToRefresh[], manual = false): Promise<FeedRefreshResult> {
   let failed = 0
   await runConcurrent(feeds, 4, async (feed) => {
-    if (!await crawlOne(feed)) failed += 1
+    if (!await crawlOne(feed, manual)) failed += 1
   })
   return { succeeded: feeds.length - failed, failed }
 }
 
-let running: Promise<FeedRefreshResult> | undefined
+let running: { result: Promise<FeedRefreshResult>; manual: boolean } | undefined
 let queued: Promise<unknown> = Promise.resolve()
 
 function queueRefresh(refresh: () => Promise<FeedRefreshResult>) {
@@ -48,10 +52,14 @@ function queueRefresh(refresh: () => Promise<FeedRefreshResult>) {
   return result
 }
 
-export function refreshFeeds() {
-  running ??= queueRefresh(async () => crawlFeeds(await feedService.getRefreshFeeds()))
-    .finally(() => { running = undefined })
-  return running
+export function refreshFeeds(manual = false) {
+  if (running && (!manual || running.manual)) return running.result
+  const result = queueRefresh(async () => crawlFeeds(await feedService.getRefreshFeeds(), manual))
+    .finally(() => {
+      if (running?.result === result) running = undefined
+    })
+  running = { result, manual }
+  return result
 }
 
 export function refreshImportedFeeds(feeds: readonly feedService.FeedToRefresh[]) {

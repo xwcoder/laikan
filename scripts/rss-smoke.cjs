@@ -1,15 +1,35 @@
 const assert = require('node:assert/strict')
+const fs = require('node:fs')
 const http = require('node:http')
+const path = require('node:path')
+const { setTimeout: delay } = require('node:timers/promises')
 
 module.exports = async function rssSmoke(contents) {
-  const { shell } = require('electron')
+  const { app, shell } = require('electron')
+  const { Database } = require('sqlite3')
+  const db = new Database(path.join(app.getPath('userData'), 'laikan.db'))
+  const getIcon = (id) => new Promise((resolve, reject) => {
+    db.get('SELECT png, checkedAt FROM feed_icons WHERE feedId = ?', id, (error, row) => {
+      if (error) reject(error)
+      else resolve(row)
+    })
+  })
   const originalOpenExternal = shell.openExternal
   let version = 1
   let canServeOriginal = false
+  let canServeSiteIcon = false
+  let releaseIcon
+  const iconGate = new Promise(resolve => { releaseIcon = resolve })
+  const png = fs.readFileSync(path.join(__dirname, '../src/ui/assets/feed-icons/douban.png'))
+  // One 32×32 PNG entry in a favicon container.
+  const icoHeader = Buffer.from([0, 0, 1, 0, 1, 0, 32, 32, 0, 0, 1, 0, 32, 0, 0, 0, 0, 0, 22, 0, 0, 0])
+  icoHeader.writeUInt32LE(png.length, 14)
+  const favicon = Buffer.concat([icoHeader, png])
   let base
   const requests = []
   const atom = () => `<a:feed xmlns:a="http://www.w3.org/2005/Atom" xml:base="${base}/articles/">
     <a:title type="text">Atom feed</a:title>
+    <a:link rel="alternate" href="/home"/><a:icon>/feed-icon-${version}.svg</a:icon>
     <a:entry><a:id>urn:one</a:id><a:title>One v${version}</a:title>
       <a:content type="text">Use &lt;b&gt;literal tags&lt;/b&gt;</a:content></a:entry>
     <a:entry><a:id>urn:two</a:id><a:title>Two</a:title><a:link href="${base}/full"/>
@@ -25,8 +45,33 @@ module.exports = async function rssSmoke(contents) {
     <a:entry><a:id>urn:four</a:id><a:title>Four</a:title><a:link href="shared"/>
       <a:content>Different ID, shared URL</a:content></a:entry>
   </a:feed>`
-  const server = http.createServer((request, response) => {
+  const server = http.createServer(async (request, response) => {
     requests.push({ path: request.url, conditional: request.headers['if-none-match'] })
+    if (request.url === '/feed-icon-1.svg') {
+      await iconGate
+      response.writeHead(404).end()
+      return
+    }
+    if (request.url === '/feed-icon-2.svg') {
+      response.writeHead(200, { 'Content-Type': 'image/svg+xml' }).end(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="96" height="48"><rect width="96" height="48" fill="red"/></svg>',
+      )
+      return
+    }
+    if (request.url === '/home') {
+      response.writeHead(200, { 'Content-Type': 'text/html' }).end(
+        '<base href="/icons/"><link rel="shortcut icon" href="site.ico">',
+      )
+      return
+    }
+    if (request.url === '/icons/site.ico' && canServeSiteIcon) {
+      response.writeHead(200, { 'Content-Type': 'image/x-icon' }).end(favicon)
+      return
+    }
+    if (request.url === '/icons/site.ico' || request.url === '/favicon.ico' || request.url === '/') {
+      response.writeHead(404).end()
+      return
+    }
     if (request.url === '/full') {
       response.statusCode = canServeOriginal ? 302 : 503
       if (canServeOriginal) response.setHeader('Location', '/original/article.html')
@@ -91,6 +136,28 @@ module.exports = async function rssSmoke(contents) {
     assert.equal(page.count, 4, 'Distinct IDs survive blank and shared links')
     assert.equal(requests.filter(item => item.path === '/atom' && !item.conditional).length, 1, 'Preflight is reused for import')
     assert.ok(page.data.every(item => !Object.hasOwn(item, 'content')), 'List responses omit full bodies')
+    const feedRow = `[data-feed-id="${feed.id}"]`
+    const feedIcon = `document.querySelector('${feedRow} img')`
+    await wait(`document.querySelector('${feedRow} .lucide-rss')`)
+    assert.equal(feed.icon, undefined, 'Subscription and articles are available while the icon request is pending')
+    releaseIcon()
+    const retryDeadline = Date.now() + 5_000
+    while (!(await getIcon(feed.id))?.checkedAt && Date.now() < retryDeadline) await delay(20)
+    assert.ok((await getIcon(feed.id)).checkedAt, 'An unsuccessful download is recorded for retry')
+    const iconRequests = (url) => requests.filter(item => item.path === url).length
+    assert.equal(iconRequests('/feed-icon-1.svg'), 1)
+    assert.equal(iconRequests('/icons/site.ico'), 1)
+
+    canServeSiteIcon = true
+    await ipc('/reader/post/feed', { url: feed.url, title: feed.title })
+    await delay(100)
+    assert.equal(iconRequests('/feed-icon-1.svg'), 1, 'A recent failure delays background retries')
+    await ipc('/reader/post/feed/refresh')
+    assert.ok(requests.some(item => item.path === '/atom' && item.conditional === '"atom-1"'))
+    await wait(`${feedIcon}?.naturalWidth === 32`)
+    const fallback = (await getIcon(feed.id)).png
+    assert.ok(Buffer.isBuffer(fallback), 'The site ICO is converted to a PNG BLOB after a manual 304 refresh')
+
     const idOf = externalId => page.data.find(item => item.externalId === externalId).id
     const first = await detail(idOf('urn:one'))
     const third = await detail(idOf('urn:three'))
@@ -101,7 +168,11 @@ module.exports = async function rssSmoke(contents) {
     await ipc('/reader/put/article/read', { ids: [first.id], status: 1 })
     await ipc('/reader/put/article/starred', { id: first.id, status: 1 })
     version = 2
-    await ipc('/reader/post/feed', { url: `${base}/atom`, title: 'Atom regression' })
+    await ipc('/reader/post/feed/refresh')
+    await wait(`${feedIcon}?.naturalWidth === 64 && ${feedIcon}.naturalHeight === 32`)
+    const stored = (await getIcon(feed.id)).png
+    assert.notDeepEqual(stored, fallback, 'A new declared icon replaces the previous copy')
+    assert.equal(iconRequests('/home'), 2, 'A valid declared icon takes precedence over the site')
     const updated = await detail(first.id)
     assert.equal(updated.title, 'One v2')
     assert.equal(updated.read, 1)
@@ -176,9 +247,24 @@ module.exports = async function rssSmoke(contents) {
     const deadline = Date.now() + 2000
     while (opened.length < 2 && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 10))
     assert.deepEqual(opened, ['https://example.com/', 'mailto:hello@example.com'])
+    const legacyId = await new Promise((resolve, reject) => {
+      db.run('INSERT INTO feeds (url, title) VALUES (?, ?)', `${base}/legacy`, 'Legacy feed', function inserted(error) {
+        if (error) reject(error)
+        else resolve(this.lastID)
+      })
+    })
+    await ipc('/reader/post/feed/refresh')
+    await wait(`document.querySelector('[data-feed-id="${legacyId}"] .lucide-rss')`)
+    assert.equal(await getIcon(legacyId), undefined, 'Refreshing a legacy feed does not create an icon record')
+    await ipc('/reader/delete/feed', legacyId)
+    console.log('Feed icon smoke passed: fallback, retry on 304, SVG and ICO decoding, PNG persistence and legacy compatibility')
     console.log('RSS integration passed: feed parsing, lightweight lists, normalized article styles, anchors, full text fallback and cache, GBK and URL validation')
   } finally {
+    releaseIcon()
     shell.openExternal = originalOpenExternal
-    await new Promise(resolve => server.close(resolve))
+    await Promise.all([
+      new Promise(resolve => server.close(resolve)),
+      new Promise((resolve, reject) => db.close(error => error ? reject(error) : resolve())),
+    ])
   }
 }

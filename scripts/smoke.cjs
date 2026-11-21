@@ -55,14 +55,16 @@ if (!process.versions.electron) {
               await new Promise(resolve => setTimeout(resolve, 20))
             }
             if (!readerReady()) throw new Error('Reader did not finish loading after restart')
+            const feeds = await window.laikan.fetch('/reader/get/feed/all')
             return {
               theme: await window.laikan.fetch('/settings/get', 'theme'),
               appliedTheme: document.documentElement.dataset.theme,
               dark: document.documentElement.classList.contains('dark'),
+              savedIcon: feeds.find(feed => feed.title === 'Atom regression')?.icon?.startsWith('data:image/png;base64,'),
             }
           })()`)
-          assert.deepEqual(restored, { theme: 'blue', appliedTheme: 'blue', dark: true })
-          console.log('Theme palette and appearance restored after restarting Electron')
+          assert.deepEqual(restored, { theme: 'blue', appliedTheme: 'blue', dark: true, savedIcon: true })
+          console.log('Theme, appearance and stored feed icon restored after restarting Electron')
           app.exit(0)
           return
         }

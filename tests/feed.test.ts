@@ -76,6 +76,20 @@ test('namespace prefixes do not change Atom or RSS 1.0 parsing', async () => {
   assert.equal(rdf?.items?.[0].url, 'https://example.com/one')
 })
 
+test('feed icons use relative XML bases and prefer Atom icon over logo', async () => {
+  const base = 'https://example.com/feed.xml'
+  const rssFeed = await parseString(rss('<image xml:base="assets/"><url>rss.png</url></image>'), base)
+  assert.equal(rssFeed?.iconUrl, 'https://example.com/assets/rss.png')
+  const atomFeed = await parseString(atom('<logo>/logo.png</logo><icon>atom.png</icon>'), base)
+  assert.equal(atomFeed?.iconUrl, 'https://example.com/atom.png')
+  const unsafeIcon = await parseString(atom('<icon>file:///icon.png</icon><logo>/logo.png</logo>'), base)
+  assert.equal(unsafeIcon?.iconUrl, 'https://example.com/logo.png')
+  const rdfFeed = await parseString(`<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+    xmlns="http://purl.org/rss/1.0/"><channel><title>RDF feed</title></channel>
+    <image><url>/rdf.png</url></image></rdf:RDF>`, base)
+  assert.equal(rdfFeed?.iconUrl, 'https://example.com/rdf.png')
+})
+
 test('RSS full content, attribute-bearing values and DC metadata are preserved', async () => {
   const feed = await parseString(
     rss(`<item><guid isPermaLink="false">one</guid><title xml:lang="zh">中文</title>

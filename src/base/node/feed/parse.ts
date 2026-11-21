@@ -171,6 +171,16 @@ function channelFor(root: XmlElement): { channel: XmlElement; atom: boolean; ent
   return { channel, atom: false, entries }
 }
 
+function feedIconUrl(root: XmlElement, channel: XmlElement, atom: boolean) {
+  const resolve = (node: XmlElement | undefined) => httpUrl(text(node), node?.base)
+  if (atom) return resolve(child(channel, 'icon')) ?? resolve(child(channel, 'logo'))
+  const channelImage = child(channel, 'image')
+  const rootImage = child(root, 'image', RSS_NAMESPACE)
+  return (channelImage && resolve(child(channelImage, 'url')))
+    ?? (rootImage && resolve(child(rootImage, 'url')))
+    ?? (channelImage && httpUrl(attribute(channelImage, 'resource', RDF_NAMESPACE), channelImage.base))
+}
+
 export async function parseString(xml: string, base?: string): Promise<Omit<Feed, 'url'> | null> {
   const root = await parseXml(xml, base)
   const format = channelFor(root)
@@ -190,6 +200,7 @@ export async function parseString(xml: string, base?: string): Promise<Omit<Feed
     title: atom ? atomText(child(channel, 'title')) : readableTitle(value(channel, 'title')),
     description: atom ? atomText(child(channel, 'subtitle')) : readableTitle(value(channel, 'description')),
     link,
+    iconUrl: feedIconUrl(root, channel, atom),
     items,
   }
 }

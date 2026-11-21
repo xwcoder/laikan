@@ -4,6 +4,7 @@ import {
 import { push } from '@/services/push/electron-main/push'
 import { Feed } from '@/types/reader'
 import { equivalentFeedUrls, feedUrlKey } from '@/base/common/feed-url'
+import { registerFeedIcon } from './feed-icon'
 
 export type FeedToRefresh = Pick<Feed, 'url' | 'etag' | 'lastModified'> & {
   id: number
@@ -12,9 +13,10 @@ export type FeedToRefresh = Pick<Feed, 'url' | 'etag' | 'lastModified'> & {
 
 const refreshColumns = 'id, url, etag, lastModified, subscriptionRevision'
 
-export const upsert = async ({
-  url, title, description = '', link = '',
-}: Feed) => {
+export const upsert = async (feed: Feed) => {
+  const {
+    url, title, description = '', link = '',
+  } = feed
   const saved = await get<FeedToRefresh>(`
     INSERT INTO feeds (url, title, description, link)
     VALUES (?, ?, ?, ?)
@@ -22,6 +24,7 @@ export const upsert = async ({
       title = excluded.title, description = excluded.description, link = excluded.link, subscribed = 1
     RETURNING ${refreshColumns}
   `, url, title, description, link)
+  await registerFeedIcon(saved!.id, feed)
   return saved!
 }
 
@@ -33,17 +36,25 @@ export const getByUrl = (url: string) => {
   `, ...alternatives, url)
 }
 
-export const getAll = (): Promise<Feed[]> => {
+type FeedRow = Feed & { png: Buffer | null }
+
+function withIcon({ png, ...feed }: FeedRow): Feed {
+  return png ? { ...feed, icon: `data:image/png;base64,${png.toString('base64')}` } : feed
+}
+
+export const getAll = async (): Promise<Feed[]> => {
   const sql = `
-    select f.id, f.url, f.title, f.description, f.link, f.createTime, f.etag, f.lastModified, count(a.id) as unreadCount
-    from feeds as f left outer join articles as a
-    on f.id = a.feedId and a.read = 0
+    select f.id, f.url, f.title, f.description, f.link, f.createTime, f.etag, f.lastModified,
+      count(a.id) as unreadCount, i.png
+    from feeds as f
+    left join feed_icons as i on i.feedId = f.id
+    left join articles as a on f.id = a.feedId and a.read = 0
     where f.subscribed = 1
     group by f.id
     order by f.createTime desc, f.id desc;
   `
 
-  return all(sql)
+  return (await all<FeedRow>(sql)).map(withIcon)
 }
 
 export const getSubscriptions = (): Promise<Feed[]> => (
@@ -78,15 +89,17 @@ export const isCurrentSubscription = async ({ id, subscriptionRevision }: FeedTo
   return !!await get(sql, id, subscriptionRevision)
 }
 
-export const getOne = (id: number): Promise<Feed | undefined> => {
+export const getOne = async (id: number): Promise<Feed | undefined> => {
   const sql = `
-    select f.id, f.url, f.title, f.description, f.link, f.createTime, f.etag, f.lastModified,
+    select f.id, f.url, f.title, f.description, f.link, f.createTime, f.etag, f.lastModified, i.png,
       (select count(*) from articles as a where a.feedId = f.id and a.read = 0) as unreadCount
     from feeds as f
+    left join feed_icons as i on i.feedId = f.id
     where f.id = ? and f.subscribed = 1;
   `
 
-  return get(sql, id)
+  const row = await get<FeedRow>(sql, id)
+  return row && withIcon(row)
 }
 
 export const unsubscribe = (id: number) => run(`

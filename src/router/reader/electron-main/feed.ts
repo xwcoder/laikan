@@ -6,6 +6,7 @@ import { parseURL, FeedError } from '@/base/node/feed'
 import { logger } from '@/services/logger/electron-main/logger'
 import { httpUrl } from '@/base/common/url'
 import { transaction } from '@/services/db/electron-main/db'
+import { queueFeedIconRefresh, updateFeedIconSource } from '@/services/reader/electron-main/feed-icon'
 import { router } from './router'
 
 router.get('/feed/preflight', async (_, url: string) => {
@@ -32,21 +33,23 @@ router.post('/feed', async (_, { url, title }: Pick<Feed, 'url'|'title'>) => {
     if (error instanceof FeedError) return { error: error.kind }
     throw error
   }
-  const id = await transaction(async () => {
+  const source = await transaction(async () => {
     const stored = await feedService.getByUrl(normalized) ?? await feedService.getByUrl(url)
     const feed: Feed = { ...parsed, url: stored?.url ?? parsed.url, title: title.trim() }
     const saved = await feedService.upsert(feed)
     await articleService.upsert((feed.items ?? []).map((article) => ({ ...article, feedId: saved.id })))
     await feedService.updateValidators(saved.id, feed.etag, feed.lastModified)
-    return saved.id
+    await updateFeedIconSource(saved.id, feed)
+    return saved
   })
-  await feedService.pushOne(id)
+  await feedService.pushOne(source.id)
+  queueFeedIconRefresh(source)
   return undefined
 })
 
 router.get('/feed/all', async () => feedService.getAll())
 
-router.post('/feed/refresh', () => refreshFeeds())
+router.post('/feed/refresh', () => refreshFeeds(true))
 
 router.delete('/feed', async (_, id: number) => {
   if (!Number.isSafeInteger(id) || id < 1) throw new TypeError('Invalid feed ID')

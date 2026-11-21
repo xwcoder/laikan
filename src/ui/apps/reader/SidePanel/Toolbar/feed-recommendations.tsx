@@ -3,6 +3,8 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FeedError } from '@/base/common/feed-error'
 import { feedUrlKey } from '@/base/common/feed-url'
+import { RecommendedFeed, recommendedGroups } from '@/base/common/recommended-feeds'
+import { recommendedIcon } from '@/base/common/recommended-icons'
 import { Feed } from '@/types/reader'
 import { ReaderModel } from '@/ui/hooks/use-reader-model'
 import { useSubscribe } from '@/ui/query/reader'
@@ -11,14 +13,9 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/ui/components/ui/dialog'
 import { LocalizedDialogClose } from '@/ui/components/localized-dialog-close'
-import { RecommendedFeed, recommendedGroups } from './recommended-feeds'
-
-const icons = import.meta.glob<string>('../../../../assets/feed-icons/*.png', {
-  eager: true, query: '?url', import: 'default',
-})
 
 function FeedIcon({ source }: { source: RecommendedFeed }) {
-  const url = icons[`../../../../assets/feed-icons/${source.icon}.png`]
+  const url = recommendedIcon(source.icon)
   return (
     <div aria-hidden className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted/70 text-sm font-semibold text-muted-foreground">
       {url ? <img className="size-7 rounded-sm object-contain" alt="" src={url} /> : Array.from(source.title)[0]}

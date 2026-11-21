@@ -71,6 +71,14 @@ export async function initReaderSchema(db: DatabaseClient) {
     }
     await migrateArticles(db)
     await db.exec(`
+      CREATE TABLE IF NOT EXISTS feed_icons (
+        feedId INTEGER PRIMARY KEY REFERENCES feeds(id) ON DELETE CASCADE,
+        png BLOB,
+        iconUrl TEXT,
+        websiteUrl TEXT,
+        checkedAt INTEGER,
+        needsFetch INTEGER NOT NULL DEFAULT 1
+      );
       CREATE TABLE IF NOT EXISTS article_full_text (
         articleId INTEGER PRIMARY KEY REFERENCES articles(id) ON DELETE CASCADE,
         sourceUrl TEXT NOT NULL,

@@ -58,6 +58,7 @@ test('legacy migration retains IDs/state and adopts the original row on first re
   await initReaderSchema(db)
   const articles = createArticleRepository(db)
   assert.equal((await db.get('SELECT subscribed FROM feeds WHERE id = 1'))?.subscribed, 1)
+  assert.equal(await db.get('SELECT png FROM feed_icons WHERE feedId = 1'), undefined)
   assert.equal((await articles.getById(7))?.read, 1)
   await articles.upsert(article('stable-guid', {
     url: 'https://example.com/one', content: 'Summary', contentSource: 'summary',

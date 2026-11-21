@@ -40,6 +40,8 @@ export type Feed = {
   title: string
   description?: string
   link?: string
+  icon?: string
+  iconUrl?: string
   unreadCount?: number
   items?: Article[]
   createTime?: string
