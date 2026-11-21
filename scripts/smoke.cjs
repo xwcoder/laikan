@@ -9,13 +9,16 @@ if (!process.versions.electron) {
   try {
     const env = { ...process.env, EMO_SMOKE_USER_DATA: userData, ELECTRON_RENDERER_URL: '' }
     delete env.ELECTRON_RUN_AS_NODE
-    const result = spawnSync(require('electron'), [__filename, ...process.argv.slice(2)], {
-      env,
-      stdio: 'inherit',
-      timeout: 75000,
-    })
-    if (result.error) throw result.error
-    process.exitCode = result.status ?? 1
+    const run = (phase, timeout) => {
+      const result = spawnSync(require('electron'), [__filename, ...process.argv.slice(2)], {
+        env: { ...env, EMO_SMOKE_PHASE: phase },
+        stdio: 'inherit',
+        timeout,
+      })
+      if (result.error) throw result.error
+      return result.status ?? 1
+    }
+    process.exitCode = run('initial', 75000) || run('restart', 20000)
   } finally {
     fs.rmSync(userData, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
   }
@@ -45,6 +48,24 @@ if (!process.versions.electron) {
     contents.on('did-fail-load', (_, code, message) => fail(new Error(`${code}: ${message}`)))
     contents.once('did-finish-load', async () => {
       try {
+        if (process.env.EMO_SMOKE_PHASE === 'restart') {
+          const restored = await contents.executeJavaScript(`(async () => {
+            const readerReady = () => document.querySelector('.list-container') && document.querySelector('[data-feed-id]')
+            for (let i = 0; i < 250 && !readerReady(); i++) {
+              await new Promise(resolve => setTimeout(resolve, 20))
+            }
+            if (!readerReady()) throw new Error('Reader did not finish loading after restart')
+            return {
+              theme: await window.emo.fetch('/settings/get', 'theme'),
+              appliedTheme: document.documentElement.dataset.theme,
+              dark: document.documentElement.classList.contains('dark'),
+            }
+          })()`)
+          assert.deepEqual(restored, { theme: 'blue', appliedTheme: 'blue', dark: true })
+          console.log('Theme palette and appearance restored after restarting Electron')
+          app.exit(0)
+          return
+        }
         const result = await contents.executeJavaScript(`(async () => {
           for (let i = 0; i < 100 && !document.querySelector('#root')?.children.length; i++) {
             await new Promise(resolve => setTimeout(resolve, 20))
@@ -59,6 +80,7 @@ if (!process.versions.electron) {
           return {
             feeds,
             appearance,
+            theme: await window.emo.fetch('/settings/get', 'theme'),
             onReturnsCleanup: typeof window.__smokeUnsubscribe === 'function',
             nodeIsolated: typeof require === 'undefined' && typeof process === 'undefined',
             tailwindLoaded: getComputedStyle(document.querySelector('.flex')).display === 'flex',
@@ -66,6 +88,7 @@ if (!process.versions.electron) {
         })()`)
         assert.deepEqual(result.feeds, [])
         assert.equal(result.appearance, 'dark')
+        assert.equal(result.theme, 'neutral')
         assert.equal(result.onReturnsCleanup, true)
         assert.equal(result.nodeIsolated, true)
         assert.equal(result.tailwindLoaded, true)

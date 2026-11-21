@@ -110,6 +110,11 @@
       "dark": "Dark",
       "auto": "System"
     },
+    "theme": {
+      "title": "Theme",
+      "neutralGroup": "Neutral colors",
+      "colorGroup": "Colors"
+    },
     "locale": {
       "title": "Language"
     },

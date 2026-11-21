@@ -110,6 +110,11 @@
       "dark": "深色",
       "auto": "跟随系统"
     },
+    "theme": {
+      "title": "主题",
+      "neutralGroup": "中性色",
+      "colorGroup": "彩色"
+    },
     "locale": {
       "title": "语言"
     },

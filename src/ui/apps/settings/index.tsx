@@ -16,8 +16,9 @@ import {
 } from '@/ui/components/ui/dialog'
 import { ErrorAlert } from '@/ui/components/error-alert'
 import { LocalizedDialogClose } from '@/ui/components/localized-dialog-close'
+import ThemeSelect from './theme-select'
 
-const themes: Appearance[] = ['light', 'dark', 'auto']
+const appearanceOptions: Appearance[] = ['light', 'dark', 'auto']
 const optionsLayout = 'flex flex-wrap gap-x-4 gap-y-3'
 
 function SettingsContent() {
@@ -53,13 +54,20 @@ function SettingsContent() {
           onValueChange={(value) => update.mutate({ path: 'appearance', value: value as Appearance })}
           className={optionsLayout}
         >
-          {themes.map((value) => (
+          {appearanceOptions.map((value) => (
             <div key={value} className="flex items-center gap-2">
               <RadioGroupItem id={`appearance-${value}`} value={value} />
               <Label htmlFor={`appearance-${value}`}>{t(`settings.appearance.${value}`)}</Label>
             </div>
           ))}
         </RadioGroup>
+        <Label htmlFor="settings-theme" className="mt-2 @min-[25rem]:mt-0">
+          {t('settings.theme.title')}
+        </Label>
+        <ThemeSelect
+          value={saving?.path === 'theme' ? saving.value : data?.theme}
+          onChange={(value) => update.mutate({ path: 'theme', value })}
+        />
         <span id="locale-title" className="mt-2 font-medium @min-[25rem]:mt-0">
           {t('settings.locale.title')}
         </span>

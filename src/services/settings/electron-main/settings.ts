@@ -3,33 +3,35 @@ import { EventEmitter } from 'node:events'
 import { app } from 'electron'
 import _get from 'lodash.get'
 import _set from 'lodash.set'
-import { readJSON, writeJSON } from '@/base/node/fs'
+import { readJSON, writeJSONAtomically } from '@/base/node/fs'
+import { defaultTheme, isTheme } from '@/base/common/themes'
+import { Settings } from '@/types/settings'
 
 const emitter = new EventEmitter()
 const settingsFilePath = join(app.getPath('userData'), 'settings.json')
 
-export type Settings = {
-  locale: string
-  appearance: 'light' | 'dark' | 'auto'
-  defaultDataPath: string
-  dataPath: string
-}
+type StoredSettings = Omit<Settings, 'locale'> & { locale: string }
 
-const settings: Settings = {
+const saved = readJSON(settingsFilePath)
+let settings: StoredSettings = {
   locale: '',
   appearance: 'auto',
   defaultDataPath: app.getPath('userData'),
   dataPath: app.getPath('userData'),
-  ...readJSON(settingsFilePath),
+  ...saved,
+  theme: isTheme(saved?.theme) ? saved.theme : defaultTheme,
 }
 
 export const get = (path?: string) => path ? _get(settings, path) : settings
 
 export const set = (path: string, value: any) => {
+  if (path === 'theme' && !isTheme(value)) throw new TypeError('Unknown theme')
   const oldValue = get(path)
 
-  _set(settings, path, value)
-  writeJSON(settingsFilePath, settings)
+  const nextSettings = structuredClone(settings)
+  _set(nextSettings, path, value)
+  writeJSONAtomically(settingsFilePath, nextSettings)
+  settings = nextSettings
 
   if (oldValue !== value) {
     emitter.emit('change', path, value, oldValue)

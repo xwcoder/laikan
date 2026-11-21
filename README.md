@@ -46,7 +46,8 @@ configures shadcn's source aliases for adding more components.
 - `src/ui/components/ui/` contains official shadcn New York (Tailwind v4)
   registry sources with the project's import aliases. Compose these components
   in application code. Use the semantic CSS tokens in `src/ui/style.css` for
-  colors, typography, and radii in both themes. See [shadcn
+  typography and radii. The official light and dark
+  color tokens are bundled in `src/ui/themes.css`. See [shadcn
   theming](https://ui.shadcn.com/docs/theming).
 - Component forms, dialogs and other private UI state use React `useState`.
   Zustand stores in `src/ui/store/` contain shared client state such as the
@@ -57,12 +58,13 @@ configures shadcn's source aliases for adding more components.
   invalidate the cache; server data is never copied into Zustand.
 
 Open Settings using the gear fixed at the bottom of the subscription sidebar.
-Settings appear in a centered modal; select Light, Dark or System there. The
-system option follows OS theme changes. Theme and language changes save
-immediately through the existing Electron settings service, as does reader font
-size. Closing the modal with its close button, Escape or an outside click keeps
-your reading position. An unapplied data-directory draft is discarded on close;
-changing the active directory still requires Restart & Apply.
+Theme offers 24 [shadcn Create](https://ui.shadcn.com/create) palettes and starts
+with Neutral. The palettes are available offline. Appearance separately
+controls Light, Dark, or System, which follows OS changes. Theme, appearance,
+language, and reader font size save immediately through the Electron settings
+service. Closing the modal with its close button, Escape, or an outside click
+keeps your reading position. An unapplied data-directory draft is discarded on
+close. Changing the active directory requires Restart & Apply.
 
 Internationalization uses `react-i18next` with one bundled JSON resource per
 language: `src/i18n/en-US.json` and `src/i18n/zh-CN.json`. Keep their keys aligned

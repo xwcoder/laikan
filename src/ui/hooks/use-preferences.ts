@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
+import { defaultTheme } from '@/base/common/themes'
 import i18n from '@/i18n'
 import { useSettings } from '@/ui/query/settings'
 
@@ -16,10 +17,13 @@ export function usePreferences() {
   }, [])
 
   const appearance = settings.data?.appearance ?? 'auto'
+  const theme = settings.data?.theme ?? defaultTheme
   const dark = appearance === 'dark' || (appearance === 'auto' && systemDark)
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', dark)
-  }, [dark])
+  useLayoutEffect(() => {
+    const root = document.documentElement
+    root.dataset.theme = theme
+    root.classList.toggle('dark', dark)
+  }, [dark, theme])
 
   const locale = settings.data?.locale
   useEffect(() => {

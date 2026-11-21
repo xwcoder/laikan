@@ -85,6 +85,25 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     contents.focus()
     await wait('document.hasFocus()')
   }
+  const openThemes = async () => {
+    await run('document.querySelector("#settings-theme").focus()')
+    await press('Enter')
+    await wait('document.activeElement.matches("[role=option]")')
+  }
+  const pickTheme = async (id, key) => {
+    const option = `[role=option]:has([data-theme="${id}"])`
+    if (key) {
+      await press(key)
+      await wait(`document.activeElement.matches(${JSON.stringify(option)})`)
+    } else {
+      await run(`document.querySelector(${JSON.stringify(option)}).focus()`)
+    }
+    await press('Enter')
+    await wait(`document.documentElement.dataset.theme === "${id}" && !document.querySelector("[role=listbox]")`)
+    await wait('document.querySelector("[data-settings-body]").ariaBusy === "false"')
+    assert.ok(await run('document.activeElement.matches("#settings-theme")'))
+  }
+  const primaryToken = () => run('getComputedStyle(document.documentElement).getPropertyValue("--primary").trim()')
 
   // Theme/language mutations must update both the UI and the persisted settings.
   await wait('document.querySelector("[data-tab=unread]")')
@@ -95,24 +114,62 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
   await wait('!document.documentElement.classList.contains("dark")')
   await chooseLanguage('en-US')
   await snapshot('settings-light-en')
+  const neutralPrimary = await primaryToken()
+  let lightBlue
+  contents.session.enableNetworkEmulation({ offline: true })
+  try {
+    assert.equal(await run('document.querySelector("#settings-theme").textContent.trim()'), 'Neutral')
+    await openThemes()
+    const catalog = await run(`Array.from(document.querySelectorAll('[role=option] [data-theme]'), swatch => swatch.dataset.theme)`)
+    assert.deepEqual(catalog, [
+      'neutral', 'stone', 'zinc', 'mauve', 'olive', 'mist', 'taupe',
+      'amber', 'blue', 'cyan', 'emerald', 'fuchsia', 'green', 'indigo', 'lime', 'orange',
+      'pink', 'purple', 'red', 'rose', 'sky', 'teal', 'violet', 'yellow',
+    ])
+    const blueSwatch = 'document.querySelector(\'[role=option] [data-theme="blue"]\')'
+    const bluePreview = await run(`getComputedStyle(${blueSwatch}).getPropertyValue('--primary').trim()`)
+    await pickTheme('blue', 'b')
+    lightBlue = await primaryToken()
+    assert.equal(lightBlue, bluePreview)
+    assert.notEqual(lightBlue, neutralPrimary)
+    await openThemes()
+    await pickTheme('neutral')
+    assert.equal(await primaryToken(), neutralPrimary)
+    await openThemes()
+    await pickTheme('blue', 'b')
+    const settingsPath = path.join(process.env.EMO_SMOKE_USER_DATA, 'settings.json')
+    assert.equal(JSON.parse(fs.readFileSync(settingsPath, 'utf8')).theme, 'blue')
+    await snapshot('settings-theme-blue-light')
+  } finally {
+    contents.session.disableNetworkEmulation()
+  }
   await wait('document.querySelector("[data-settings-body]").ariaBusy === "false"')
   await click('[role=radio][value=auto]')
   await wait('window.emo.fetch("/settings/get", "appearance").then(value => value === "auto")')
   nativeTheme.themeSource = 'dark'
   await wait('document.documentElement.classList.contains("dark")')
+  assert.equal(await run('document.documentElement.dataset.theme'), 'blue')
+  assert.notEqual(await primaryToken(), lightBlue, 'System mode should apply the dark Blue tokens')
   nativeTheme.themeSource = 'light'
   await wait('!document.documentElement.classList.contains("dark")')
+  assert.equal(await primaryToken(), lightBlue)
   await wait('document.querySelector("[data-settings-body]").ariaBusy === "false"')
   await click('[role=radio][value=dark]')
   await wait('document.documentElement.classList.contains("dark")')
   await chooseLanguage('zh-CN')
   assert.ok((await run('document.body.textContent')).includes('跟随系统'))
   await snapshot('settings-dark-zh')
+  await openThemes()
+  assert.deepEqual(await run('Array.from(document.querySelectorAll("[data-slot=select-label]"), label => label.textContent)'), ['中性色', '彩色'])
+  await snapshot('settings-theme-menu-zh')
+  await press('Escape')
+  await wait('!document.querySelector("[role=listbox]") && document.querySelector("[data-settings-body]")')
 
   // A reload reconstructs remote state from Query/IPC, including saved preferences.
   await Promise.all([new Promise(resolve => contents.once('did-finish-load', resolve)), run('location.reload()')])
   await wait('document.querySelector("[data-tab=unread]") && document.documentElement.lang === "zh-CN"')
   assert.equal(await run('document.documentElement.classList.contains("dark")'), true)
+  assert.equal(await run('document.documentElement.dataset.theme'), 'blue')
   assert.ok((await run('document.body.textContent')).includes('未读'))
   await click('[data-settings-trigger]')
   await wait('document.querySelector(\'[role=radio][value="zh-CN"]\')?.ariaChecked === "true"')
