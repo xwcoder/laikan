@@ -1,5 +1,5 @@
 # 来刊 · Laikan
-[Download](https://github.com/xwcoder/emo/releases) | [Issue](https://github.com/xwcoder/emo/issues/new)
+[Download](https://github.com/xwcoder/laikan/releases) | [Issue](https://github.com/xwcoder/laikan/issues/new)
 
 Laikan is a desktop RSS and Atom reader.
 
