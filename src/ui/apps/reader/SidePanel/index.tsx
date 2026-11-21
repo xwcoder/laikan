@@ -35,7 +35,7 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
   }
 
   return (
-    <div className="flex min-h-full flex-col gap-4">
+    <div className="flex min-h-full flex-col">
       <div className="space-y-1">
         {tabs.map(({ tab, Icon }) => (
           <Button
@@ -44,7 +44,7 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
             variant="ghost"
             data-tab={tab}
             aria-pressed={model.tab === tab}
-            className={cn('w-full justify-start', model.tab === tab && 'bg-accent text-primary')}
+            className={cn('w-full justify-start px-2', model.tab === tab && 'bg-accent font-semibold')}
             onClick={() => model.changeTab(tab as Tab)}
           >
             <Icon />
@@ -55,12 +55,12 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
           </Button>
         ))}
       </div>
-      <Separator />
+      <Separator className="my-4" />
       <div className="flex items-center justify-between pl-2">
         <h2 className="text-xs font-medium text-muted-foreground">{t('reader.list.feeds')}</h2>
         <AddButton />
       </div>
-      <div className="space-y-1">
+      <div className="mt-1 space-y-1">
         {model.feeds.isPending || model.feeds.isError ? (
           <AsyncState error={model.feeds.isError} retry={() => model.feeds.refetch()} />
         ) : model.feeds.data.length ? (
@@ -77,13 +77,12 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
                 variant="ghost"
                 aria-pressed={model.tab === feed.id}
                 className={cn(
-                  'w-full justify-start pr-4 hover:bg-transparent group-hover:pr-16',
+                  'w-full justify-start pr-2 pl-2 hover:bg-transparent group-hover:pr-16',
                   'group-has-[[data-feed-actions]_:focus-visible]:pr-16',
-                  model.tab === feed.id && 'text-primary hover:text-primary',
                 )}
                 onClick={() => model.changeTab(feed.id!)}
               >
-                <Rss className="shrink-0 text-muted-foreground" />
+                <Rss className={cn('shrink-0', model.tab !== feed.id && 'text-muted-foreground')} />
                 <span className={cn('truncate', !!feed.unreadCount && 'font-semibold')}>{feed.title}</span>
                 {!!feed.unreadCount && (
                   <span className="ml-auto text-xs tabular-nums group-hover:hidden group-has-[[data-feed-actions]_:focus-visible]:hidden">
@@ -129,7 +128,7 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
           <p className="px-2 text-xs leading-relaxed text-muted-foreground">{t('reader.list.noFeeds')}</p>
         )}
       </div>
-      <p role="status" className="px-2 text-xs text-muted-foreground">
+      <p role="status" className="mt-3 px-2 text-xs text-muted-foreground empty:sr-only">
         {copyStatus && t(copyStatus === 'success' ? 'reader.action.copy.success' : 'reader.action.copyError')}
       </p>
       <DeleteFeedDialog

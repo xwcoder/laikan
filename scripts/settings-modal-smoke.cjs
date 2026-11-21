@@ -5,6 +5,7 @@ module.exports = async function settingsModalSmoke(contents, { run, wait, click,
   const { dialog } = require('electron')
   const window = contents.getOwnerBrowserWindow()
   const bounds = window.getBounds()
+  const zoom = contents.getZoomFactor()
   const originalPicker = dialog.showOpenDialog
   const open = async () => {
     await click('[data-settings-trigger]')
@@ -33,12 +34,21 @@ module.exports = async function settingsModalSmoke(contents, { run, wait, click,
         fits: document.documentElement.scrollWidth <= innerWidth && close.top >= 0 && close.bottom <= innerHeight,
       }
     })()`)
-    assert.ok(geometry.width <= 640)
+    assert.ok(geometry.width <= 512)
     assert.ok(geometry.height <= 600 * 0.85 + 1)
     assert.ok(geometry.top >= 0 && geometry.bottom <= 600)
-    assert.equal(geometry.scrollable, true)
+    assert.equal(geometry.scrollable, false)
     await snapshot('settings-modal-small')
     assert.equal(geometry.fits, true, JSON.stringify(geometry))
+    // The compact form fits the minimum window. Zoom still requires internal scrolling.
+    contents.setZoomFactor(1.75)
+    await wait(`(() => {
+      const body = document.querySelector('[data-settings-body]')
+      body.scrollTop = body.scrollHeight
+      return body.scrollTop > 0 && body.scrollWidth <= body.clientWidth
+        && document.querySelector('[role=dialog] > button').getBoundingClientRect().top >= 0
+    })()`)
+    contents.setZoomFactor(zoom)
     await press('?', true)
     await press('g'); await press('s')
     assert.equal(await run('document.querySelectorAll("[role=dialog]").length'), 1)
@@ -71,6 +81,7 @@ module.exports = async function settingsModalSmoke(contents, { run, wait, click,
     await closed()
   } finally {
     dialog.showOpenDialog = originalPicker
+    contents.setZoomFactor(zoom)
     window.setBounds(bounds)
   }
   console.log('Settings modal passed: fixed entry, compact layout, internal scrolling, Escape/outside/close dismissal, focus return and discarded directory drafts')

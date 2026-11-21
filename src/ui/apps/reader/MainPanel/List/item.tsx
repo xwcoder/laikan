@@ -16,7 +16,7 @@ export default function Item({ model, article }: { model: ReaderModel; article: 
       className={cn(
         'relative flex min-h-12 items-center gap-2 border-b px-4 hover:bg-muted/70',
         article.read ? 'bg-muted/40 text-muted-foreground' : 'font-medium',
-        selectedIds.includes(article.id!) && 'bg-accent',
+        selectedIds.includes(article.id!) && 'bg-accent hover:bg-accent',
         article.id === activeId && 'border-l-2 border-l-primary pl-3.5',
       )}
     >

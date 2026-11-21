@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { ReaderModel } from '@/ui/hooks/use-reader-model'
 import { ArticleListItem } from '@/types/reader'
 import { IconButton } from '@/ui/components/icon-button'
+import { Separator } from '@/ui/components/ui/separator'
 import { openExternal } from '@/base/browser/shell'
 import { cn } from '@/ui/lib/utils'
 import { httpUrl } from '@/base/common/url'
@@ -50,7 +51,7 @@ export function ArticleToolbar({ model }: { model: ReaderModel }) {
       <IconButton label={t('reader.action.back')} onClick={model.fold}>
         <ArrowLeft />
       </IconButton>
-      <div className="mx-2 h-5 border-l" />
+      <Separator orientation="vertical" className="mx-2 h-5" />
       <MarkReadButton model={model} />
       {article && <StarButton model={model} article={article} />}
       <IconButton

@@ -19,9 +19,9 @@ export default function DeleteFeedDialog({
   return (
     <AlertDialog.Root open={title !== null} onOpenChange={(open) => { if (!open && !deleting) onCancel() }}>
       <AlertDialog.Portal>
-        <AlertDialog.Overlay className="fixed inset-0 z-50 bg-black/60" />
+        <AlertDialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
         <AlertDialog.Content
-          className="undraggle fixed top-1/2 left-1/2 z-50 grid max-h-[85vh] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-xl border bg-background p-6 text-foreground shadow-lg"
+          className="undraggle fixed top-1/2 left-1/2 z-50 grid max-h-[85vh] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-xl border bg-popover p-6 text-popover-foreground shadow-lg outline-none"
           onCloseAutoFocus={onCloseAutoFocus}
         >
           <AlertDialog.Title className="text-lg font-semibold wrap-anywhere">

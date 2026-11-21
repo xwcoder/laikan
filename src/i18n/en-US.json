@@ -107,21 +107,19 @@
       "title": "Appearance",
       "light": "Light",
       "dark": "Dark",
-      "auto": "System",
-      "description": "Choose a theme or follow your system settings."
+      "auto": "System"
     },
     "locale": {
-      "title": "Language",
-      "description": "Changes apply immediately throughout the app."
+      "title": "Language"
     },
     "dataPath": {
-      "title": "Choose directory to store data",
+      "title": "Data directory",
       "browserBtn": "Browse",
-      "setToDefaultBtn": "Set To Default Directory",
+      "setToDefaultBtn": "Restore default",
       "applyBtn": "Restart & Apply",
-      "description": "Changing the data directory restarts the application."
+      "description": "Restart the app to use a new directory."
     },
-    "description": "Personalize your reading experience."
+    "description": "Appearance and language changes are saved automatically."
   },
   "common": {
     "loading": "Loading…",

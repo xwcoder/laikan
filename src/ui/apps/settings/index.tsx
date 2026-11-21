@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { FolderOpen, Settings as SettingsIcon } from 'lucide-react'
+import {
+  FolderOpen, Monitor, Moon, Settings as SettingsIcon, Sun,
+} from 'lucide-react'
 import { languages } from '@/i18n'
 import { Appearance, Locale } from '@/types/settings'
 import { useSettings, useUpdateSettings } from '@/ui/query/settings'
@@ -15,10 +17,19 @@ import {
 } from '@/ui/components/ui/dialog'
 import { ErrorAlert } from '@/ui/components/error-alert'
 
+const themes = [
+  { value: 'light', Icon: Sun },
+  { value: 'dark', Icon: Moon },
+  { value: 'auto', Icon: Monitor },
+] as const
+
+const segmentedGroupClass = 'grid-flow-col auto-cols-fr gap-0.5 rounded-lg bg-muted p-1'
+
 function SettingsContent() {
   const { t } = useTranslation()
   const { data } = useSettings()
   const update = useUpdateSettings()
+  const saving = update.isPending ? update.variables : undefined
   const [draftPath, setDraftPath] = useState<string | null>(null)
   const [browsing, setBrowsing] = useState(false)
   const dataPath = draftPath ?? data?.dataPath ?? ''
@@ -36,83 +47,69 @@ function SettingsContent() {
   }
 
   return (
-    <div className="min-h-0 space-y-6 overflow-y-auto px-6 pb-6" data-settings-body>
+    <div className="@container min-h-0 space-y-5 overflow-y-auto px-6 pb-6" data-settings-body aria-busy={update.isPending}>
       <ErrorAlert />
-      <section className="space-y-4" aria-labelledby="appearance-title">
-        <div>
-          <h2 id="appearance-title" className="font-semibold">
-            {t('settings.appearance.title')}
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">{t('settings.appearance.description')}</p>
-        </div>
+      <div className="grid items-center gap-x-4 gap-y-2 @min-[24rem]:grid-cols-[1fr_17.5rem] @min-[24rem]:gap-y-4">
+        <span id="appearance-title" className="font-medium">{t('settings.appearance.title')}</span>
         <RadioGroup
           aria-labelledby="appearance-title"
-          value={data?.appearance}
-          disabled={update.isPending}
+          orientation="horizontal"
+          value={saving?.path === 'appearance' ? saving.value : data?.appearance}
           onValueChange={(value) => update.mutate({ path: 'appearance', value: value as Appearance })}
-          className="grid-cols-3"
+          className={segmentedGroupClass}
         >
-          {(['light', 'dark', 'auto'] as const).map((value) => (
-            <label
-              htmlFor={`setting-${value}`}
+          {themes.map(({ value, Icon }) => (
+            <RadioGroupItem
               key={value}
-              className="flex cursor-pointer items-center gap-3 rounded-lg border bg-card p-4 has-[[data-state=checked]]:border-primary"
+              value={value}
+              variant="segment"
             >
-              <RadioGroupItem
-                id={`setting-${value}`}
-                value={value}
-                aria-label={t(`settings.appearance.${value}`)}
-              />
+              <Icon aria-hidden className="size-3.5 shrink-0" />
               {t(`settings.appearance.${value}`)}
-            </label>
+            </RadioGroupItem>
           ))}
         </RadioGroup>
-      </section>
-      <Separator />
-      <section className="space-y-4" aria-labelledby="locale-title">
-        <div>
-          <h2 id="locale-title" className="font-semibold">
-            {t('settings.locale.title')}
-          </h2>
-          <p className="mt-1 text-muted-foreground">{t('settings.locale.description')}</p>
-        </div>
+        <span id="locale-title" className="mt-2 font-medium @min-[24rem]:mt-0">
+          {t('settings.locale.title')}
+        </span>
         <RadioGroup
           aria-labelledby="locale-title"
-          value={data?.locale}
-          disabled={update.isPending}
+          orientation="horizontal"
+          value={saving?.path === 'locale' ? saving.value : data?.locale}
           onValueChange={(value) => update.mutate({ path: 'locale', value: value as Locale })}
-          className="grid-cols-2"
+          className={segmentedGroupClass}
         >
           {languages.map(({ value, label }) => (
-            <label
-              htmlFor={`setting-${value}`}
-              key={value}
-              className="flex cursor-pointer items-center gap-3 rounded-lg border bg-card p-4 has-[[data-state=checked]]:border-primary"
-            >
-              <RadioGroupItem id={`setting-${value}`} value={value} aria-label={label} />
+            <RadioGroupItem key={value} value={value} lang={value} variant="segment">
               {label}
-            </label>
+            </RadioGroupItem>
           ))}
         </RadioGroup>
-      </section>
+      </div>
       <Separator />
-      <section className="space-y-4" aria-labelledby="path-title">
-        <div>
-          <h2 id="path-title" className="font-semibold">
-            {t('settings.dataPath.title')}
-          </h2>
-          <p className="mt-1 text-muted-foreground">{t('settings.dataPath.description')}</p>
+      <section className="space-y-3" aria-labelledby="path-title">
+        <div className="space-y-1">
+          <h2 id="path-title" className="font-medium">{t('settings.dataPath.title')}</h2>
+          <p id="path-description" className="text-sm text-muted-foreground">{t('settings.dataPath.description')}</p>
         </div>
         <div className="flex gap-2">
-          <Input aria-labelledby="path-title" value={dataPath} readOnly />
+          <Input
+            aria-labelledby="path-title"
+            aria-describedby="path-description"
+            value={dataPath}
+            title={dataPath}
+            className="truncate font-mono text-xs"
+            readOnly
+          />
           <Button variant="outline" disabled={browsing} onClick={browse}>
             <FolderOpen />
             {t('settings.dataPath.browserBtn')}
           </Button>
         </div>
-        <div className="flex flex-wrap justify-end gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <Button
-            variant="outline"
+            variant="ghost"
+            size="sm"
             disabled={dataPath === data?.defaultDataPath || update.isPending}
             onClick={() => setDraftPath(data?.defaultDataPath ?? '')}
           >
@@ -145,9 +142,9 @@ export default function SettingsDialog() {
           <SettingsIcon />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-[640px] grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden p-0">
-        <header className="space-y-2 px-6 pt-6 pb-5">
-          <DialogTitle className="text-xl">{t('common.settings')}</DialogTitle>
+      <DialogContent className="grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden p-0">
+        <header className="space-y-1.5 px-6 pt-6 pb-5">
+          <DialogTitle>{t('common.settings')}</DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
             {t('settings.description')}
           </DialogDescription>
