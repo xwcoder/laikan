@@ -1,27 +1,30 @@
 import { app } from 'electron'
-import * as path from 'node:path'
-import winston from 'winston'
+import { join } from 'node:path'
+import { format } from 'node:util'
+import { createFileLog } from '@/base/node/file-log'
 
-const format = winston.format.combine(
-  winston.format.splat(),
-  winston.format.timestamp({
-    format: 'YYYY-MM-DD HH:mm:ss',
-  }),
-  winston.format.printf(({ level, timestamp, message }) => `${level.toUpperCase()}: ${timestamp}: ${message}`),
-)
+const appendLog = createFileLog(join(app.getPath('userData'), 'logs'))
 
-export const logger = winston.createLogger({
-  format,
-  transports: [
-    new winston.transports.Console({
-      level: 'info',
-    }),
+function timestamp() {
+  const now = new Date()
+  const localTime = new Date(now.getTime() - now.getTimezoneOffset() * 60_000)
+  return localTime.toISOString().slice(0, 19).replace('T', ' ')
+}
 
-    new winston.transports.File({
-      level: 'info',
-      filename: path.join(app.getPath('userData'), 'logs/laikan.log'),
-      maxsize: 30 * 1024 * 1024, // 30M
-      maxFiles: 30,
-    }),
-  ],
-})
+type Level = 'info' | 'warn' | 'error'
+
+const log = (level: Level) => (message: string, ...args: unknown[]) => {
+  const line = `${level.toUpperCase()}: ${timestamp()}: ${format(message, ...args)}`
+  // eslint-disable-next-line no-console -- The logger writes to the console as well as the log file.
+  console[level](line)
+  appendLog(`${line}\n`).catch((error) => {
+    // eslint-disable-next-line no-console -- A file write failure must stay out of the file queue.
+    console.error('Unable to write the application log', error)
+  })
+}
+
+export const logger = {
+  info: log('info'),
+  warn: log('warn'),
+  error: log('error'),
+}

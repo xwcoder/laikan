@@ -2,17 +2,14 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
 const { setTimeout: delay } = require('node:timers/promises')
-const { Database } = require('sqlite3')
+const { DatabaseSync } = require('node:sqlite')
 
-async function withDatabase(filename, operation) {
-  const database = new Database(filename)
-  const run = (sql, ...params) => new Promise((resolve, reject) => {
-    database.run(sql, ...params, error => error ? reject(error) : resolve())
-  })
+function withDatabase(filename, operation) {
+  const database = new DatabaseSync(filename, { timeout: 1000 })
   try {
-    await operation(run)
+    operation(database)
   } finally {
-    await new Promise((resolve, reject) => database.close(error => error ? reject(error) : resolve()))
+    database.close()
   }
 }
 
@@ -41,7 +38,7 @@ module.exports = async function dataDirectorySmoke(contents) {
   const { dataPath: original, libraryRevision: revision } = await getSettings()
   const settingsFile = path.join(original, 'settings.json')
   const migrated = path.join(original, 'migrated-library')
-  const existing = path.join(original, 'existing-library')
+  const existing = path.join(original, 'existing library 中文 # %')
   const invalid = path.join(original, 'invalid-library')
   const failed = path.join(original, 'failed-library')
   for (const directory of [migrated, existing, invalid, failed]) fs.mkdirSync(directory)
@@ -121,13 +118,13 @@ module.exports = async function dataDirectorySmoke(contents) {
     const cachedArticle = await getArticle(atomArticles.find(item => item.externalId === 'urn:two').id)
 
     // Keep the same feed ID, URL and revision in both libraries so a stale refresh would match.
-    await withDatabase(database(original), async sql => {
-      await sql('PRAGMA journal_mode = WAL')
-      await sql('VACUUM INTO ?', database(existing))
+    withDatabase(database(original), db => {
+      db.exec('PRAGMA journal_mode = WAL')
+      db.prepare('VACUUM INTO ?').run(database(existing))
     })
-    await withDatabase(database(existing), async sql => {
-      await sql('UPDATE feeds SET title = ? WHERE id = ?', 'Existing library fixture', feed.id)
-      await sql('UPDATE articles SET title = ? WHERE id = ?', 'Existing library article', fixtureArticle.id)
+    withDatabase(database(existing), db => {
+      db.prepare('UPDATE feeds SET title = ? WHERE id = ?').run('Existing library fixture', feed.id)
+      db.prepare('UPDATE articles SET title = ? WHERE id = ?').run('Existing library article', fixtureArticle.id)
     })
     await ipc('/reader/put/article/starred', { id: fixtureArticle.id, status: 1 })
     assert.ok(fs.existsSync(`${database(original)}-wal`), 'The source contains recent writes in the WAL')

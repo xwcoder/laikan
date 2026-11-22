@@ -1,14 +1,20 @@
 import assert from 'node:assert/strict'
 import { test, TestContext } from 'node:test'
-import sqlite3 from 'sqlite3'
 import { createDatabaseClient } from '../src/base/node/database'
+import { openDatabase } from '../src/base/node/sqlite'
 import { initReaderSchema } from '../src/services/reader/electron-main/schema'
 import { createArticleRepository } from '../src/services/reader/electron-main/article-repository'
 import { Article } from '../src/types/reader'
 
-async function setup(context: TestContext) {
-  const db = createDatabaseClient(new sqlite3.Database(':memory:'))
+async function openTestDatabase(context: TestContext) {
+  const workerPath = new URL('../src/base/node/sqlite-worker.ts', import.meta.url)
+  const db = createDatabaseClient(await openDatabase(workerPath, ':memory:'))
   context.after(() => db.close())
+  return db
+}
+
+async function setup(context: TestContext) {
+  const db = await openTestDatabase(context)
   await initReaderSchema(db)
   await db.run("INSERT INTO feeds(id,url,title) VALUES (1,'https://example.com/feed','Feed')")
   return { db, articles: createArticleRepository(db) }
@@ -45,8 +51,7 @@ test('distinct IDs survive empty/shared URLs; edits retain the article ID, read 
 })
 
 test('legacy migration retains IDs/state and adopts the original row on first refresh', async (context) => {
-  const db = createDatabaseClient(new sqlite3.Database(':memory:'))
-  context.after(() => db.close())
+  const db = await openTestDatabase(context)
   await db.exec(`
     CREATE TABLE feeds(id INTEGER PRIMARY KEY, url TEXT UNIQUE, title TEXT, description TEXT, link TEXT, createTime TEXT);
     CREATE TABLE articles(id INTEGER PRIMARY KEY, url TEXT NOT NULL, title TEXT NOT NULL,
@@ -169,8 +174,7 @@ test('concurrent reads and writes cannot leak into a transaction that later roll
 })
 
 test('migration failure leaves the original table and rows intact', async (context) => {
-  const db = createDatabaseClient(new sqlite3.Database(':memory:'))
-  context.after(() => db.close())
+  const db = await openTestDatabase(context)
   await db.exec(`
     CREATE TABLE articles(id INTEGER PRIMARY KEY,url TEXT,title TEXT,content TEXT,read INTEGER,
       starred INTEGER,pubTime TEXT,createTime TEXT,feedId INTEGER);

@@ -54,6 +54,7 @@ module.exports = {
       devDependencies: [
         '**/*.test.js',
         '**/*.spec.js',
+        'src/preload/**',
         'src/ui/**',
         'src/i18n/**',
         './*.js',

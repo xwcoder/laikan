@@ -3,6 +3,7 @@ import { httpUrl } from '@/base/common/url'
 import { fetchFullText } from '@/base/node/full-text'
 import { ArticleFullText } from '@/types/reader'
 import { createArticleRepository } from './article-repository'
+import { extractArticle } from './extract-article'
 
 const repository = createArticleRepository(database)
 export const {
@@ -11,7 +12,7 @@ export const {
 const requests = new Map<string, Promise<ArticleFullText>>()
 
 async function extractAndCache(id: number, url: string, direct: boolean) {
-  const content = await fetchFullText(url, direct)
+  const content = await fetchFullText(url, extractArticle, direct)
   if (!await repository.saveFullText(id, url, content)) throw new Error('Article source changed during extraction')
   return content
 }

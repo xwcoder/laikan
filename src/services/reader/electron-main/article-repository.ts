@@ -41,7 +41,7 @@ function validate(article: Article) {
   if (!Number.isSafeInteger(article.feedId) || article.feedId! < 1) throw new TypeError('Invalid article feed ID')
 }
 
-function filterSql(tab: ArticleFilter['tab'], retainedUnreadIds: number[]): { where: string; params: unknown[] } {
+function filterSql(tab: ArticleFilter['tab'], retainedUnreadIds: number[]): { where: string; params: (number | string)[] } {
   if (typeof tab === 'number' && Number.isSafeInteger(tab) && tab > 0) return { where: 'WHERE feedId = ?', params: [tab] }
   if (tab === 'unread') {
     if (!Array.isArray(retainedUnreadIds) || retainedUnreadIds.some((id) => !Number.isSafeInteger(id) || id < 1)) {
@@ -124,7 +124,7 @@ export function createArticleRepository(db: DatabaseClient) {
             (SELECT 1 FROM articles WHERE feedId = ? AND identityKey = ?)`,
             article.identityKey,
             legacyId,
-            article.feedId,
+            article.feedId!,
             article.identityKey,
           )
           byUrl.delete(`${article.feedId}:${article.url}`)

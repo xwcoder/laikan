@@ -1,11 +1,10 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
-import type { Database } from 'sqlite3'
-
-export type RunResult = { lastID: number; changes: number }
+import type { SQLInputValue } from 'node:sqlite'
+import type { DatabaseConnection } from './sqlite'
 
 // All connection operations share one queue. A transaction owns the queue until
 // commit/rollback, so concurrent crawlers, UI writes and reads cannot interleave.
-export function createDatabaseClient(database: Database | (() => Promise<Database>)) {
+export function createDatabaseClient(database: DatabaseConnection | (() => Promise<DatabaseConnection>)) {
   const operationContext = new AsyncLocalStorage<boolean>()
   const transactionContext = new AsyncLocalStorage<boolean>()
   let pending: Promise<unknown> = Promise.resolve()
@@ -17,45 +16,21 @@ export function createDatabaseClient(database: Database | (() => Promise<Databas
     return result
   }
 
-  const useConnection = <T>(operation: (connection: Database) => Promise<T>) => enqueue(async () => (
+  const useConnection = <T>(operation: (connection: DatabaseConnection) => Promise<T>) => enqueue(async () => (
     operation(typeof database === 'function' ? await database() : database)
   ))
 
-  const run = (sql: string, ...params: unknown[]) => useConnection(
-    (connection) => new Promise<RunResult>((resolve, reject) => {
-      connection.run(sql, ...params, function complete(this: RunResult, error: Error | null) {
-        if (error) reject(error)
-        else resolve({ lastID: this.lastID, changes: this.changes })
-      })
-    }),
+  const run = (sql: string, ...params: SQLInputValue[]) => useConnection((connection) => connection.run(sql, ...params))
+
+  const get = <T = any>(sql: string, ...params: SQLInputValue[]) => useConnection(
+    async (connection) => await connection.get(sql, ...params) as T | undefined,
   )
 
-  const get = <T = any>(sql: string, ...params: unknown[]) => useConnection(
-    (connection) => new Promise<T | undefined>((resolve, reject) => {
-      connection.get(sql, ...params, (error: Error | null, row: T | undefined) => {
-        if (error) reject(error)
-        else resolve(row)
-      })
-    }),
+  const all = <T = any>(sql: string, ...params: SQLInputValue[]) => useConnection(
+    async (connection) => await connection.all(sql, ...params) as T[],
   )
 
-  const all = <T = any>(sql: string, ...params: unknown[]) => useConnection(
-    (connection) => new Promise<T[]>((resolve, reject) => {
-      connection.all(sql, ...params, (error: Error | null, rows: T[]) => {
-        if (error) reject(error)
-        else resolve(rows)
-      })
-    }),
-  )
-
-  const exec = (sql: string) => useConnection(
-    (connection) => new Promise<void>((resolve, reject) => {
-      connection.exec(sql, (error) => {
-        if (error) reject(error)
-        else resolve()
-      })
-    }),
-  )
+  const exec = (sql: string) => useConnection((connection) => connection.exec(sql))
 
   const transaction = <T>(operation: () => Promise<T>): Promise<T> => {
     if (transactionContext.getStore()) return operation()
@@ -72,14 +47,7 @@ export function createDatabaseClient(database: Database | (() => Promise<Databas
     }))
   }
 
-  const close = () => useConnection(
-    (connection) => new Promise<void>((resolve, reject) => {
-      connection.close((error) => {
-        if (error) reject(error)
-        else resolve()
-      })
-    }),
-  )
+  const close = () => useConnection((connection) => connection.close())
 
   return {
     run,

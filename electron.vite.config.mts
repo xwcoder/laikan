@@ -13,7 +13,10 @@ export default defineConfig({
     build: {
       outDir: 'dist/main',
       rolldownOptions: {
-        input: { index: resolve(root, 'src/main/main.ts') },
+        input: {
+          index: resolve(root, 'src/main/main.ts'),
+          'database-worker': resolve(root, 'src/base/node/sqlite-worker.ts'),
+        },
       },
     },
   },
@@ -23,7 +26,10 @@ export default defineConfig({
       outDir: 'dist/preload',
       externalizeDeps: false,
       rolldownOptions: {
-        input: { index: resolve(root, 'src/preload/index.ts') },
+        input: {
+          index: resolve(root, 'src/preload/index.ts'),
+          'article-extractor': resolve(root, 'src/preload/article-extractor.ts'),
+        },
       },
     },
   },

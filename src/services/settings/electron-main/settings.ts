@@ -44,5 +44,5 @@ export const on = (eventName: 'change', listener: changeListener): EventEmitter 
 
 app.whenReady()
   .then(() => {
-    settings.locale = settings.locale || app.getLocale()
+    settings.locale = settings.locale || app.getPreferredSystemLanguages()[0] || app.getLocale()
   })

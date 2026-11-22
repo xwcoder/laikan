@@ -36,10 +36,10 @@ export const getByUrl = (url: string) => {
   `, ...alternatives, url)
 }
 
-type FeedRow = Feed & { png: Buffer | null }
+type FeedRow = Feed & { png: Uint8Array | null }
 
 function withIcon({ png, ...feed }: FeedRow): Feed {
-  return png ? { ...feed, icon: `data:image/png;base64,${png.toString('base64')}` } : feed
+  return png ? { ...feed, icon: `data:image/png;base64,${Buffer.from(png).toString('base64')}` } : feed
 }
 
 export const getAll = async (): Promise<Feed[]> => {

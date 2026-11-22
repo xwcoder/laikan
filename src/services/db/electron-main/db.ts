@@ -5,27 +5,17 @@ import {
   copyFile, link, open, realpath, rm, stat,
 } from 'node:fs/promises'
 import { isAbsolute, join, resolve } from 'node:path'
-import {
-  Database, OPEN_CREATE, OPEN_FULLMUTEX, OPEN_READWRITE, verbose,
-} from 'sqlite3'
 import { createDatabaseClient } from '@/base/node/database'
+import { DatabaseConnection, openDatabase } from '@/base/node/sqlite'
 import { logger } from '@/services/logger/electron-main/logger'
 import { initReaderSchema } from '@/services/reader/electron-main/schema'
 import * as settingService from '@/services/settings/electron-main/settings'
 
 const databasePath = (directory: string) => join(directory, 'laikan.db')
-const SQLiteDatabase = verbose().Database
+const workerPath = join(__dirname, 'database-worker.js')
 
 async function openReaderDatabase(filename: string, create: boolean) {
-  // eslint-disable-next-line no-bitwise -- SQLite open modes are bit flags.
-  const mode = OPEN_READWRITE | OPEN_FULLMUTEX | (create ? OPEN_CREATE : 0)
-  const connection = await new Promise<Database>((succeed, reject) => {
-    const db = new SQLiteDatabase(filename, mode, (error) => {
-      if (error) reject(error)
-      else succeed(db)
-    })
-  })
-  connection.on('error', (error) => logger.error('Database error', error))
+  const connection = await openDatabase(workerPath, filename, create)
   const db = createDatabaseClient(connection)
   try {
     if (!create) {
@@ -107,15 +97,14 @@ async function copyDatabase(destination: string) {
 
 async function prepareDatabase(directory: string, destination: string, migrating: boolean) {
   if (migrating) await copyDatabase(destination)
-  let next: Database | undefined
+  let next: DatabaseConnection | undefined
   try {
     next = await openReaderDatabase(destination, false)
     settingService.set('dataPath', directory)
     return next
   } catch (error) {
     if (next) {
-      await createDatabaseClient(next).close()
-        .catch((failure) => logger.error('[Reader] Unable to close database', failure))
+      await next.close().catch((failure) => logger.error('[Reader] Unable to close database', failure))
     }
     if (migrating) await removeFile(destination)
     throw error
@@ -143,7 +132,7 @@ async function switchDatabase(directory: string) {
   if (!migrating) libraryRevision += 1
 
   try {
-    await createDatabaseClient(await oldConnection).close()
+    await (await oldConnection).close()
     if (migrating) await removeFile(source)
   } catch (error) {
     logger.error('[Reader] Unable to close previous database', error)

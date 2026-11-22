@@ -4,17 +4,16 @@ directories:
   buildResources: assets/icons
 files:
   - dist/**/*
-  - assets/icons/icon.png
+  - '!node_modules/**/*.map'
 asar: true
-asarUnpack:
-  - node_modules/sqlite3/**/*
-npmRebuild: true
+npmRebuild: false
+electronLanguages:
+  - en-US
+  - zh-CN
 artifactName: ${name}-${version}-${os}-${arch}.${ext}
 mac:
   category: public.app-category.news
   icon: assets/icons/icon.icns
-  files:
-    - assets/icons/icon-mac.png
   target:
     - dmg
     - zip
@@ -29,6 +28,8 @@ linux:
   category: News
   syncDesktopName: true
   icon: assets/icons/icon.png
+  files:
+    - assets/icons/icon.png
   target:
     - AppImage
     - deb
