@@ -130,7 +130,8 @@ if (!process.versions.electron) {
     })
   })
 
-  const appDir = process.argv[2] ? path.resolve(process.argv[2]) : path.resolve(__dirname, '..')
+  const [, , appPath] = process.argv.filter(arg => arg !== '--no-sandbox')
+  const appDir = appPath ? path.resolve(appPath) : path.resolve(__dirname, '..')
   if (path.extname(appDir) === '.asar') {
     // The generic Electron executable still reports development mode for this harness.
     Object.defineProperty(app, 'isPackaged', { value: true })
