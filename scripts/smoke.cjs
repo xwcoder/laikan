@@ -9,8 +9,10 @@ if (!process.versions.electron) {
   try {
     const env = { ...process.env, LAIKAN_SMOKE_USER_DATA: userData, ELECTRON_RENDERER_URL: '' }
     delete env.ELECTRON_RUN_AS_NODE
+    // Chromium initializes its sandbox before loading this script.
+    const flags = process.env.CI && process.platform === 'linux' ? ['--no-sandbox'] : []
     const run = (phase, timeout) => {
-      const result = spawnSync(require('electron'), [__filename, ...process.argv.slice(2)], {
+      const result = spawnSync(require('electron'), [...flags, __filename, ...process.argv.slice(2)], {
         env: { ...env, LAIKAN_SMOKE_PHASE: phase },
         stdio: 'inherit',
         timeout,
@@ -26,9 +28,6 @@ if (!process.versions.electron) {
   const { app } = require('electron')
   app.commandLine.appendSwitch('user-data-dir', process.env.LAIKAN_SMOKE_USER_DATA)
   app.commandLine.appendSwitch('disable-gpu')
-  if (process.env.CI && process.platform === 'linux') {
-    app.commandLine.appendSwitch('no-sandbox')
-  }
 
   const fail = (error) => {
     console.error(error)
