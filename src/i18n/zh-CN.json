@@ -181,7 +181,7 @@
       "setToDefaultBtn": "恢复默认目录",
       "applyBtn": "应用",
       "applying": "正在应用…",
-      "description": "应用后立即切换到所选目录。"
+      "applied": "已应用数据目录。"
     },
     "description": "外观和语言的更改会自动保存。"
   },

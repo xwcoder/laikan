@@ -82,25 +82,30 @@ module.exports = async function dataDirectorySmoke(contents) {
     }
   }
 
-  const section = 'section[aria-labelledby=path-title]'
   const modal = 'document.querySelector("[data-settings-body]")'
-  const applySelector = `${section} > div:last-child > button:last-child`
+  const applySelector = '[data-directory-action=apply]'
   const applyButton = `document.querySelector('${applySelector}')`
+  const applyIcon = icon => `${applyButton}?.querySelector('svg.lucide-${icon}')`
+  const applyLayout = () => run(`[getComputedStyle(${applyButton}).width, ${applyButton}.innerText.trim()]`)
   const selectDirectory = async (directory) => {
     dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [directory] })
-    await click(`${section} button:first-of-type`)
+    await click('[data-directory-action=browse]')
     await wait(`document.querySelector('input[aria-labelledby=path-title]').value === ${JSON.stringify(directory)}`)
   }
   const apply = async (directory) => {
+    await wait(`${applyIcon('save')} && !${applyButton}.disabled`)
+    const before = await applyLayout()
     await click(applySelector)
     if (directory) {
-      await wait(`${modal}.ariaBusy === "false" && ${applyButton}?.disabled`)
+      await wait(`${modal}.ariaBusy === "false" && ${applyIcon('check')} && ${applyButton}.disabled`)
       assert.equal((await getSettings()).dataPath, directory)
       assert.equal(JSON.parse(fs.readFileSync(settingsFile, 'utf8')).dataPath, directory)
       assert.equal(await run(`window.__switchModal === ${modal}`), true, 'The settings dialog stays open')
     } else {
-      await wait(`${modal}.ariaBusy === "false" && ${modal}.querySelector('[role=alert]')`)
+      await wait(`${modal}.ariaBusy === "false" && ${modal}.querySelector('[role=alert]')
+        && ${applyIcon('save')} && !${applyButton}.disabled`)
     }
+    assert.deepEqual(await applyLayout(), before, 'Apply keeps its width and label across status changes')
   }
 
   // A regression must fail the test without launching a second app instance.
@@ -195,13 +200,17 @@ module.exports = async function dataDirectorySmoke(contents) {
     )
     assert.equal((await getArticle(fixtureArticle.id)).starred, 0)
 
-    await click(`${section} > div:last-child > button:first-child`)
+    await click('[data-directory-action=restore]')
     await apply(original)
     assert.ok(!fs.existsSync(database(existing)), 'Restore default moves the library when the default directory is empty')
     assert.equal((await getArticle(fixtureArticle.id)).title, 'Existing library article')
     await selectDirectory(migrated)
     await apply(migrated)
     assert.equal((await getArticle(fixtureArticle.id)).title, 'Saved after moving')
+    await click('[role=dialog] > button[aria-label=Close]')
+    await wait(`!${modal}`)
+    await click('[data-settings-trigger]')
+    await wait(`${applyIcon('save')} && ${applyButton}.disabled`)
     console.log('Data directory smoke passed: live migration and restore, settings rollback, existing library and stale refresh isolation')
   } finally {
     app.relaunch = relaunch

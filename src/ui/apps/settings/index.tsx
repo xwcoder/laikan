@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { FolderOpen, Settings as SettingsIcon } from 'lucide-react'
+import {
+  Check, FolderOpen, LoaderCircle, Save, Settings as SettingsIcon,
+} from 'lucide-react'
 import { languages } from '@/i18n'
 import { Appearance, Locale, Settings } from '@/types/settings'
 import { useSettings, useUpdateSettings } from '@/ui/query/settings'
@@ -20,24 +22,36 @@ import ThemeSelect from './theme-select'
 
 const appearanceOptions: Appearance[] = ['light', 'dark', 'auto']
 const optionsLayout = 'flex flex-wrap gap-x-4 gap-y-3'
+const directoryFeedback = {
+  idle: { Icon: Save, message: null },
+  pending: { Icon: LoaderCircle, message: 'settings.dataPath.applying' },
+  success: { Icon: Check, message: 'settings.dataPath.applied' },
+  error: { Icon: Save, message: null },
+}
 
 function DataDirectorySettings({
-  settings, update,
-}: { settings?: Settings; update: ReturnType<typeof useUpdateSettings> }) {
+  settings, update, savingSettings,
+}: { settings?: Settings; update: ReturnType<typeof useUpdateSettings>; savingSettings: boolean }) {
   const { t } = useTranslation()
   const [draftPath, setDraftPath] = useState<string | null>(null)
   const [browsing, setBrowsing] = useState(false)
   const activePath = settings?.dataPath ?? ''
   const defaultPath = settings?.defaultDataPath ?? ''
   const dataPath = draftPath ?? activePath
-  const busy = browsing || update.isPending
-  const applying = update.isPending && update.variables?.path === 'dataPath'
+  const busy = browsing || savingSettings
+  const { Icon, message } = directoryFeedback[update.status]
+
+  const selectPath = (path: string) => {
+    if (path === dataPath) return
+    setDraftPath(path)
+    if (update.isSuccess) update.reset()
+  }
 
   const browse = async () => {
     setBrowsing(true)
     try {
       const result = await openDirectory({ properties: ['createDirectory'], defaultPath: dataPath })
-      if (!result.canceled && result.filePaths[0]) setDraftPath(result.filePaths[0])
+      if (!result.canceled && result.filePaths[0]) selectPath(result.filePaths[0])
     } catch (error) {
       useAppStore.getState().setError((error as Error).message)
     } finally {
@@ -47,34 +61,34 @@ function DataDirectorySettings({
 
   return (
     <section className="space-y-3" aria-labelledby="path-title">
-      <div className="space-y-1">
+      <div className="flex items-center justify-between gap-2">
         <h2 id="path-title" className="font-medium">{t('settings.dataPath.title')}</h2>
-        <p id="path-description" className="text-sm text-muted-foreground">{t('settings.dataPath.description')}</p>
+        <Button
+          variant="ghost"
+          size="sm"
+          data-directory-action="restore"
+          disabled={busy || dataPath === defaultPath}
+          onClick={() => selectPath(defaultPath)}
+        >
+          {t('settings.dataPath.setToDefaultBtn')}
+        </Button>
       </div>
-      <div className="flex gap-2">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 @min-[25rem]:grid-cols-[minmax(0,1fr)_auto_auto]">
         <Input
           aria-labelledby="path-title"
-          aria-describedby="path-description"
           value={dataPath}
           title={dataPath}
           className="truncate font-mono text-xs"
           readOnly
         />
-        <Button variant="outline" disabled={busy} onClick={browse}>
+        <Button variant="outline" data-directory-action="browse" disabled={busy} onClick={browse}>
           <FolderOpen />
           {t('settings.dataPath.browserBtn')}
         </Button>
-      </div>
-      <div className="flex flex-wrap items-center justify-between gap-2">
         <Button
-          variant="ghost"
-          size="sm"
-          disabled={busy || dataPath === defaultPath}
-          onClick={() => setDraftPath(defaultPath)}
-        >
-          {t('settings.dataPath.setToDefaultBtn')}
-        </Button>
-        <Button
+          className="col-span-full justify-self-end @min-[25rem]:col-span-1"
+          data-directory-action="apply"
+          aria-busy={update.isPending}
           disabled={busy || !dataPath || dataPath === activePath}
           onClick={() => {
             const app = useAppStore.getState()
@@ -82,8 +96,10 @@ function DataDirectorySettings({
             update.mutate({ path: 'dataPath', value: dataPath }, { onSuccess: () => setDraftPath(null) })
           }}
         >
-          {t(applying ? 'settings.dataPath.applying' : 'settings.dataPath.applyBtn')}
+          <Icon aria-hidden className={update.isPending ? 'motion-safe:animate-spin' : undefined} />
+          {t('settings.dataPath.applyBtn')}
         </Button>
+        <span className="sr-only" role="status">{message && t(message)}</span>
       </div>
     </section>
   )
@@ -93,10 +109,12 @@ function SettingsContent() {
   const { t } = useTranslation()
   const { data } = useSettings()
   const update = useUpdateSettings()
+  const directoryUpdate = useUpdateSettings()
+  const savingSettings = update.isPending || directoryUpdate.isPending
   const saving = update.isPending ? update.variables : undefined
 
   return (
-    <div className="@container -mx-1 min-h-0 space-y-5 overflow-y-auto p-1" data-settings-body aria-busy={update.isPending}>
+    <div className="@container -mx-1 min-h-0 space-y-5 overflow-y-auto p-1" data-settings-body aria-busy={savingSettings}>
       <ErrorAlert />
       <div className="grid items-center gap-x-4 gap-y-3 @min-[25rem]:grid-cols-[1fr_17.5rem] @min-[25rem]:gap-y-5">
         <span id="appearance-title" className="font-medium">{t('settings.appearance.title')}</span>
@@ -140,7 +158,7 @@ function SettingsContent() {
         </RadioGroup>
       </div>
       <Separator />
-      <DataDirectorySettings settings={data} update={update} />
+      <DataDirectorySettings settings={data} update={directoryUpdate} savingSettings={savingSettings} />
     </div>
   )
 }

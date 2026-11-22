@@ -181,7 +181,7 @@
       "setToDefaultBtn": "Restore default",
       "applyBtn": "Apply",
       "applying": "Applying…",
-      "description": "Apply to switch to the selected directory."
+      "applied": "Data directory applied."
     },
     "description": "Appearance and language changes are saved automatically."
   },
