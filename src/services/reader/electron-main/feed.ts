@@ -111,12 +111,6 @@ export const updateValidators = (id: number, etag?: string, lastModified?: strin
   run('UPDATE feeds SET etag = ?, lastModified = ? WHERE id = ?', etag ?? null, lastModified ?? null, id)
 )
 
-export const pushAll = async () => {
-  const feeds = await getAll()
-
-  push('/reader/feed', feeds)
-}
-
 export const pushOne = async (id: number) => {
   const feed = await getOne(id)
 

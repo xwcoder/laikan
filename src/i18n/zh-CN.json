@@ -42,6 +42,7 @@
       "empty": "暂无可同步的订阅源。"
     },
     "unsubscribe": {
+      "success": "已取消订阅。",
       "error": "无法取消订阅，请重试。"
     },
     "recommendations": {

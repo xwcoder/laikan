@@ -111,7 +111,7 @@ export function useUnsubscribe(onUnsubscribed: (id: number) => void) {
     onSuccess: (_, id) => {
       onUnsubscribed(id)
       client.setQueryData<Feed[]>(readerKeys.feeds, (feeds) => feeds?.filter((feed) => feed.id !== id))
-      return client.invalidateQueries({ queryKey: readerKeys.all })
+      client.invalidateQueries({ queryKey: readerKeys.all })
     },
   })
 }

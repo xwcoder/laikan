@@ -7,6 +7,7 @@ import { logger } from '@/services/logger/electron-main/logger'
 import { httpUrl } from '@/base/common/url'
 import { transaction } from '@/services/db/electron-main/db'
 import { queueFeedIconRefresh, updateFeedIconSource } from '@/services/reader/electron-main/feed-icon'
+import { push } from '@/services/push/electron-main/push'
 import { router } from './router'
 
 router.get('/feed/preflight', async (_, url: string) => {
@@ -54,5 +55,5 @@ router.post('/feed/refresh', () => refreshFeeds(true))
 router.delete('/feed', async (_, id: number) => {
   if (!Number.isSafeInteger(id) || id < 1) throw new TypeError('Invalid feed ID')
   const { changes } = await feedService.unsubscribe(id)
-  if (changes) await feedService.pushAll()
+  if (changes) push('/reader/feed', undefined)
 })

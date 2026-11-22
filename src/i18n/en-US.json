@@ -42,6 +42,7 @@
       "empty": "No feeds to sync."
     },
     "unsubscribe": {
+      "success": "Unsubscribed.",
       "error": "Couldn't unsubscribe. Try again."
     },
     "recommendations": {

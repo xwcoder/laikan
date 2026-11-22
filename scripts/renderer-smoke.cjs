@@ -560,10 +560,38 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
 
     const articleBeforeUnsubscribe = await run(`window.laikan.fetch('/reader/get/article', ${firstId})`)
     const unreadBefore = await run('window.laikan.fetch("/reader/get/articles/unread-count")')
+    const { Database } = require('sqlite3')
+    const db = new Database(path.join(process.env.LAIKAN_SMOKE_USER_DATA, 'laikan.db'))
+    const exec = (sql) => new Promise((resolve, reject) => db.exec(sql, error => error ? reject(error) : resolve()))
+    const unsubscribeElement = `document.querySelector(${JSON.stringify(unsubscribeButton)})`
+    const leavingRow = `document.querySelector('[data-feed-leaving="${feedId}"]')`
     await run(`document.querySelector(${JSON.stringify(unsubscribeButton)}).focus()`)
-    await click(unsubscribeButton)
+    try {
+      await exec(`CREATE TRIGGER reject_unsubscribe BEFORE UPDATE OF subscribed ON feeds
+        WHEN OLD.id = ${feedId} AND NEW.subscribed = 0
+        BEGIN SELECT RAISE(ABORT, 'Test unsubscribe failure'); END`)
+      await click(unsubscribeButton)
+      await wait(`document.querySelector('aside [role=alert]')?.textContent === ${JSON.stringify(en.reader.unsubscribe.error)}`)
+      assert.ok(await run(`${unsubscribeElement}.querySelector('.lucide-minus') && !${leavingRow} && !${rowElement}.querySelector('.lucide-check')`))
+      await exec('DROP TRIGGER reject_unsubscribe')
+
+      await exec('BEGIN IMMEDIATE')
+      try {
+        await click(unsubscribeButton)
+        await wait(`${unsubscribeElement}?.ariaBusy === 'true'`)
+        assert.ok(await run(`${unsubscribeElement}.querySelector('.lucide-minus') && ${unsubscribeElement}.ariaDisabled === 'true'`))
+        assert.equal(await run(`!!${rowElement}.querySelector('.lucide-check, .animate-spin')`), false)
+      } finally {
+        await exec('ROLLBACK')
+      }
+      await wait(`${rowElement}?.querySelector('.lucide-check') && !${rowElement}.matches(':hover')
+        && ${actionsStyle}.opacity === '1' && getComputedStyle(${leavingRow}).opacity === '1'`)
+    } finally {
+      await new Promise((resolve, reject) => db.close(error => error ? reject(error) : resolve()))
+    }
     if (!await run('matchMedia("(prefers-reduced-motion: reduce)").matches')) {
-      await wait(`document.querySelector('[data-feed-leaving="${feedId}"]')?.inert`)
+      assert.equal(await run(`getComputedStyle(${leavingRow}).transitionDelay`), '0.15s')
+      await wait(`${leavingRow}?.inert && getComputedStyle(${leavingRow}).opacity !== '1'`)
     }
     await wait('document.activeElement.matches("[data-tab=all]") && !document.querySelector("[data-feed-id]")')
     await wait('document.querySelectorAll("[data-list-item-id]").length === 50')
