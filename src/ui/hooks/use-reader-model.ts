@@ -39,12 +39,17 @@ function useSelectionSync(state: ReaderState, result: ArticlePage | undefined) {
 
 async function getPageTarget(client: QueryClient, state: ReaderState, result: ArticlePage, direction: 1 | -1) {
   const {
-    tab, page, size, unreadVersion,
+    tab, page, size, unreadVersion, libraryRevision,
   } = state
   const hasUnstarred = tab === 'starred' && result.data.some((article) => article.starred === 0)
   const nextPage = direction === 1 && hasUnstarred ? page : page + direction
   if (nextPage < 1 || nextPage > Math.ceil(result.count / size)) return null
-  const next = await client.fetchQuery(articlesOptions({ tab, page: nextPage, size }, unreadVersion))
+  const next = await client.fetchQuery(articlesOptions({ tab, page: nextPage, size }, unreadVersion, libraryRevision))
+    .catch((error) => {
+      if (useReaderStore.getState().libraryRevision !== libraryRevision) return undefined
+      throw error
+    })
+  if (!next) return null
   return { page: nextPage, article: direction === 1 ? next.data[0] : next.data.at(-1) }
 }
 
@@ -109,18 +114,18 @@ export function useReaderModel() {
   const state = useReaderStore()
   const client = useQueryClient()
   const {
-    tab, page, size, activeId, opened, unreadVersion,
+    tab, page, size, activeId, opened, unreadVersion, libraryRevision,
   } = state
-  const feeds = useQuery(feedsOptions)
-  const unreadCount = useQuery(unreadCountOptions).data ?? 0
-  const listOptions = articlesOptions({ tab, page, size }, unreadVersion)
+  const feeds = useQuery(feedsOptions(libraryRevision))
+  const unreadCount = useQuery(unreadCountOptions(libraryRevision)).data ?? 0
+  const listOptions = articlesOptions({ tab, page, size }, unreadVersion, libraryRevision)
   // Keep the current reading sequence stable while read/star writes change list membership.
   // Re-enable stale list fetching on return, or populate a page whose cache has expired.
   const list = useQuery({
     ...listOptions,
     enabled: !opened || !client.getQueryData(listOptions.queryKey),
   })
-  const detail = useQuery({ ...articleOptions(activeId), enabled: opened && activeId !== null })
+  const detail = useQuery({ ...articleOptions(activeId, libraryRevision), enabled: opened && activeId !== null })
   const settings = useSettings()
   const updateSettings = useUpdateSettings()
   const refresh = useRefreshFeeds()

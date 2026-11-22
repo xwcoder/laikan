@@ -67,7 +67,9 @@ controls Light, Dark, or System, which follows OS changes. Theme, appearance,
 language, and reader font size save immediately through the Electron settings
 service. Closing the modal with its close button, Escape, or an outside click
 keeps your reading position. An unapplied data-directory draft is discarded on
-close. Changing the active directory requires Restart & Apply.
+close. Apply switches directories in the open window. If the destination
+already contains a `laikan.db`, the reader opens that library on its Unread
+view. Otherwise, it moves the current library and keeps your reading position.
 
 Internationalization uses `react-i18next` with one bundled JSON resource per
 language: `src/i18n/en-US.json` and `src/i18n/zh-CN.json`. Keep their keys aligned
@@ -81,7 +83,8 @@ subscriptions, pagination, read/star mutations, font size, bulk keyboard
 shortcuts, push-driven cache updates, the bundled recommendations, and article
 retention when unsubscribing. It also
 checks settings-modal dismissal, focus return, small-window scrolling, discarded
-directory drafts and preservation of reader state while changing settings. It
+directory drafts, live SQLite migration and switches between existing libraries.
+It exercises rollback and late feed responses during a directory switch. It
 uses an isolated temporary data directory. Set `LAIKAN_SMOKE_SCREENSHOTS` to an
 output directory to capture representative screens.
 

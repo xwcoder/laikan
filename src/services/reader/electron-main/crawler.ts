@@ -1,6 +1,8 @@
 import { fetchFeed } from '@/base/node/feed'
 import { runConcurrent } from '@/base/common/async'
-import { transaction } from '@/services/db/electron-main/db'
+import {
+  getLibraryRevision, isCurrentLibrary, ReaderLibraryChangedError, transaction, withReaderLibrary,
+} from '@/services/db/electron-main/db'
 import { logger } from '@/services/logger/electron-main/logger'
 import { FeedRefreshResult } from '@/types/reader'
 import * as feedService from './feed'
@@ -26,6 +28,7 @@ const crawlOne = async (source: feedService.FeedToRefresh, manual: boolean) => {
     if (saved) await feedService.pushOne(source.id)
     return true
   } catch (error) {
+    if (error instanceof ReaderLibraryChangedError) return false
     const host = URL.parse(source.url)?.hostname ?? 'unknown host'
     const reason = error instanceof Error ? error.message : 'Unknown error'
     logger.error(`[Reader] Feed refresh failed (feed #${source.id ?? '?'}, ${host}): ${reason}`)
@@ -43,26 +46,40 @@ async function crawlFeeds(feeds: readonly feedService.FeedToRefresh[], manual = 
   return { succeeded: feeds.length - failed, failed }
 }
 
-let running: { result: Promise<FeedRefreshResult>; manual: boolean } | undefined
-let queued: Promise<unknown> = Promise.resolve()
+type RefreshQueue = {
+  revision: number
+  pending: Promise<unknown>
+  running?: { result: Promise<FeedRefreshResult>; manual: boolean }
+}
+
+let currentQueue: RefreshQueue = { revision: 0, pending: Promise.resolve() }
+
+function getRefreshQueue() {
+  if (!isCurrentLibrary()) throw new ReaderLibraryChangedError()
+  const revision = getLibraryRevision()
+  if (currentQueue.revision !== revision) currentQueue = { revision, pending: Promise.resolve() }
+  return currentQueue
+}
 
 function queueRefresh(refresh: () => Promise<FeedRefreshResult>) {
-  const result = queued.then(refresh)
-  queued = result.catch(() => undefined)
+  const queue = getRefreshQueue()
+  const result = withReaderLibrary(() => queue.pending.then(refresh))
+  queue.pending = result.catch(() => undefined)
   return result
 }
 
-export function refreshFeeds(manual = false) {
-  if (running && (!manual || running.manual)) return running.result
+export async function refreshFeeds(manual = false) {
+  const queue = getRefreshQueue()
+  if (queue.running && (!manual || queue.running.manual)) return queue.running.result
   const result = queueRefresh(async () => crawlFeeds(await feedService.getRefreshFeeds(), manual))
     .finally(() => {
-      if (running?.result === result) running = undefined
+      if (queue.running?.result === result) queue.running = undefined
     })
-  running = { result, manual }
+  queue.running = { result, manual }
   return result
 }
 
-export function refreshImportedFeeds(feeds: readonly feedService.FeedToRefresh[]) {
+export async function refreshImportedFeeds(feeds: readonly feedService.FeedToRefresh[]) {
   return queueRefresh(() => crawlFeeds(feeds))
 }
 
@@ -72,7 +89,7 @@ export const startCrawler = () => {
     try {
       await refreshFeeds()
     } catch (error) {
-      logger.error('[Reader] Crawl error', error)
+      if (!(error instanceof ReaderLibraryChangedError)) logger.error('[Reader] Crawl error', error)
     } finally {
       timer = setTimeout(crawl, 15 * 60e3)
     }

@@ -57,14 +57,18 @@ if (!process.versions.electron) {
             if (!readerReady()) throw new Error('Reader did not finish loading after restart')
             const feeds = await window.laikan.fetch('/reader/get/feed/all')
             return {
+              dataPath: await window.laikan.fetch('/settings/get', 'dataPath'),
               theme: await window.laikan.fetch('/settings/get', 'theme'),
               appliedTheme: document.documentElement.dataset.theme,
               dark: document.documentElement.classList.contains('dark'),
               savedIcon: feeds.find(feed => feed.title === 'Atom regression')?.icon?.startsWith('data:image/png;base64,'),
             }
           })()`)
-          assert.deepEqual(restored, { theme: 'blue', appliedTheme: 'blue', dark: true, savedIcon: true })
-          console.log('Theme, appearance and stored feed icon restored after restarting Electron')
+          assert.deepEqual(restored, {
+            dataPath: path.join(process.env.LAIKAN_SMOKE_USER_DATA, 'migrated-library'),
+            theme: 'blue', appliedTheme: 'blue', dark: true, savedIcon: true,
+          })
+          console.log('Data directory, theme, appearance and stored feed icon restored after restarting Electron')
           app.exit(0)
           return
         }
@@ -118,6 +122,7 @@ if (!process.versions.electron) {
         assert.equal(await contents.executeJavaScript('window.__smokeEvents.length'), 1)
         await require('./renderer-smoke.cjs')(contents, require('electron').nativeTheme)
         await require('./rss-smoke.cjs')(contents)
+        await require('./data-directory-smoke.cjs')(contents)
         console.log(`Smoke passed: Electron ${process.versions.electron}; React, Tailwind, SQLite, settings IPC, event subscription/removal and sandbox isolation`)
         app.exit(0)
       } catch (error) {

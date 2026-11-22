@@ -8,10 +8,12 @@ type ReaderState = {
   activeId: number | null
   opened: boolean
   selectedIds: number[]
+  libraryRevision: number
   unreadVersion: number
   retainedUnreadIds: ReadonlySet<number>
   retainUnread: (ids: number[]) => void
   resetUnreadView: () => void
+  changeLibrary: (revision: number) => void
   changeTab: (tab: Tab | number) => void
   changePage: (page: number, activeId?: number | null) => void
   activate: (id: number | null) => void
@@ -26,14 +28,19 @@ const clearUnreadView = ({ unreadVersion }: ReaderState) => ({
   retainedUnreadIds: new Set<number>(),
 })
 
+const initialView = {
+  page: 1,
+  activeId: null,
+  opened: false,
+  selectedIds: [] as number[],
+}
+
 // Only client UI state lives here. IPC data belongs to the Query cache.
 export const useReaderStore = create<ReaderState>((set) => ({
   tab: 'unread',
-  page: 1,
+  ...initialView,
   size: 50,
-  activeId: null,
-  opened: false,
-  selectedIds: [],
+  libraryRevision: 0,
   unreadVersion: 0,
   retainedUnreadIds: new Set<number>(),
   retainUnread: (ids) => set((state) => (
@@ -42,13 +49,16 @@ export const useReaderStore = create<ReaderState>((set) => ({
       : state
   )),
   resetUnreadView: () => set(clearUnreadView),
+  changeLibrary: (revision) => set((state) => ({
+    ...initialView,
+    ...clearUnreadView(state),
+    tab: 'unread',
+    libraryRevision: revision,
+  })),
   changeTab: (tab) => set((state) => ({
+    ...initialView,
     ...(state.tab === 'unread' || tab === 'unread' ? clearUnreadView(state) : {}),
     tab,
-    page: 1,
-    activeId: null,
-    opened: false,
-    selectedIds: [],
   })),
   changePage: (page, activeId = null) => set({ page, activeId, selectedIds: [] }),
   activate: (activeId) => set((state) => (state.activeId === activeId ? state : { activeId })),

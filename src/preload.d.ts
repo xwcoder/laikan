@@ -2,7 +2,7 @@ import type { Listener } from '@/preload/index'
 import type { OpenDialogOptions, OpenDialogReturnValue } from 'electron'
 
 type Laikan = {
-  fetch: (ch: string, data?: any) => any
+  fetch: (ch: string, data?: any, revision?: number) => any
 
   on: (ch: string, listener: Listener) => () => void
 

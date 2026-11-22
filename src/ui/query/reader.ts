@@ -5,63 +5,83 @@ import * as feedService from '@/services/reader/browser/feed'
 import * as articleService from '@/services/reader/browser/article'
 import { useReaderStore } from '@/ui/store/reader'
 import {
-  ArticleDetail, ArticleFilter, ArticleListItem, ArticlePage, Feed,
+  ArticleDetail, ArticleFilter, ArticleListItem, ArticlePage, Feed, FeedTransferAction,
 } from '@/types/reader'
 
-const writeScope = 'reader-write'
-
-export const readerKeys = {
-  all: ['reader'] as const,
-  feeds: ['reader', 'feeds'] as const,
-  unreadCount: ['reader', 'unread-count'] as const,
-  articles: ['reader', 'articles'] as const,
-  details: ['reader', 'article'] as const,
-  article: (id: number | null) => ['reader', 'article', id] as const,
+export const readerKeys = (revision: number) => {
+  const all = ['reader', revision] as const
+  return {
+    all,
+    feeds: [...all, 'feeds'] as const,
+    unreadCount: [...all, 'unread-count'] as const,
+    articles: [...all, 'articles'] as const,
+    details: [...all, 'article'] as const,
+    article: (id: number | null) => [...all, 'article', id] as const,
+  }
 }
 
-export const feedsOptions = queryOptions({ queryKey: readerKeys.feeds, queryFn: feedService.getAll })
-export const unreadCountOptions = queryOptions({
-  queryKey: readerKeys.unreadCount,
-  queryFn: articleService.countUnread,
+export const feedsOptions = (revision: number) => queryOptions({
+  queryKey: readerKeys(revision).feeds,
+  networkMode: 'always',
+  queryFn: () => feedService.getAll(revision),
 })
-export const articlesOptions = (filter: ArticleFilter, unreadVersion: number) => queryOptions({
-  queryKey: [...readerKeys.articles, filter, filter.tab === 'unread' ? unreadVersion : null] as const,
+export const unreadCountOptions = (revision: number) => queryOptions({
+  queryKey: readerKeys(revision).unreadCount,
+  networkMode: 'always',
+  queryFn: () => articleService.countUnread(revision),
+})
+export const articlesOptions = (filter: ArticleFilter, unreadVersion: number, revision: number) => queryOptions({
+  queryKey: [...readerKeys(revision).articles, filter, filter.tab === 'unread' ? unreadVersion : null] as const,
+  networkMode: 'always',
   queryFn: () => {
     const state = useReaderStore.getState()
     const retaining = filter.tab === 'unread' && state.unreadVersion === unreadVersion
-    return articleService.find(retaining ? { ...filter, retainedUnreadIds: [...state.retainedUnreadIds] } : filter)
+    const params = retaining ? { ...filter, retainedUnreadIds: [...state.retainedUnreadIds] } : filter
+    return articleService.find(params, revision)
   },
   placeholderData: (previous, query) => {
-    const previousFilter = query?.queryKey[2]
-    if (previousFilter?.tab !== filter.tab) return undefined
+    if (query?.queryKey[1] !== revision) return undefined
+    const previousFilter = query.queryKey[3]
+    if (previousFilter.tab !== filter.tab) return undefined
     return previousFilter.page === filter.page && previousFilter.size === filter.size ? previous : undefined
   },
 })
 
 // Patch successful writes into cached reading pages before invalidating them.
-function updateArticles(client: QueryClient, ids: number[], patch: Pick<Partial<ArticleListItem>, 'read' | 'starred'>) {
+function updateArticles(
+  client: QueryClient,
+  revision: number,
+  ids: number[],
+  patch: Pick<Partial<ArticleListItem>, 'read' | 'starred'>,
+) {
+  const keys = readerKeys(revision)
   const update = <T extends ArticleListItem>(article: T): T => (
     ids.includes(article.id!) ? { ...article, ...patch } : article
   )
-  client.setQueriesData<ArticlePage>({ queryKey: readerKeys.articles }, (page) => (
+  client.setQueriesData<ArticlePage>({ queryKey: keys.articles }, (page) => (
     page ? { ...page, data: page.data.map(update) } : page
   ))
-  client.setQueriesData<ArticleDetail | null>({ queryKey: readerKeys.details }, (article) => (
+  client.setQueriesData<ArticleDetail | null>({ queryKey: keys.details }, (article) => (
     article ? update(article) : article
   ))
-  return client.invalidateQueries({ queryKey: readerKeys.all })
+  return client.invalidateQueries({ queryKey: keys.all })
 }
-export const articleOptions = (id: number | null) => queryOptions({
-  queryKey: readerKeys.article(id),
-  queryFn: () => (id === null ? null : articleService.getById(id)),
+export const articleOptions = (id: number | null, revision: number) => queryOptions({
+  queryKey: readerKeys(revision).article(id),
+  networkMode: 'always',
+  queryFn: () => (id === null ? null : articleService.getById(id, revision)),
   enabled: id !== null,
 })
 
 export function useLoadFullText() {
   const client = useQueryClient()
+  const revision = useReaderStore((state) => state.libraryRevision)
   return useMutation({
-    mutationFn: articleService.loadFullText,
-    onSuccess: (content, id) => (content ? client.invalidateQueries({ queryKey: readerKeys.article(id) }) : undefined),
+    mutationFn: (id: number) => articleService.loadFullText(id, revision),
+    onSuccess: (content, id) => {
+      if (content) return client.invalidateQueries({ queryKey: readerKeys(revision).article(id) })
+      return undefined
+    },
   })
 }
 export const preflightOptions = (url: string) => queryOptions({
@@ -73,21 +93,23 @@ export const preflightOptions = (url: string) => queryOptions({
 
 export function useSubscribe(inlineError = false) {
   const client = useQueryClient()
+  const revision = useReaderStore((state) => state.libraryRevision)
   return useMutation({
-    mutationFn: feedService.upsert,
+    mutationFn: (data: Pick<Feed, 'url' | 'title'>) => feedService.upsert(data, revision),
     meta: { inlineError },
-    onSuccess: () => client.invalidateQueries({ queryKey: readerKeys.all }),
+    onSuccess: () => client.invalidateQueries({ queryKey: readerKeys(revision).all }),
   })
 }
 
 export function useFeedTransfer() {
   const client = useQueryClient()
+  const revision = useReaderStore((state) => state.libraryRevision)
   return useMutation({
-    mutationFn: feedService.transfer,
+    mutationFn: (action: FeedTransferAction) => feedService.transfer(action, revision),
     meta: { inlineError: true },
     onSuccess: (result) => {
       if ('status' in result && result.status === 'imported') {
-        return client.invalidateQueries({ queryKey: readerKeys.all })
+        return client.invalidateQueries({ queryKey: readerKeys(revision).all })
       }
       return undefined
     },
@@ -96,49 +118,60 @@ export function useFeedTransfer() {
 
 export function useRefreshFeeds() {
   const client = useQueryClient()
+  const revision = useReaderStore((state) => state.libraryRevision)
+  const keys = readerKeys(revision)
   return useMutation({
-    mutationFn: feedService.refreshAll,
+    mutationKey: [...keys.all, 'refresh'],
+    mutationFn: () => feedService.refreshAll(revision),
     meta: { inlineError: true },
-    onSuccess: () => client.invalidateQueries({ queryKey: readerKeys.all }),
+    onSuccess: () => client.invalidateQueries({ queryKey: keys.all }),
   })
 }
 
 export function useUnsubscribe(onUnsubscribed: (id: number) => void) {
   const client = useQueryClient()
+  const revision = useReaderStore((state) => state.libraryRevision)
+  const keys = readerKeys(revision)
   return useMutation({
-    mutationFn: feedService.unsubscribe,
+    mutationKey: [...keys.all, 'unsubscribe'],
+    mutationFn: (id: number) => feedService.unsubscribe(id, revision),
     meta: { inlineError: true },
     onSuccess: (_, id) => {
+      if (revision !== useReaderStore.getState().libraryRevision) return
       onUnsubscribed(id)
-      client.setQueryData<Feed[]>(readerKeys.feeds, (feeds) => feeds?.filter((feed) => feed.id !== id))
-      client.invalidateQueries({ queryKey: readerKeys.all })
+      client.setQueryData<Feed[]>(keys.feeds, (feeds) => feeds?.filter((feed) => feed.id !== id))
+      client.invalidateQueries({ queryKey: keys.all })
     },
   })
 }
 
 export function useMarkRead() {
   const client = useQueryClient()
+  const revision = useReaderStore((state) => state.libraryRevision)
   return useMutation({
-    mutationKey: [writeScope],
-    scope: { id: writeScope },
+    mutationKey: [...readerKeys(revision).all, 'read'],
+    scope: { id: `reader-write:${revision}` },
+    meta: { libraryRevision: revision },
     mutationFn: ({ ids, status }: { ids: number[]; status: 0 | 1; unreadVersion: number }) => (
-      articleService.markRead(ids, status)
+      articleService.markRead(ids, status, revision)
     ),
     onMutate: ({ ids, status, unreadVersion }) => {
       const state = useReaderStore.getState()
       // Reserve these rows before writing so an overlapping list fetch can still include them.
       if (status === 1 && state.unreadVersion === unreadVersion) state.retainUnread(ids)
     },
-    onSuccess: (_, { ids, status }) => updateArticles(client, ids, { read: status }),
+    onSuccess: (_, { ids, status }) => updateArticles(client, revision, ids, { read: status }),
   })
 }
 
 export function useStarArticle() {
   const client = useQueryClient()
+  const revision = useReaderStore((state) => state.libraryRevision)
   return useMutation({
-    mutationKey: [writeScope],
-    scope: { id: writeScope },
-    mutationFn: ({ id, status }: { id: number; status: 0 | 1 }) => articleService.starred(id, status),
-    onSuccess: (_, { id, status }) => updateArticles(client, [id], { starred: status }),
+    mutationKey: [...readerKeys(revision).all, 'star'],
+    scope: { id: `reader-write:${revision}` },
+    meta: { libraryRevision: revision },
+    mutationFn: ({ id, status }: { id: number; status: 0 | 1 }) => articleService.starred(id, status, revision),
+    onSuccess: (_, { id, status }) => updateArticles(client, revision, [id], { starred: status }),
   })
 }

@@ -1,4 +1,4 @@
-import database from '@/services/db/electron-main/db'
+import database, { getLibraryRevision } from '@/services/db/electron-main/db'
 import { httpUrl } from '@/base/common/url'
 import { fetchFullText } from '@/base/node/full-text'
 import { ArticleFullText } from '@/types/reader'
@@ -22,7 +22,7 @@ export async function loadFullText(id: number): Promise<ArticleFullText> {
   const url = httpUrl(article?.contentUrl || article?.url)
   if (!article || !url) throw new Error('No original article address')
   if (article.fullText) return article.fullText
-  const key = JSON.stringify([id, url])
+  const key = JSON.stringify([getLibraryRevision(), id, url])
   const existing = requests.get(key)
   if (existing) return existing
   const pending = extractAndCache(id, url, !!article.contentUrl).finally(() => requests.delete(key))

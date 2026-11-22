@@ -1,10 +1,11 @@
-import { useEffect } from 'react'
+import { useEffect, useLayoutEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import ReaderApp from '@/ui/apps/reader'
 import { usePreferences } from '@/ui/hooks/use-preferences'
 import { readerKeys } from '@/ui/query/reader'
 import { settingsOptions } from '@/ui/query/settings'
+import { useReaderStore } from '@/ui/store/reader'
 import * as remote from '@/services/remote/browser/remote'
 import { AsyncState } from '@/ui/components/async-state'
 import { ErrorAlert } from '@/ui/components/error-alert'
@@ -13,10 +14,19 @@ export default function App() {
   const { i18n } = useTranslation()
   const settings = usePreferences()
   const client = useQueryClient()
+  const revision = settings.data?.libraryRevision
+
+  useLayoutEffect(() => {
+    const reader = useReaderStore.getState()
+    if (revision === undefined || revision <= reader.libraryRevision) return
+    reader.changeLibrary(revision)
+    client.removeQueries({ queryKey: readerKeys(reader.libraryRevision).all })
+  }, [client, revision])
 
   useEffect(
     () => remote.on('/reader/feed', () => {
-      client.invalidateQueries({ queryKey: readerKeys.all })
+      const { libraryRevision } = useReaderStore.getState()
+      client.invalidateQueries({ queryKey: readerKeys(libraryRevision).all })
     }),
     [client],
   )

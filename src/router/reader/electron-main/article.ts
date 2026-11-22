@@ -1,4 +1,5 @@
 import * as articleService from '@/services/reader/electron-main/article'
+import { ReaderLibraryChangedError } from '@/services/db/electron-main/db'
 import { logger } from '@/services/logger/electron-main/logger'
 import { router } from './router'
 
@@ -8,7 +9,7 @@ router.post('/article/full-text', async (_, id: number) => {
   try {
     return await articleService.loadFullText(id)
   } catch (error) {
-    logger.warn('[Reader] Full text extraction failed', error)
+    if (!(error instanceof ReaderLibraryChangedError)) logger.warn('[Reader] Full text extraction failed', error)
     return null
   }
 })

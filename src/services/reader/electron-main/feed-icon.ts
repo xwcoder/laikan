@@ -1,6 +1,8 @@
 import { bundledFeedIcon } from '@/base/common/recommended-icons'
 import { fetchFeedIcon } from '@/base/node/feed/icon'
-import { get, run } from '@/services/db/electron-main/db'
+import {
+  get, getLibraryRevision, isCurrentLibrary, ReaderLibraryChangedError, run, withReaderLibrary,
+} from '@/services/db/electron-main/db'
 import { logger } from '@/services/logger/electron-main/logger'
 import { push } from '@/services/push/electron-main/push'
 import { Feed } from '@/types/reader'
@@ -77,30 +79,38 @@ async function refreshFeedIcon(source: FeedToRefresh, manual: boolean) {
   if (changes && png) push('/reader/feed', undefined)
 }
 
-const pending = new Map<number, { source: FeedToRefresh; manual: boolean }>()
-const refreshing = new Set<number>()
+const pending = new Map<string, { source: FeedToRefresh; manual: boolean; revision: number }>()
+const refreshing = new Set<string>()
 
 function startIconJobs() {
-  for (const [id, { source, manual }] of pending) {
+  for (const [key, { source, manual, revision }] of pending) {
     if (refreshing.size >= 3) break
-    if (!refreshing.has(id)) {
-      pending.delete(id)
-      refreshing.add(id)
-      refreshFeedIcon(source, manual)
+    if (!isCurrentLibrary(revision)) {
+      pending.delete(key)
+    } else if (!refreshing.has(key)) {
+      pending.delete(key)
+      refreshing.add(key)
+      withReaderLibrary(() => refreshFeedIcon(source, manual), revision)
         .finally(() => {
-          refreshing.delete(id)
+          refreshing.delete(key)
           startIconJobs()
           if (!refreshing.size) return decoder.close()
           return undefined
         })
-        .catch((error) => logger.error(`[Reader] Unable to update icon for feed #${id}`, error))
+        .catch((error) => {
+          if (error instanceof ReaderLibraryChangedError) return
+          logger.error(`[Reader] Unable to update icon for feed #${source.id}`, error)
+        })
     }
   }
 }
 
 export function queueFeedIconRefresh(source: FeedToRefresh, manual = false) {
-  const previous = pending.get(source.id)
+  if (!isCurrentLibrary()) return
+  const revision = getLibraryRevision()
+  const key = `${revision}:${source.id}`
+  const previous = pending.get(key)
   if (previous && previous.source.subscriptionRevision > source.subscriptionRevision) return
-  pending.set(source.id, { source, manual: manual || previous?.manual === true })
+  pending.set(key, { source, manual: manual || previous?.manual === true, revision })
   startIconJobs()
 }

@@ -2,6 +2,7 @@ import { app, IpcMainInvokeEvent, ipcMain } from 'electron'
 import { logger } from '@/services/logger/electron-main/logger'
 
 type RouteHandler = (ch: string, data: any, event: IpcMainInvokeEvent) => any
+type Dispatch = <T>(operation: () => T, revision?: number) => T
 
 type Routes = {
   [k: string]: RouteHandler
@@ -59,7 +60,7 @@ export class Router {
     this.use(ch, handler)
   }
 
-  listen(ready?: Promise<unknown>) {
+  listen(dispatch: Dispatch = (operation) => operation()) {
     if (this.listened) {
       return
     }
@@ -70,14 +71,7 @@ export class Router {
       .then(() => {
         Object.entries(this.routes)
           .forEach(([ch, handler]) => {
-            ipcMain.handle(ch, async (event, data) => {
-              try {
-                await ready
-                return await handler(ch, data, event)
-              } catch (e) {
-                return Promise.reject(e)
-              }
-            })
+            ipcMain.handle(ch, (event, data, revision) => dispatch(() => handler(ch, data, event), revision))
           })
       })
   }

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FolderOpen, Settings as SettingsIcon } from 'lucide-react'
 import { languages } from '@/i18n'
-import { Appearance, Locale } from '@/types/settings'
+import { Appearance, Locale, Settings } from '@/types/settings'
 import { useSettings, useUpdateSettings } from '@/ui/query/settings'
 import { useAppStore } from '@/ui/store'
 import { openDirectory } from '@/base/browser/shell'
@@ -21,14 +21,17 @@ import ThemeSelect from './theme-select'
 const appearanceOptions: Appearance[] = ['light', 'dark', 'auto']
 const optionsLayout = 'flex flex-wrap gap-x-4 gap-y-3'
 
-function SettingsContent() {
+function DataDirectorySettings({
+  settings, update,
+}: { settings?: Settings; update: ReturnType<typeof useUpdateSettings> }) {
   const { t } = useTranslation()
-  const { data } = useSettings()
-  const update = useUpdateSettings()
-  const saving = update.isPending ? update.variables : undefined
   const [draftPath, setDraftPath] = useState<string | null>(null)
   const [browsing, setBrowsing] = useState(false)
-  const dataPath = draftPath ?? data?.dataPath ?? ''
+  const activePath = settings?.dataPath ?? ''
+  const defaultPath = settings?.defaultDataPath ?? ''
+  const dataPath = draftPath ?? activePath
+  const busy = browsing || update.isPending
+  const applying = update.isPending && update.variables?.path === 'dataPath'
 
   const browse = async () => {
     setBrowsing(true)
@@ -41,6 +44,56 @@ function SettingsContent() {
       setBrowsing(false)
     }
   }
+
+  return (
+    <section className="space-y-3" aria-labelledby="path-title">
+      <div className="space-y-1">
+        <h2 id="path-title" className="font-medium">{t('settings.dataPath.title')}</h2>
+        <p id="path-description" className="text-sm text-muted-foreground">{t('settings.dataPath.description')}</p>
+      </div>
+      <div className="flex gap-2">
+        <Input
+          aria-labelledby="path-title"
+          aria-describedby="path-description"
+          value={dataPath}
+          title={dataPath}
+          className="truncate font-mono text-xs"
+          readOnly
+        />
+        <Button variant="outline" disabled={busy} onClick={browse}>
+          <FolderOpen />
+          {t('settings.dataPath.browserBtn')}
+        </Button>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={busy || dataPath === defaultPath}
+          onClick={() => setDraftPath(defaultPath)}
+        >
+          {t('settings.dataPath.setToDefaultBtn')}
+        </Button>
+        <Button
+          disabled={busy || !dataPath || dataPath === activePath}
+          onClick={() => {
+            const app = useAppStore.getState()
+            if (update.error?.message === app.error) app.setError(null)
+            update.mutate({ path: 'dataPath', value: dataPath }, { onSuccess: () => setDraftPath(null) })
+          }}
+        >
+          {t(applying ? 'settings.dataPath.applying' : 'settings.dataPath.applyBtn')}
+        </Button>
+      </div>
+    </section>
+  )
+}
+
+function SettingsContent() {
+  const { t } = useTranslation()
+  const { data } = useSettings()
+  const update = useUpdateSettings()
+  const saving = update.isPending ? update.variables : undefined
 
   return (
     <div className="@container -mx-1 min-h-0 space-y-5 overflow-y-auto p-1" data-settings-body aria-busy={update.isPending}>
@@ -87,42 +140,7 @@ function SettingsContent() {
         </RadioGroup>
       </div>
       <Separator />
-      <section className="space-y-3" aria-labelledby="path-title">
-        <div className="space-y-1">
-          <h2 id="path-title" className="font-medium">{t('settings.dataPath.title')}</h2>
-          <p id="path-description" className="text-sm text-muted-foreground">{t('settings.dataPath.description')}</p>
-        </div>
-        <div className="flex gap-2">
-          <Input
-            aria-labelledby="path-title"
-            aria-describedby="path-description"
-            value={dataPath}
-            title={dataPath}
-            className="truncate font-mono text-xs"
-            readOnly
-          />
-          <Button variant="outline" disabled={browsing} onClick={browse}>
-            <FolderOpen />
-            {t('settings.dataPath.browserBtn')}
-          </Button>
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={dataPath === data?.defaultDataPath || update.isPending}
-            onClick={() => setDraftPath(data?.defaultDataPath ?? '')}
-          >
-            {t('settings.dataPath.setToDefaultBtn')}
-          </Button>
-          <Button
-            disabled={!dataPath || dataPath === data?.dataPath || update.isPending}
-            onClick={() => update.mutate({ path: 'dataPath', value: dataPath })}
-          >
-            {t('settings.dataPath.applyBtn')}
-          </Button>
-        </div>
-      </section>
+      <DataDirectorySettings settings={data} update={update} />
     </div>
   )
 }

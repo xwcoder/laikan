@@ -8,6 +8,7 @@ import { Appearance, Locale } from '@/types/settings'
 
 export const settingsOptions = queryOptions({
   queryKey: ['settings'],
+  networkMode: 'always',
   queryFn: async () => {
     const settings = await settingsService.get()
     return { ...settings, locale: normalizeLocale(settings.locale) }
@@ -27,6 +28,7 @@ export function useUpdateSettings() {
   const client = useQueryClient()
   return useMutation({
     mutationKey: ['settings', 'update'],
+    networkMode: 'always',
     scope: { id: 'settings-write' },
     mutationFn: ({ path, value }: SettingUpdate) => settingsService.set(path, value),
     onSuccess: () => client.invalidateQueries({ queryKey: settingsOptions.queryKey }),
