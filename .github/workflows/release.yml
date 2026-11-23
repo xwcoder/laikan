@@ -56,10 +56,10 @@ jobs:
       - name: Build signed macOS installers
         if: runner.os == 'macOS'
         env:
-          LAIKAN_UPDATE_PUBLIC_KEY: ${{ vars.LAIKAN_UPDATE_PUBLIC_KEY }}
+          YIKAN_UPDATE_PUBLIC_KEY: ${{ vars.YIKAN_UPDATE_PUBLIC_KEY }}
         run: |
           if [[ -f scripts/sign-macos-update.cjs ]]; then
-            : "${LAIKAN_UPDATE_PUBLIC_KEY:?Set the LAIKAN_UPDATE_PUBLIC_KEY Actions variable}"
+            : "${YIKAN_UPDATE_PUBLIC_KEY:?Set the YIKAN_UPDATE_PUBLIC_KEY Actions variable}"
           fi
           # Use the same signing settings when rebuilding an older tag.
           npm run make -- --mac --arm64 -c.forceCodeSigning=true \
@@ -67,7 +67,7 @@ jobs:
       - name: Verify macOS installers
         if: runner.os == 'macOS'
         run: |
-          stem="release/laikan-${RELEASE_TAG#v}-mac-arm64"
+          stem="release/yikan-${RELEASE_TAG#v}-mac-arm64"
           work_dir=$(mktemp -d)
           mount_dir="$work_dir/volume"
           app_pid=''
@@ -79,12 +79,12 @@ jobs:
           trap cleanup EXIT
           mkdir "$mount_dir"
           hdiutil attach -readonly -nobrowse -mountpoint "$mount_dir" "$stem.dmg"
-          ditto "$mount_dir/来刊.app" "$work_dir/来刊.app"
+          ditto "$mount_dir/一刊.app" "$work_dir/一刊.app"
           ditto -x -k "$stem.zip" "$work_dir/zip"
-          codesign --verify --deep --strict "$work_dir/来刊.app"
-          codesign --verify --deep --strict "$work_dir/zip/来刊.app"
+          codesign --verify --deep --strict "$work_dir/一刊.app"
+          codesign --verify --deep --strict "$work_dir/zip/一刊.app"
           if [[ -f scripts/exclude-macos-update-dependencies.cjs ]]; then
-            node_modules/.bin/asar list "$work_dir/zip/来刊.app/Contents/Resources/app.asar" > "$work_dir/asar-files"
+            node_modules/.bin/asar list "$work_dir/zip/一刊.app/Contents/Resources/app.asar" > "$work_dir/asar-files"
             if grep -Eq '/node_modules/electron-updater(/|$)' "$work_dir/asar-files"; then
               echo '::error::The macOS app contains the Windows and Linux updater.'
               exit 1
@@ -94,10 +94,10 @@ jobs:
               exit 1
             fi
           fi
-          "$work_dir/来刊.app/Contents/MacOS/来刊" --user-data-dir="$work_dir/profile" > "$work_dir/launch.log" 2>&1 &
+          "$work_dir/一刊.app/Contents/MacOS/一刊" --user-data-dir="$work_dir/profile" > "$work_dir/launch.log" 2>&1 &
           app_pid=$!
           for attempt in {1..30}; do
-            if [[ -s "$work_dir/profile/laikan.db" ]] && pgrep -P "$app_pid" -f '来刊 Helper \(Renderer\)' >/dev/null; then
+            if [[ -s "$work_dir/profile/yikan.db" ]] && pgrep -P "$app_pid" -f '一刊 Helper \(Renderer\)' >/dev/null; then
               exit 0
             fi
             sleep 0.5
@@ -108,11 +108,11 @@ jobs:
       - name: Sign macOS update archive
         if: runner.os == 'macOS'
         env:
-          LAIKAN_UPDATE_PUBLIC_KEY: ${{ vars.LAIKAN_UPDATE_PUBLIC_KEY }}
-          LAIKAN_UPDATE_PRIVATE_KEY: ${{ secrets.LAIKAN_UPDATE_PRIVATE_KEY }}
+          YIKAN_UPDATE_PUBLIC_KEY: ${{ vars.YIKAN_UPDATE_PUBLIC_KEY }}
+          YIKAN_UPDATE_PRIVATE_KEY: ${{ secrets.YIKAN_UPDATE_PRIVATE_KEY }}
         run: |
           if [[ -f scripts/sign-macos-update.cjs ]]; then
-            : "${LAIKAN_UPDATE_PRIVATE_KEY:?Set the LAIKAN_UPDATE_PRIVATE_KEY Actions secret}"
+            : "${YIKAN_UPDATE_PRIVATE_KEY:?Set the YIKAN_UPDATE_PRIVATE_KEY Actions secret}"
             node scripts/sign-macos-update.cjs
           fi
       - name: Upload release artifacts
@@ -152,7 +152,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           version=${RELEASE_TAG#v}
-          stem="release-assets/laikan-$version"
+          stem="release-assets/yikan-$version"
           mac_stem="$stem-mac-arm64"
           mac_installers=("$mac_stem.dmg" "$mac_stem.dmg.blockmap" "$mac_stem.zip" "$mac_stem.zip.blockmap")
           mac_metadata=(release-assets/latest-mac.yml)

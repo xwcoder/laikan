@@ -65,7 +65,7 @@ router.post('/feed/export', async (_, _data, { sender }): Promise<FeedTransferRe
   const feeds = await getSubscriptions()
   if (!feeds.length) return { status: 'noFeeds' }
   const { canceled, filePath } = await dialog.showSaveDialog(window, {
-    defaultPath: 'laikan-subscriptions.opml',
+    defaultPath: 'yikan-subscriptions.opml',
     filters: [{ name: 'OPML', extensions: ['opml'] }],
   })
   if (canceled || !filePath) return { status: 'canceled' }

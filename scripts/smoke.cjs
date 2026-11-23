@@ -5,15 +5,15 @@ const path = require('node:path')
 
 if (!process.versions.electron) {
   const { spawnSync } = require('node:child_process')
-  const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'laikan-smoke-'))
+  const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'yikan-smoke-'))
   try {
-    const env = { ...process.env, LAIKAN_SMOKE_USER_DATA: userData, ELECTRON_RENDERER_URL: '' }
+    const env = { ...process.env, YIKAN_SMOKE_USER_DATA: userData, ELECTRON_RENDERER_URL: '' }
     delete env.ELECTRON_RUN_AS_NODE
     // Chromium initializes its sandbox before loading this script.
     const flags = process.env.CI && process.platform === 'linux' ? ['--no-sandbox'] : []
     const run = (phase, timeout) => {
       const result = spawnSync(require('electron'), [...flags, __filename, ...process.argv.slice(2)], {
-        env: { ...env, LAIKAN_SMOKE_PHASE: phase },
+        env: { ...env, YIKAN_SMOKE_PHASE: phase },
         stdio: 'inherit',
         timeout,
       })
@@ -26,7 +26,7 @@ if (!process.versions.electron) {
   }
 } else {
   const { app } = require('electron')
-  app.commandLine.appendSwitch('user-data-dir', process.env.LAIKAN_SMOKE_USER_DATA)
+  app.commandLine.appendSwitch('user-data-dir', process.env.YIKAN_SMOKE_USER_DATA)
   app.commandLine.appendSwitch('disable-gpu')
 
   const fail = (error) => {
@@ -47,25 +47,25 @@ if (!process.versions.electron) {
     contents.on('did-fail-load', (_, code, message) => fail(new Error(`${code}: ${message}`)))
     contents.once('did-finish-load', async () => {
       try {
-        if (process.env.LAIKAN_SMOKE_PHASE === 'restart') {
+        if (process.env.YIKAN_SMOKE_PHASE === 'restart') {
           const restored = await contents.executeJavaScript(`(async () => {
             const readerReady = () => document.querySelector('.list-container') && document.querySelector('[data-feed-id]')
             for (let i = 0; i < 250 && !readerReady(); i++) {
               await new Promise(resolve => setTimeout(resolve, 20))
             }
             if (!readerReady()) throw new Error('Reader did not finish loading after restart')
-            const feeds = await window.laikan.fetch('/reader/get/feed/all')
+            const feeds = await window.yikan.fetch('/reader/get/feed/all')
             return {
-              dataPath: await window.laikan.fetch('/settings/get', 'dataPath'),
-              theme: await window.laikan.fetch('/settings/get', 'theme'),
-              fontSize: await window.laikan.fetch('/settings/get', 'reader.fontSize'),
+              dataPath: await window.yikan.fetch('/settings/get', 'dataPath'),
+              theme: await window.yikan.fetch('/settings/get', 'theme'),
+              fontSize: await window.yikan.fetch('/settings/get', 'reader.fontSize'),
               appliedTheme: document.documentElement.dataset.theme,
               dark: document.documentElement.classList.contains('dark'),
               savedIcon: feeds.find(feed => feed.title === 'Atom regression')?.icon?.startsWith('data:image/png;base64,'),
             }
           })()`)
           assert.deepEqual(restored, {
-            dataPath: path.join(process.env.LAIKAN_SMOKE_USER_DATA, 'migrated-library'),
+            dataPath: path.join(process.env.YIKAN_SMOKE_USER_DATA, 'migrated-library'),
             theme: 'blue', fontSize: 18, appliedTheme: 'blue', dark: true, savedIcon: true,
           })
           console.log('Data directory, theme, appearance, article font size and stored feed icon restored after restarting Electron')
@@ -77,23 +77,23 @@ if (!process.versions.electron) {
             await new Promise(resolve => setTimeout(resolve, 20))
           }
           if (!document.querySelector('#root')?.children.length) throw new Error('React did not render')
-          const feeds = await window.laikan.fetch('/reader/get/feed/all')
-          await window.laikan.fetch('/settings/set', { path: 'appearance', value: 'dark' })
-          const appearance = await window.laikan.fetch('/settings/get', 'appearance')
+          const feeds = await window.yikan.fetch('/reader/get/feed/all')
+          await window.yikan.fetch('/settings/set', { path: 'appearance', value: 'dark' })
+          const appearance = await window.yikan.fetch('/settings/get', 'appearance')
           window.__smokeEvents = []
           window.__smokeListener = (...args) => window.__smokeEvents.push(args)
-          window.__smokeUnsubscribe = window.laikan.on('/smoke/event', window.__smokeListener)
+          window.__smokeUnsubscribe = window.yikan.on('/smoke/event', window.__smokeListener)
           return {
             title: document.title,
             feeds,
             appearance,
-            theme: await window.laikan.fetch('/settings/get', 'theme'),
+            theme: await window.yikan.fetch('/settings/get', 'theme'),
             onReturnsCleanup: typeof window.__smokeUnsubscribe === 'function',
             nodeIsolated: typeof require === 'undefined' && typeof process === 'undefined',
             tailwindLoaded: getComputedStyle(document.querySelector('.flex')).display === 'flex',
           }
         })()`)
-        assert.equal(result.title, '来刊')
+        assert.equal(result.title, '一刊')
         assert.deepEqual(result.feeds, [])
         assert.equal(result.appearance, 'dark')
         assert.equal(result.theme, 'neutral')
@@ -102,8 +102,8 @@ if (!process.versions.electron) {
         assert.equal(result.tailwindLoaded, true)
         assert.equal(window.webContents.getLastWebPreferences().contextIsolation, true)
         assert.equal(window.webContents.getLastWebPreferences().sandbox, true)
-        assert.equal(app.getPath('userData'), process.env.LAIKAN_SMOKE_USER_DATA)
-        assert.ok(fs.existsSync(path.join(process.env.LAIKAN_SMOKE_USER_DATA, 'laikan.db')))
+        assert.equal(app.getPath('userData'), process.env.YIKAN_SMOKE_USER_DATA)
+        assert.ok(fs.existsSync(path.join(process.env.YIKAN_SMOKE_USER_DATA, 'yikan.db')))
 
         contents.send('/smoke/event', { ok: true })
         const received = await contents.executeJavaScript(`new Promise((resolve, reject) => {

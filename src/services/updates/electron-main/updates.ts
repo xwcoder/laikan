@@ -19,7 +19,7 @@ router.use('/status', (): UpdateState => manager?.status ?? { status: 'idle' })
 router.use('/install', () => manager?.install())
 
 function macClient(): UpdateClient | undefined {
-  const bridge = join(process.resourcesPath, 'laikan-updater.node')
+  const bridge = join(process.resourcesPath, 'yikan-updater.node')
   if (!existsSync(bridge)) return undefined
   return requireMain(bridge)
 }

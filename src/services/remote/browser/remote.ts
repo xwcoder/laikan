@@ -11,7 +11,7 @@ export const on = (ch: string, listener: Listener) => {
     return existing
   }
 
-  const unsubscribe = window.laikan.on(ch, listener)
+  const unsubscribe = window.yikan.on(ch, listener)
   let active = true
   const remove = () => {
     if (!active) {

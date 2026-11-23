@@ -1,4 +1,4 @@
-appId: com.xwcoder.laikan
+appId: com.xwcoder.yikan
 directories:
   output: release
   buildResources: assets/icons
@@ -42,5 +42,5 @@ linux:
 publish:
   provider: github
   owner: xwcoder
-  repo: laikan
+  repo: yikan
   releaseType: draft

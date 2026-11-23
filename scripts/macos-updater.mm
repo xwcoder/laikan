@@ -9,7 +9,7 @@ static napi_value CreateError(napi_env env, NSString *reason) {
   return error;
 }
 
-@interface LaikanUpdater : NSObject <SPUUpdaterDelegate, SPUUserDriver>
+@interface YikanUpdater : NSObject <SPUUpdaterDelegate, SPUUserDriver>
 @property (nonatomic, strong) SPUUpdater *updater;
 @property (nonatomic) napi_env env;
 @property (nonatomic) napi_deferred deferred;
@@ -22,7 +22,7 @@ static napi_value CreateError(napi_env env, NSString *reason) {
 - (napi_value)startWithVersion:(NSString *)version progress:(napi_value)progress;
 @end
 
-@implementation LaikanUpdater
+@implementation YikanUpdater
 
 - (napi_value)startWithVersion:(NSString *)version progress:(napi_value)progress {
   napi_value promise;
@@ -72,7 +72,7 @@ static napi_value CreateError(napi_env env, NSString *reason) {
 }
 
 - (BOOL)updater:(SPUUpdater *)updater mayPerformUpdateCheck:(SPUUpdateCheck)check error:(NSError **)error {
-  // Only checks initiated by Laikan may access the feed.
+  // Only checks initiated by Yikan may access the feed.
   return self.deferred != nullptr;
 }
 
@@ -158,7 +158,7 @@ static napi_value CreateError(napi_env env, NSString *reason) {
 static napi_value Check(napi_env env, napi_callback_info info) {
   void *data;
   napi_get_cb_info(env, info, nullptr, nullptr, nullptr, &data);
-  return [(__bridge LaikanUpdater *)data startWithVersion:nil progress:nullptr];
+  return [(__bridge YikanUpdater *)data startWithVersion:nil progress:nullptr];
 }
 
 static napi_value Install(napi_env env, napi_callback_info info) {
@@ -173,17 +173,17 @@ static napi_value Install(napi_env env, napi_callback_info info) {
     napi_throw_type_error(env, nullptr, "Expected a version and a progress callback");
     return nullptr;
   }
-  return [(__bridge LaikanUpdater *)data startWithVersion:[NSString stringWithUTF8String:version] progress:args[1]];
+  return [(__bridge YikanUpdater *)data startWithVersion:[NSString stringWithUTF8String:version] progress:args[1]];
 }
 
 static void Cleanup(void *data) {
-  LaikanUpdater *controller = (__bridge_transfer LaikanUpdater *)data;
+  YikanUpdater *controller = (__bridge_transfer YikanUpdater *)data;
   controller.env = nullptr;
   controller.updater = nil;
 }
 
 static napi_value Initialize(napi_env env, napi_value exports) {
-  LaikanUpdater *controller = [LaikanUpdater new];
+  YikanUpdater *controller = [YikanUpdater new];
   controller.env = env;
   NSBundle *bundle = NSBundle.mainBundle;
   controller.updater = [[SPUUpdater alloc] initWithHostBundle:bundle applicationBundle:bundle

@@ -11,7 +11,7 @@ import { logger } from '@/services/logger/electron-main/logger'
 import { initReaderSchema } from '@/services/reader/electron-main/schema'
 import * as settingService from '@/services/settings/electron-main/settings'
 
-const databasePath = (directory: string) => join(directory, 'laikan.db')
+const databasePath = (directory: string) => join(directory, 'yikan.db')
 const workerPath = join(__dirname, 'database-worker.js')
 
 async function openReaderDatabase(filename: string, create: boolean) {

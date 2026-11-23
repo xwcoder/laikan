@@ -1,7 +1,7 @@
 import type { Listener } from '@/preload/index'
 import type { OpenDialogOptions, OpenDialogReturnValue } from 'electron'
 
-type Laikan = {
+type Yikan = {
   fetch: (ch: string, data?: any, revision?: number) => any
 
   on: (ch: string, listener: Listener) => () => void
@@ -13,6 +13,6 @@ type Laikan = {
 
 declare global {
   interface Window {
-    laikan: Laikan,
+    yikan: Yikan,
   }
 }

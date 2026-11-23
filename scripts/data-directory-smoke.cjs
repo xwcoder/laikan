@@ -20,7 +20,7 @@ module.exports = async function dataDirectorySmoke(contents) {
   const originalFetch = globalThis.fetch
   const run = code => contents.executeJavaScript(code)
   const ipc = (channel, value, revision) => (
-    run(`window.laikan.fetch(${JSON.stringify(channel)}, ${JSON.stringify(value)}, ${JSON.stringify(revision)})`)
+    run(`window.yikan.fetch(${JSON.stringify(channel)}, ${JSON.stringify(value)}, ${JSON.stringify(revision)})`)
   )
   const wait = (expression) => run(`new Promise((resolve, reject) => {
     const deadline = Date.now() + 5000
@@ -34,7 +34,7 @@ module.exports = async function dataDirectorySmoke(contents) {
   const click = selector => run(`document.querySelector(${JSON.stringify(selector)}).click()`)
   const getSettings = () => ipc('/settings/get')
   const getArticle = id => ipc('/reader/get/article', id)
-  const database = directory => path.join(directory, 'laikan.db')
+  const database = directory => path.join(directory, 'yikan.db')
   const { dataPath: original, libraryRevision: revision } = await getSettings()
   const settingsFile = path.join(original, 'settings.json')
   const migrated = path.join(original, 'migrated-library')

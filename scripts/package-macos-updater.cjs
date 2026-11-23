@@ -7,7 +7,7 @@ const { Arch } = require('electron-builder')
 const sparkleVersion = '2.10.1'
 const archiveName = `Sparkle-${sparkleVersion}.tar.xz`
 const archiveHash = '1a856d2a9edb8e628de88121d7be04cf0e2167f8641650b78fca00b14244cf27'
-const appcastURL = 'https://github.com/xwcoder/laikan/releases/latest/download/appcast.xml'
+const appcastURL = 'https://github.com/xwcoder/yikan/releases/latest/download/appcast.xml'
 
 function hasExpectedHash(file) {
   return fs.existsSync(file) && createHash('sha256').update(fs.readFileSync(file)).digest('hex') === archiveHash
@@ -42,12 +42,12 @@ function trimSparkle(framework, architecture) {
 }
 
 module.exports = function packageMacUpdater(context) {
-  const publicKey = process.env.LAIKAN_UPDATE_PUBLIC_KEY
+  const publicKey = process.env.YIKAN_UPDATE_PUBLIC_KEY
   if (context.electronPlatformName !== 'darwin' || !publicKey) return
 
   const key = Buffer.from(publicKey, 'base64')
   if (key.length !== 32 || key.toString('base64') !== publicKey) {
-    throw Error('LAIKAN_UPDATE_PUBLIC_KEY must contain a base64 Ed25519 public key')
+    throw Error('YIKAN_UPDATE_PUBLIC_KEY must contain a base64 Ed25519 public key')
   }
 
   const architectures = { [Arch.arm64]: 'arm64', [Arch.x64]: 'x86_64' }
@@ -71,7 +71,7 @@ module.exports = function packageMacUpdater(context) {
       'clang++', '-arch', architecture, '-fobjc-arc', '-bundle', '-Werror=protocol',
       '-undefined', 'dynamic_lookup', '-mmacosx-version-min=12.0', '-I', headers, '-F', workDir,
       '-framework', 'Foundation', '-framework', 'Sparkle', '-Wl,-rpath,@loader_path/../Frameworks',
-      path.join(projectDir, 'scripts', 'macos-updater.mm'), '-o', path.join(resources, 'laikan-updater.node'),
+      path.join(projectDir, 'scripts', 'macos-updater.mm'), '-o', path.join(resources, 'yikan-updater.node'),
     ], { stdio: 'inherit' })
     const sparkle = path.join(workDir, 'Sparkle.framework')
     trimSparkle(sparkle, architecture)

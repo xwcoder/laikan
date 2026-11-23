@@ -22,7 +22,7 @@ export const writeJSON = async (path: string, data: any) => {
 }
 
 export async function writeTextAtomically(path: string, text: string) {
-  const temporaryPath = join(dirname(path), `.laikan-${randomUUID()}.tmp`)
+  const temporaryPath = join(dirname(path), `.yikan-${randomUUID()}.tmp`)
   try {
     await fs.writeFile(temporaryPath, text, { encoding: 'utf8', mode: 0o600, flag: 'wx' })
     await fs.rename(temporaryPath, path)

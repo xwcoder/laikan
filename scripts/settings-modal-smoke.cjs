@@ -16,7 +16,7 @@ module.exports = async function settingsModalSmoke(contents, { run, wait, click,
   try {
     window.setSize(600, 600)
     await wait('innerWidth === 600 && innerHeight <= 600')
-    assert.equal(await run('!!document.querySelector("[data-nav=reader], nav[aria-label=来刊]")'), false)
+    assert.equal(await run('!!document.querySelector("[data-nav=reader], nav[aria-label=一刊]")'), false)
     assert.equal(await run(`!!document.querySelector('[aria-label="Toggle light / dark theme"]')`), false)
     assert.equal(await run('document.querySelector("aside").getBoundingClientRect().left'), 0)
     assert.ok(await run('document.querySelector("[data-settings-trigger]").getBoundingClientRect().bottom <= innerHeight'))
@@ -86,7 +86,7 @@ module.exports = async function settingsModalSmoke(contents, { run, wait, click,
     await closed()
     await wait('document.activeElement?.matches("[data-settings-trigger]")')
 
-    const activePath = await run('window.laikan.fetch("/settings/get", "dataPath")')
+    const activePath = await run('window.yikan.fetch("/settings/get", "dataPath")')
     const draftPath = path.join(activePath, 'unapplied-directory')
     // Mock only the OS picker, leaving the real renderer -> preload -> IPC path intact.
     dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [draftPath] })
@@ -97,7 +97,7 @@ module.exports = async function settingsModalSmoke(contents, { run, wait, click,
     assert.equal(await run('document.querySelector("[data-directory-action=apply]").disabled'), false)
     const draftApplyWidth = await run('getComputedStyle(document.querySelector("[data-directory-action=apply]")).width')
     assert.equal(draftApplyWidth, geometry.applyWidth, 'The Apply button keeps its width when enabled')
-    assert.equal(await run('window.laikan.fetch("/settings/get", "dataPath")'), activePath)
+    assert.equal(await run('window.yikan.fetch("/settings/get", "dataPath")'), activePath)
     await click('[role=dialog] > button[aria-label=Close]')
     await closed()
     await open()

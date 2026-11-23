@@ -3,7 +3,7 @@ import { OpenDialogOptions } from '@/types/common'
 
 export type Listener = (...args: any[]) => void
 
-contextBridge.exposeInMainWorld('laikan', {
+contextBridge.exposeInMainWorld('yikan', {
   fetch: (ch: string, data?: any, revision?: number) => ipcRenderer.invoke(ch, data, revision),
 
   on: (ch: string, listener: Listener) => {

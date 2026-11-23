@@ -66,7 +66,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     contents.sendInputEvent({ type: 'keyUp', keyCode: 'Tab', modifiers })
   }
   const snapshot = async (name) => {
-    const dir = process.env.LAIKAN_SMOKE_SCREENSHOTS
+    const dir = process.env.YIKAN_SMOKE_SCREENSHOTS
     if (!dir) return
     fs.mkdirSync(dir, { recursive: true })
     await new Promise(resolve => setTimeout(resolve, 200))
@@ -151,7 +151,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     assert.equal(await primaryToken(), neutralPrimary)
     await openThemes()
     await pickTheme('blue', 'b')
-    const settingsPath = path.join(process.env.LAIKAN_SMOKE_USER_DATA, 'settings.json')
+    const settingsPath = path.join(process.env.YIKAN_SMOKE_USER_DATA, 'settings.json')
     assert.equal(JSON.parse(fs.readFileSync(settingsPath, 'utf8')).theme, 'blue')
     await snapshot('settings-theme-blue-light')
   } finally {
@@ -159,7 +159,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
   }
   await wait('document.querySelector("[data-settings-body]").ariaBusy === "false"')
   await click('[role=radio][value=auto]')
-  await wait('window.laikan.fetch("/settings/get", "appearance").then(value => value === "auto")')
+  await wait('window.yikan.fetch("/settings/get", "appearance").then(value => value === "auto")')
   nativeTheme.themeSource = 'dark'
   await wait('document.documentElement.classList.contains("dark")')
   assert.equal(await run('document.documentElement.dataset.theme'), 'blue')
@@ -366,11 +366,11 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     const articleViewport = 'document.querySelector("article").parentElement'
     const articleFocused = `document.activeElement === ${articleViewport}`
     assert.ok(await run(articleFocused), 'Opening an article should focus its scroll area')
-    await wait(`window.laikan.fetch('/reader/get/article', ${firstId}).then(article => article.read === 1)`)
+    await wait(`window.yikan.fetch('/reader/get/article', ${firstId}).then(article => article.read === 1)`)
     assert.equal(await run('!!window.__rssScriptRan'), false, 'RSS markup must be sanitized')
     assert.equal(await run('document.querySelectorAll(".article-content script, .article-content [onerror]").length'), 0)
     const articleFont = 'getComputedStyle(document.querySelector(".article-content")).fontSize'
-    const savedFont = 'window.laikan.fetch("/settings/get", "reader.fontSize")'
+    const savedFont = 'window.yikan.fetch("/settings/get", "reader.fontSize")'
     const larger = `[aria-label="${en.reader.action.fontIncrease}"]`
     const smaller = `[aria-label="${en.reader.action.fontDecrease}"]`
     assert.equal(await run(articleFont), '14px')
@@ -388,7 +388,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await press('+', true)
     assert.equal(await run('document.querySelectorAll("[role=dialog]").length'), 1)
     assert.equal(await run(articleFont), '14px')
-    assert.equal((await run(`window.laikan.fetch('/reader/get/article', ${firstId})`)).starred, 1)
+    assert.equal((await run(`window.yikan.fetch('/reader/get/article', ${firstId})`)).starred, 1)
     await click('[role=radio][value=light]')
     await wait('!document.documentElement.classList.contains("dark")')
     await wait('document.querySelector("[data-settings-body]").ariaBusy === "false"')
@@ -410,7 +410,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     const beforeResize = await run(paragraphOffset)
     await run(`(async () => {
       window.__fontWrites = 0
-      window.__stopFontWrites = window.laikan.on('/settings/change', () => { window.__fontWrites += 1 })
+      window.__stopFontWrites = window.yikan.on('/settings/change', () => { window.__fontWrites += 1 })
       const button = document.querySelector(${JSON.stringify(larger)})
       button.click()
       await new Promise(requestAnimationFrame)
@@ -447,7 +447,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await press('g'); await press('i')
     await wait('document.querySelectorAll("[data-list-item-id]").length === 50')
     const readingIds = await run('Array.from(document.querySelectorAll("[data-list-item-id]")).slice(0, 2).map(row => Number(row.dataset.listItemId))')
-    const readingTitles = await run(`Promise.all(${JSON.stringify(readingIds)}.map(id => window.laikan.fetch('/reader/get/article', id).then(article => article.title)))`)
+    const readingTitles = await run(`Promise.all(${JSON.stringify(readingIds)}.map(id => window.yikan.fetch('/reader/get/article', id).then(article => article.title)))`)
     await click(`[data-list-item-id="${readingIds[0]}"] button:last-child`)
     await wait(`document.querySelector('article h1')?.textContent === ${JSON.stringify(readingTitles[0])}`)
     assert.equal(await run(articleFont), '18px', 'Article size should carry over to the next article')
@@ -482,7 +482,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await press('o')
     await wait('document.querySelector(".article-content")')
     assert.ok(await run(articleFocused), 'O should focus the article scroll area')
-    await wait(`window.laikan.fetch('/reader/get/article', ${position.id}).then(article => article.read === 1)`)
+    await wait(`window.yikan.fetch('/reader/get/article', ${position.id}).then(article => article.read === 1)`)
     await focusWindow()
     const articleScrollTop = `${articleViewport}.scrollTop`
     contents.sendInputEvent({ type: 'keyDown', keyCode: 'Down' })
@@ -529,7 +529,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     const [readBeforeSwitch] = await run(visibleIds)
     await run('document.querySelector("[data-article-open]").focus()')
     await press('o')
-    await wait(`window.laikan.fetch('/reader/get/article', ${readBeforeSwitch}).then(article => article.read === 1)`)
+    await wait(`window.yikan.fetch('/reader/get/article', ${readBeforeSwitch}).then(article => article.read === 1)`)
     await press('u')
     const rowBeforeSwitch = `[data-list-item-id="${readBeforeSwitch}"]`
     await wait(`document.querySelector('${rowBeforeSwitch}')?.classList.contains('text-muted-foreground')`)
@@ -556,11 +556,11 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     assert.equal(await run('window.__smokeList.scrollTop === window.__smokeListScroll'), true)
     assert.equal(await run('document.querySelectorAll("[data-list-item-id] [role=checkbox][data-state=checked]").length'), 50)
     await press('I', true)
-    await wait(`window.laikan.fetch('/reader/get/articles', { tab: 'unread', page: 1, size: 50 }).then(result => result.count === 2)`)
+    await wait(`window.yikan.fetch('/reader/get/articles', { tab: 'unread', page: 1, size: 50 }).then(result => result.count === 2)`)
     // Keep the sequence alive through a real background refresh and React renders.
     await press('*', true)
     fixtureCount = 53
-    await run(`window.laikan.fetch('/reader/post/feed', { url: ${JSON.stringify(`${base}/rss`)}, title: 'Fixture feed' })`)
+    await run(`window.yikan.fetch('/reader/post/feed', { url: ${JSON.stringify(`${base}/rss`)}, title: 'Fixture feed' })`)
     await wait('document.body.textContent.includes("of 53")')
     await press('n')
     await wait('document.querySelectorAll("[data-list-item-id] [role=checkbox][data-state=checked]").length === 0')
@@ -643,10 +643,10 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     tab(['shift'])
     await wait(`document.activeElement === ${feedElement} && ${actionsStyle}.opacity === '0'`)
 
-    const articleBeforeUnsubscribe = await run(`window.laikan.fetch('/reader/get/article', ${firstId})`)
-    const unreadBefore = await run('window.laikan.fetch("/reader/get/articles/unread-count")')
+    const articleBeforeUnsubscribe = await run(`window.yikan.fetch('/reader/get/article', ${firstId})`)
+    const unreadBefore = await run('window.yikan.fetch("/reader/get/articles/unread-count")')
     const { DatabaseSync } = require('node:sqlite')
-    const db = new DatabaseSync(path.join(process.env.LAIKAN_SMOKE_USER_DATA, 'laikan.db'), { timeout: 1000 })
+    const db = new DatabaseSync(path.join(process.env.YIKAN_SMOKE_USER_DATA, 'yikan.db'), { timeout: 1000 })
     const unsubscribeElement = `document.querySelector(${JSON.stringify(unsubscribeButton)})`
     const leavingRow = `document.querySelector('[data-feed-leaving="${feedId}"]')`
     await run(`document.querySelector(${JSON.stringify(unsubscribeButton)}).focus()`)
@@ -680,11 +680,11 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await wait('document.activeElement.matches("[data-tab=all]") && !document.querySelector("[data-feed-id]")')
     await wait('document.querySelectorAll("[data-list-item-id]").length === 50')
     assert.equal(await run('!!document.querySelector("[role=alertdialog]")'), false)
-    assert.deepEqual(await run('window.laikan.fetch("/reader/get/feed/all")'), [])
-    assert.equal((await run('window.laikan.fetch("/reader/get/articles", { tab: "all", page: 1, size: 50 })')).count, 55)
-    assert.deepEqual(await run(`window.laikan.fetch('/reader/get/article', ${firstId})`), articleBeforeUnsubscribe)
+    assert.deepEqual(await run('window.yikan.fetch("/reader/get/feed/all")'), [])
+    assert.equal((await run('window.yikan.fetch("/reader/get/articles", { tab: "all", page: 1, size: 50 })')).count, 55)
+    assert.deepEqual(await run(`window.yikan.fetch('/reader/get/article', ${firstId})`), articleBeforeUnsubscribe)
     assert.equal(articleBeforeUnsubscribe.feedTitle, 'Fixture feed')
-    assert.equal(await run('window.laikan.fetch("/reader/get/articles/unread-count")'), unreadBefore)
+    assert.equal(await run('window.yikan.fetch("/reader/get/articles/unread-count")'), unreadBefore)
     await openSubscriptionMenu()
     assert.equal(await run('document.querySelector("[role=menuitem]:last-child").getAttribute("aria-disabled")'), 'true')
     await press('Escape')
@@ -765,7 +765,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
       contents.session.disableNetworkEmulation()
     }
 
-    await run(`window.laikan.fetch('/reader/post/feed', ${JSON.stringify({ url: oldRecommendedUrl, title: 'Meituan Engineering' })})`)
+    await run(`window.yikan.fetch('/reader/post/feed', ${JSON.stringify({ url: oldRecommendedUrl, title: 'Meituan Engineering' })})`)
     await wait(buttonReady(en.reader.recommendations.subscribed))
     const actionWidth = await run(`${recommendationAction}.offsetWidth`)
     await run(`${recommendationAction}.scrollIntoView({ block: 'center' })`)
@@ -773,15 +773,15 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await wait(buttonReady(en.reader.action.unsubscribe))
     await hover(catalogHeader)
     await wait(buttonReady(en.reader.recommendations.subscribed))
-    const [meituan] = await run('window.laikan.fetch("/reader/get/feed/all")')
+    const [meituan] = await run('window.yikan.fetch("/reader/get/feed/all")')
     const bundledIcon = fs.readFileSync(path.join(__dirname, '../src/ui/assets/feed-icons/meituan.png'), 'base64')
     assert.equal(meituan.icon, `data:image/png;base64,${bundledIcon}`, 'The legacy URL saves the bundled PNG')
     const meituanIcon = `document.querySelector('[data-feed-id="${meituan.id}"] img')`
     await wait(`${meituanIcon}?.naturalWidth > 0`)
     assert.equal(await run(`${meituanIcon}.getBoundingClientRect().width`), 16)
     const meituanTab = `{ tab: ${meituan.id}, page: 1, size: 50 }`
-    const { data: [meituanArticle] } = await run(`window.laikan.fetch('/reader/get/articles', ${meituanTab})`)
-    await run(`window.laikan.fetch('/reader/put/article/starred', { id: ${meituanArticle.id}, status: 1 })`)
+    const { data: [meituanArticle] } = await run(`window.yikan.fetch('/reader/get/articles', ${meituanTab})`)
+    await run(`window.yikan.fetch('/reader/put/article/starred', { id: ${meituanArticle.id}, status: 1 })`)
     await focusWindow()
     await run('document.querySelector("[data-recommended-feed=byteByteGo] button").focus()')
     await wait('document.activeElement.matches("[data-recommended-feed=byteByteGo] button")')
@@ -796,15 +796,15 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     failRecommendation = true
     await click(recommendationButton)
     await wait(`document.querySelector(${JSON.stringify(`${recommendationRow} [role=alert]`)})`)
-    assert.deepEqual(await run('window.laikan.fetch("/reader/get/feed/all")'), [])
+    assert.deepEqual(await run('window.yikan.fetch("/reader/get/feed/all")'), [])
     failRecommendation = false
     await click(recommendationButton)
     await wait(buttonReady(en.reader.action.unsubscribe))
     assert.equal(await run(`${recommendationAction}.matches(':focus-visible')`), true)
-    const [reactivated] = await run('window.laikan.fetch("/reader/get/feed/all")')
+    const [reactivated] = await run('window.yikan.fetch("/reader/get/feed/all")')
     assert.equal(reactivated.id, meituan.id, 'An older URL should resume the same subscription')
     assert.equal(reactivated.icon, meituan.icon)
-    const { data: [retained], count } = await run(`window.laikan.fetch('/reader/get/articles', ${meituanTab})`)
+    const { data: [retained], count } = await run(`window.yikan.fetch('/reader/get/articles', ${meituanTab})`)
     assert.equal(count, 1)
     assert.equal(retained.id, meituanArticle.id)
     assert.equal(retained.starred, 1)
@@ -846,12 +846,12 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await run('document.querySelector("form").requestSubmit()')
     await wait('document.querySelector("button[type=submit]:disabled .lucide-loader-circle")')
     // Manual URL preflight can run while the subscription itself waits in the queue.
-    assert.deepEqual(await run('window.laikan.fetch("/reader/get/feed/all")'), [])
+    assert.deepEqual(await run('window.yikan.fetch("/reader/get/feed/all")'), [])
     assert.deepEqual(recommendationQueueRequests, [heldRecommendationUrl], 'The first subscription holds the only slot')
     releaseRecommendation()
     await wait('!document.querySelector("[role=dialog]") && document.body.textContent.includes("Empty feed")')
     assert.deepEqual(recommendationQueueRequests, [heldRecommendationUrl, nextRecommendationUrl])
-    const saved = await run('window.laikan.fetch("/reader/get/feed/all")')
+    const saved = await run('window.yikan.fetch("/reader/get/feed/all")')
     assert.deepEqual(saved.map(feed => feed.url), [nextRecommendationUrl, emptyFeedUrl])
 
     await click(catalogButton)
@@ -871,7 +871,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await run('document.querySelector("form").requestSubmit()')
     await wait('document.querySelector("main [role=alert]") && !document.querySelector("button[type=submit]").disabled')
     assert.equal(await run('document.querySelector("#feed-title").value'), 'Invalid feed')
-    assert.equal((await run('window.laikan.fetch("/reader/get/feed/all")')).length, 1)
+    assert.equal((await run('window.yikan.fetch("/reader/get/feed/all")')).length, 1)
     await click('[role=dialog] button[aria-label=Close]')
     await wait('!document.querySelector("[role=dialog]")')
     await require('./opml-smoke.cjs')({ run, wait, openSubscriptionMenu }, base)

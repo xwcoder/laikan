@@ -3,7 +3,7 @@ import {
 } from 'node:fs/promises'
 import { join } from 'node:path'
 
-const logName = /^laikan([1-9]\d*)?\.log$/
+const logName = /^yikan([1-9]\d*)?\.log$/
 
 async function logIndices(directory: string) {
   await mkdir(directory, { recursive: true })
@@ -25,7 +25,7 @@ async function logSize(filename: string) {
 }
 
 export function createFileLog(directory: string, maxBytes = 30 * 1024 * 1024, maxFiles = 30) {
-  const filename = (index: number) => join(directory, index === 0 ? 'laikan.log' : `laikan${index}.log`)
+  const filename = (index: number) => join(directory, index === 0 ? 'yikan.log' : `yikan${index}.log`)
   let files: number[] | undefined
   let pending = Promise.resolve()
 

@@ -3,7 +3,7 @@ import { join, resolve } from 'node:path'
 import { app } from 'electron'
 import { isDev, isMac } from '@/base/electron-main/env'
 
-const profile = isDev ? 'laikan-dev' : 'laikan'
+const profile = isDev ? 'yikan-dev' : 'yikan'
 const requestedPath = app.commandLine.getSwitchValue('user-data-dir')
 const userDataPath = requestedPath ? resolve(requestedPath) : join(app.getPath('appData'), profile)
 

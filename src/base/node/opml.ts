@@ -74,7 +74,7 @@ export function serializeOpml(feeds: readonly Feed[]) {
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<opml version="2.0">',
     '  <head>',
-    '    <title>来刊订阅</title>',
+    '    <title>一刊订阅</title>',
     '  </head>',
     '  <body>',
     ...feeds.map(serializeOutline),
