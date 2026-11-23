@@ -1,6 +1,7 @@
 import {
-  QueryClient, queryOptions, useMutation, useQueryClient,
+  QueryClient, queryOptions, useMutation, useMutationState, useQueryClient,
 } from '@tanstack/react-query'
+import { feedUrlKey } from '@/base/common/feed-url'
 import * as feedService from '@/services/reader/browser/feed'
 import * as articleService from '@/services/reader/browser/article'
 import { useReaderStore } from '@/ui/store/reader'
@@ -13,6 +14,7 @@ export const readerKeys = (revision: number) => {
   return {
     all,
     feeds: [...all, 'feeds'] as const,
+    subscribe: [...all, 'subscribe'] as const,
     unreadCount: [...all, 'unread-count'] as const,
     articles: [...all, 'articles'] as const,
     details: [...all, 'article'] as const,
@@ -91,14 +93,56 @@ export const preflightOptions = (url: string) => queryOptions({
   staleTime: 60_000,
 })
 
+type Subscription = Pick<Feed, 'url' | 'title'>
+
 export function useSubscribe(inlineError = false) {
   const client = useQueryClient()
   const revision = useReaderStore((state) => state.libraryRevision)
+  const keys = readerKeys(revision)
   return useMutation({
-    mutationFn: (data: Pick<Feed, 'url' | 'title'>) => feedService.upsert(data, revision),
-    meta: { inlineError },
-    onSuccess: () => client.invalidateQueries({ queryKey: readerKeys(revision).all }),
+    mutationKey: keys.subscribe,
+    scope: { id: 'reader-subscribe' },
+    networkMode: 'always',
+    mutationFn: async (data: Subscription) => {
+      if (revision === useReaderStore.getState().libraryRevision) await feedService.upsert(data, revision)
+    },
+    meta: { inlineError, libraryRevision: revision },
+    onSuccess: () => {
+      if (revision === useReaderStore.getState().libraryRevision) {
+        return client.invalidateQueries({ queryKey: keys.all })
+      }
+      return undefined
+    },
   })
+}
+
+export function useRecommendedSubscriptions() {
+  const client = useQueryClient()
+  const revision = useReaderStore((state) => state.libraryRevision)
+  const mutationKey = readerKeys(revision).subscribe
+  const { mutate } = useSubscribe(true)
+  const attempts = useMutationState({
+    filters: { mutationKey },
+    select: ({ state, meta }) => {
+      const data = state.variables as Subscription | undefined
+      if (!data) return undefined
+      return [feedUrlKey(data.url), {
+        pending: state.status === 'pending',
+        error: meta?.inlineError ? state.error : null,
+      }] as const
+    },
+  })
+
+  const subscribe = (data: Subscription) => {
+    const url = feedUrlKey(data.url)
+    // Check the cache immediately so repeated clicks before a render cannot enqueue duplicates.
+    if (!client.isMutating({
+      mutationKey,
+      predicate: ({ state }) => feedUrlKey((state.variables as Subscription).url) === url,
+    })) mutate(data)
+  }
+
+  return { subscribe, attempts: new Map(attempts.filter((attempt) => attempt !== undefined)) }
 }
 
 export function useFeedTransfer() {

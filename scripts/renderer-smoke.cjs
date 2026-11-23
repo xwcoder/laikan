@@ -201,6 +201,8 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
   let failRecommendation = false
   let recommendationRequests = 0
   const rssRequests = []
+  const queuedRequests = []
+  const { promise: heldRecommendation, resolve: releaseRecommendation } = Promise.withResolvers()
   const server = http.createServer((request, response) => {
     response.setHeader('content-type', 'application/rss+xml')
     if (request.url === '/home' || request.url === '/favicon.ico') {
@@ -208,6 +210,17 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
       return
     }
     if (request.url === '/invalid') { response.end('<html>Not a feed</html>'); return }
+    if (request.url === '/held-recommendation') {
+      void heldRecommendation.then(() => response.writeHead(503).end())
+      return
+    }
+    if (request.url === '/empty') {
+      response.setHeader('ETag', '"empty-fixture"')
+      if (request.headers['if-none-match'] === '"empty-fixture"') {
+        response.writeHead(304).end()
+        return
+      }
+    }
     if (request.url === '/recommendation') {
       recommendationRequests += 1
       if (failRecommendation) {
@@ -248,11 +261,18 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
   const base = `http://127.0.0.1:${server.address().port}`
   const recommendedUrl = 'https://tech.meituan.com/rss.xml'
   const oldRecommendedUrl = 'https://tech.meituan.com/feed/'
+  const heldRecommendationUrl = 'https://martinfowler.com/feed.atom'
+  const nextRecommendationUrl = 'https://www.infoq.cn/feed.xml'
+  const emptyFeedUrl = `${base}/empty`
   const networkFetch = globalThis.fetch
   globalThis.fetch = (url, options) => {
     if (['https://example.com/', 'https://example.com/favicon.ico'].includes(url)) {
       return Promise.resolve(new Response(null, { status: 404 }))
     }
+    if ([heldRecommendationUrl, nextRecommendationUrl, emptyFeedUrl].includes(url)
+      && !options?.headers?.has('if-none-match')) queuedRequests.push(url)
+    if (url === heldRecommendationUrl) return networkFetch(`${base}/held-recommendation`, options)
+    if (url === nextRecommendationUrl) return networkFetch(emptyFeedUrl, options)
     return networkFetch([recommendedUrl, oldRecommendedUrl].includes(url) ? `${base}/recommendation` : url, options)
   }
   try {
@@ -690,13 +710,51 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await press('Escape')
     await wait(`!document.querySelector('[data-feed-recommendations]') && document.activeElement.matches(${JSON.stringify(catalogButton)})`)
 
-    // Empty feeds still appear after a successful subscription without relying on a crawler push.
+    const heldButton = '[data-recommended-feed="martinFowler"] button'
+    const nextButton = '[data-recommended-feed="infoqChina"] button'
+    const recommendationButtonsBusy = `[${JSON.stringify(heldButton)}, ${JSON.stringify(nextButton)}].every(selector => {
+      const button = document.querySelector(selector)
+      return button?.ariaBusy === 'true' && button.ariaDisabled === 'true'
+        && button.querySelector('.lucide-loader-circle')
+    })`
+    await click(catalogButton)
+    await wait(`document.querySelector(${JSON.stringify(heldButton)})?.ariaDisabled === 'false'`)
+    await run(`(() => {
+      const held = document.querySelector(${JSON.stringify(heldButton)})
+      const next = document.querySelector(${JSON.stringify(nextButton)})
+      held.click()
+      next.click()
+      next.click()
+    })()`)
+    await wait(recommendationButtonsBusy)
+    await press('Escape')
+    await wait('!document.querySelector("[data-feed-recommendations]")')
+    await click(catalogButton)
+    await wait(recommendationButtonsBusy)
+    await click(nextButton)
+    await press('Escape')
+    await wait('!document.querySelector("[data-feed-recommendations]")')
+
+    // The manual submission waits behind the two recommendations and saves an empty feed.
     await click('[aria-label="Subscribe to a feed"]')
     await wait('document.querySelector("#feed-url")')
-    await input('#feed-url', `${base}/empty`)
+    await input('#feed-url', emptyFeedUrl)
     await input('#feed-title', 'Empty feed')
     await run('document.querySelector("form").requestSubmit()')
+    await wait('document.querySelector("button[type=submit]:disabled .lucide-loader-circle")')
+    await run('window.laikan.fetch("/reader/get/feed/all")')
+    assert.deepEqual(queuedRequests, [heldRecommendationUrl], 'The first subscription holds the only slot')
+    releaseRecommendation()
     await wait('!document.querySelector("[role=dialog]") && document.body.textContent.includes("Empty feed")')
+    assert.deepEqual(queuedRequests, [heldRecommendationUrl, nextRecommendationUrl, emptyFeedUrl])
+
+    await click(catalogButton)
+    await wait(`document.querySelector('[data-recommended-feed=martinFowler] [role=alert]')`)
+    await wait(`document.querySelector(${JSON.stringify(nextButton)})?.textContent.trim() === ${JSON.stringify(en.reader.action.unsubscribe)}`)
+    await click(nextButton)
+    await wait(`document.querySelector(${JSON.stringify(nextButton)})?.textContent.trim() === ${JSON.stringify(en.reader.form.buttons.subscribe)}`)
+    await press('Escape')
+    await wait('!document.querySelector("[data-feed-recommendations]")')
 
     // Failed mutations keep user input available and do not add fake local data.
     await click('[aria-label="Subscribe to a feed"]')
@@ -710,8 +768,9 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await click('[role=dialog] button[aria-label=Close]')
     await wait('!document.querySelector("[role=dialog]")')
     await require('./opml-smoke.cjs')({ run, wait, openSubscriptionMenu }, base)
-    console.log('Renderer smoke passed: settings, recommendations, subscription retention, reading position, feed refresh and mutation errors')
+    console.log('Renderer smoke passed: settings, recommendations, subscription queue and retention, reading position, feed refresh and mutation errors')
   } finally {
+    releaseRecommendation()
     globalThis.fetch = networkFetch
     await new Promise(resolve => server.close(resolve))
   }

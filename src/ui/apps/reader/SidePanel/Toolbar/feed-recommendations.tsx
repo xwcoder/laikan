@@ -7,7 +7,7 @@ import { RecommendedFeed, recommendedGroups } from '@/base/common/recommended-fe
 import { recommendedIcon } from '@/base/common/recommended-icons'
 import { Feed } from '@/types/reader'
 import { ReaderModel } from '@/ui/hooks/use-reader-model'
-import { useSubscribe } from '@/ui/query/reader'
+import { useRecommendedSubscriptions } from '@/ui/query/reader'
 import { Button } from '@/ui/components/ui/button'
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
@@ -30,20 +30,22 @@ function recommendationError(subscribed: boolean, unsubscribeFailed: boolean, su
 }
 
 function Recommendation({
-  source, subscribed, subscriptionsKnown, unsubscribe,
+  source, subscribed, subscriptionsKnown, subscribing, subscribeError, onSubscribe, unsubscribe,
 }: {
   source: RecommendedFeed
   subscribed?: Feed
   subscriptionsKnown: boolean
+  subscribing: boolean
+  subscribeError: Error | null
+  onSubscribe: (data: Pick<Feed, 'url' | 'title'>) => void
   unsubscribe: ReaderModel['unsubscribe']
 }) {
   const { t } = useTranslation()
-  const subscribe = useSubscribe(true)
   const [unsubscribeFailed, setUnsubscribeFailed] = useState(false)
   const removing = unsubscribe.isPending && unsubscribe.variables === subscribed?.id
-  const pending = subscribe.isPending || removing
-  const disabled = !subscriptionsKnown || subscribe.isPending || unsubscribe.isPending
-  const error = recommendationError(!!subscribed, unsubscribeFailed, subscribe.error)
+  const pending = subscribing || removing
+  const disabled = !subscriptionsKnown || subscribing || unsubscribe.isPending
+  const error = recommendationError(!!subscribed, unsubscribeFailed, subscribeError)
   const action = subscribed
     ? { label: 'reader.action.unsubscribe', variant: 'ghost' as const }
     : { label: 'reader.form.buttons.subscribe', variant: 'outline' as const }
@@ -52,10 +54,9 @@ function Recommendation({
     if (disabled) return
     setUnsubscribeFailed(false)
     if (subscribed?.id !== undefined) {
-      subscribe.reset()
       unsubscribe.mutate(subscribed.id, { onError: () => setUnsubscribeFailed(true) })
     } else {
-      subscribe.mutate({ url: source.url, title: source.title })
+      onSubscribe({ url: source.url, title: source.title })
     }
   }
 
@@ -91,6 +92,7 @@ function Recommendation({
 
 export default function FeedRecommendations({ model }: { model: ReaderModel }) {
   const { t } = useTranslation()
+  const { subscribe, attempts } = useRecommendedSubscriptions()
   const label = t('reader.recommendations.title')
   const byUrl = new Map(model.feeds.data?.map((feed) => [feedUrlKey(feed.url), feed] as const))
 
@@ -127,15 +129,22 @@ export default function FeedRecommendations({ model }: { model: ReaderModel }) {
                 {t(`reader.recommendations.groups.${group.id}`)}
               </h3>
               <ul className="mt-1 divide-y divide-border/70">
-                {group.feeds.map((source) => (
-                  <Recommendation
-                    key={source.id}
-                    source={source}
-                    subscribed={byUrl.get(feedUrlKey(source.url))}
-                    subscriptionsKnown={!!model.feeds.data}
-                    unsubscribe={model.unsubscribe}
-                  />
-                ))}
+                {group.feeds.map((source) => {
+                  const url = feedUrlKey(source.url)
+                  const attempt = attempts.get(url)
+                  return (
+                    <Recommendation
+                      key={source.id}
+                      source={source}
+                      subscribed={byUrl.get(url)}
+                      subscriptionsKnown={!!model.feeds.data}
+                      subscribing={attempt?.pending ?? false}
+                      subscribeError={attempt?.error ?? null}
+                      onSubscribe={subscribe}
+                      unsubscribe={model.unsubscribe}
+                    />
+                  )
+                })}
               </ul>
             </section>
           ))}
