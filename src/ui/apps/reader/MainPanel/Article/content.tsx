@@ -43,37 +43,69 @@ function openArticleLink(event: MouseEvent<HTMLDivElement>, base?: string) {
   if (url) openExternal(url)
 }
 
-function FullTextControls({
-  article, showFeed, toggle, hasContent, buttonRef,
+function ArticleVersionButtons({
+  showFeed, onShowFeedChange, buttonRef,
 }: {
-  article: ArticleDetail, showFeed: boolean, toggle: () => void, hasContent: boolean,
+  showFeed: boolean,
+  onShowFeedChange: (showFeedContent: boolean) => void,
+  buttonRef: RefObject<HTMLButtonElement | null>,
+}) {
+  const { t } = useTranslation()
+  const versionClassName = 'font-normal decoration-1 underline-offset-4 aria-pressed:text-foreground aria-pressed:underline'
+  return (
+    <div className="inline-flex items-center gap-0.5" role="group" aria-label={t('reader.content.version')}>
+      <Button
+        ref={showFeed ? null : buttonRef}
+        aria-keyshortcuts={showFeed ? undefined : 'F'}
+        aria-pressed={showFeed}
+        className={versionClassName}
+        variant="ghost"
+        size="xs"
+        onClick={() => onShowFeedChange(true)}
+      >
+        {t('reader.content.feedContent')}
+      </Button>
+      <span aria-hidden="true">/</span>
+      <Button
+        ref={showFeed ? buttonRef : null}
+        aria-keyshortcuts={showFeed ? 'F' : undefined}
+        aria-pressed={!showFeed}
+        className={versionClassName}
+        variant="ghost"
+        size="xs"
+        onClick={() => onShowFeedChange(false)}
+      >
+        {t('reader.content.fullText')}
+      </Button>
+    </div>
+  )
+}
+
+function LoadFullTextControl({
+  article, hasContent, buttonRef,
+}: {
+  article: ArticleDetail,
+  hasContent: boolean,
   buttonRef: RefObject<HTMLButtonElement | null>,
 }) {
   const { t } = useTranslation()
   const load = useLoadFullText()
-  if (article.fullText) {
-    return (
-      <Button ref={buttonRef} aria-keyshortcuts="F" className="mb-6" variant="outline" size="sm" onClick={toggle}>
-        {t(showFeed ? 'reader.content.showFullText' : 'reader.content.showFeed')}
-      </Button>
-    )
-  }
   if (!httpUrl(article.contentUrl || article.url) || (article.contentSource === 'full' && hasContent)) return null
   return (
     <>
       <Button
         ref={buttonRef}
         aria-keyshortcuts="F"
-        className="mb-6"
-        variant="outline"
-        size="sm"
+        className="font-normal text-foreground underline decoration-1 underline-offset-4"
+        variant="ghost"
+        size="xs"
         disabled={load.isPending}
         onClick={() => load.mutate(article.id!)}
       >
         {t(load.isPending ? 'common.loading' : 'reader.content.loadFullText')}
       </Button>
       {(load.isError || load.data === null) && (
-        <p role="status" className="mb-4 text-sm text-muted-foreground">{t('reader.content.fullTextError')}</p>
+        <p role="status" className="basis-full">{t('reader.content.fullTextError')}</p>
       )}
     </>
   )
@@ -98,20 +130,22 @@ export default function Content({ model, article, fullTextButtonRef }: {
   return (
     <article className="mx-auto max-w-4xl px-8 pt-8 pb-16">
       <h1 className="text-2xl leading-snug font-semibold tracking-tight">{article.title}</h1>
-      <div className="mt-4 mb-8 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
+      <div className="mt-4 mb-8 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
         <span>{article.feedTitle}</span>
         {article.author !== article.feedTitle && <span>{article.author}</span>}
         <time dateTime={article.pubTime}>
           {formatDate(article.pubTime, i18n.resolvedLanguage ?? 'en-US', true)}
         </time>
+        {article.fullText ? (
+          <ArticleVersionButtons
+            showFeed={showFeed}
+            onShowFeedChange={setShowFeed}
+            buttonRef={fullTextButtonRef}
+          />
+        ) : (
+          <LoadFullTextControl article={article} hasContent={!!content} buttonRef={fullTextButtonRef} />
+        )}
       </div>
-      <FullTextControls
-        article={article}
-        showFeed={showFeed}
-        toggle={() => setShowFeed((value) => !value)}
-        hasContent={!!content}
-        buttonRef={fullTextButtonRef}
-      />
       {!content && <p className="text-sm text-muted-foreground">{t('reader.content.empty')}</p>}
       <div
         className={cn(

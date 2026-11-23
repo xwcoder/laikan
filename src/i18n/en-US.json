@@ -106,8 +106,9 @@
     },
     "content": {
       "loadFullText": "Load full article",
-      "showFullText": "Show full article",
-      "showFeed": "Show feed content",
+      "version": "Article version",
+      "fullText": "Full article",
+      "feedContent": "Feed content",
       "fullTextError": "Couldn't load the full article. You can still read the feed content below.",
       "empty": "This feed provided no readable content for this article.",
       "table": "Article table"
