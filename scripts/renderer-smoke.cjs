@@ -363,6 +363,9 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await wait('document.querySelectorAll("[data-list-item-id]").length === 1')
     await click(`[data-list-item-id="${firstId}"] button:last-child`)
     await wait('document.querySelector(".article-content")')
+    const articleViewport = 'document.querySelector("article").parentElement'
+    const articleFocused = `document.activeElement === ${articleViewport}`
+    assert.ok(await run(articleFocused), 'Opening an article should focus its scroll area')
     await wait(`window.laikan.fetch('/reader/get/article', ${firstId}).then(article => article.read === 1)`)
     assert.equal(await run('!!window.__rssScriptRan'), false, 'RSS markup must be sanitized')
     assert.equal(await run('document.querySelectorAll(".article-content script, .article-content [onerror]").length'), 0)
@@ -451,9 +454,11 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await wait(`document.querySelector('[aria-label="Mark as unread"]')?.disabled === false`)
     await press('j')
     await wait(`document.querySelector('article h1')?.textContent === ${JSON.stringify(readingTitles[1])}`)
+    assert.ok(await run(articleFocused), 'J should focus the new article')
     await wait(`document.querySelector('[aria-label="Mark as unread"]')?.disabled === false`)
     await press('k')
     await wait(`document.querySelector('article h1')?.textContent === ${JSON.stringify(readingTitles[0])}`)
+    assert.ok(await run(articleFocused), 'K should focus the new article')
     await click('[aria-label="Back to list"]')
     await wait('document.querySelector("[data-list-item-id]")')
     await focusWindow()
@@ -476,8 +481,22 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await wait(`${focusedIdExpression} === ${position.id}`)
     await press('o')
     await wait('document.querySelector(".article-content")')
+    assert.ok(await run(articleFocused), 'O should focus the article scroll area')
     await wait(`window.laikan.fetch('/reader/get/article', ${position.id}).then(article => article.read === 1)`)
     await focusWindow()
+    const articleScrollTop = `${articleViewport}.scrollTop`
+    contents.sendInputEvent({ type: 'keyDown', keyCode: 'Down' })
+    contents.sendInputEvent({ type: 'keyUp', keyCode: 'Down' })
+    await wait(`${articleScrollTop} > 0`)
+    assert.equal(
+      await run(`getComputedStyle(${articleViewport}).outlineStyle`),
+      'none',
+      'Keyboard scrolling should keep the article outline hidden',
+    )
+    const scrolled = await run(articleScrollTop)
+    contents.sendInputEvent({ type: 'keyDown', keyCode: 'Up' })
+    contents.sendInputEvent({ type: 'keyUp', keyCode: 'Up' })
+    await wait(`${articleScrollTop} < ${scrolled}`)
     contents.sendInputEvent({ type: 'keyDown', keyCode: 'U' })
     contents.sendInputEvent({ type: 'keyUp', keyCode: 'U' })
     const keptRow = `[data-list-item-id="${position.id}"]`
