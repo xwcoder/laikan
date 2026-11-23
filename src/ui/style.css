@@ -76,6 +76,48 @@
   -webkit-app-region: no-drag;
 }
 
+.sidebar-feed-list {
+  --feed-list-fade-size: 12px;
+  container: sidebar-feed-list / scroll-state;
+  scroll-padding-block: var(--feed-list-fade-size);
+}
+
+.sidebar-feed-list::before,
+.sidebar-feed-list::after {
+  content: '';
+  position: sticky;
+  z-index: 1;
+  display: block;
+  height: var(--feed-list-fade-size);
+  pointer-events: none;
+  opacity: 0;
+}
+
+.sidebar-feed-list::before {
+  top: 0;
+  margin-bottom: calc(-1 * var(--feed-list-fade-size));
+  background: linear-gradient(to bottom, var(--sidebar), transparent);
+}
+
+.sidebar-feed-list::after {
+  bottom: 0;
+  margin-top: calc(-1 * var(--feed-list-fade-size));
+  background: linear-gradient(to top, var(--sidebar), transparent);
+}
+
+@container sidebar-feed-list scroll-state(scrollable: top) {
+  .sidebar-feed-list::before { opacity: 1; }
+}
+
+@container sidebar-feed-list scroll-state(scrollable: bottom) {
+  .sidebar-feed-list::after { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sidebar-feed-list::before,
+  .sidebar-feed-list::after { transition: opacity 120ms ease-out; }
+}
+
 /* RSS markup inherits the same semantic theme tokens as the application. */
 .article-content {
   --tw-prose-body: var(--foreground);

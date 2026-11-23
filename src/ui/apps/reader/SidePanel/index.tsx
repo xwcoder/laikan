@@ -88,8 +88,8 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
   }
 
   return (
-    <div className="flex min-h-full flex-col">
-      <div className="space-y-1">
+    <div className="flex min-h-0 flex-1 flex-col px-3 pt-3">
+      <div className="shrink-0 space-y-1">
         {tabs.map(({ tab, Icon }) => (
           <Button
             key={tab}
@@ -112,8 +112,10 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
         ))}
       </div>
       <Separator className="my-4 bg-sidebar-border" />
-      <FeedToolbar model={model} />
-      <div className="mt-1">
+      <div className="shrink-0">
+        <FeedToolbar model={model} />
+      </div>
+      <div className="sidebar-feed-list mt-2 mb-3 min-h-0 overflow-y-auto overscroll-y-contain">
         {!model.feeds.data && (model.feeds.isPending || model.feeds.isError) ? (
           <AsyncState error={model.feeds.isError} retry={() => model.feeds.refetch()} />
         ) : rows.length ? (
@@ -131,14 +133,14 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
           <p className="px-2 text-xs leading-relaxed text-muted-foreground">{t('reader.list.noFeeds')}</p>
         )}
       </div>
-      <p role="status" className="mt-3 px-2 text-xs text-muted-foreground empty:sr-only">
+      <p role="status" className="shrink-0 px-2 text-xs text-muted-foreground empty:sr-only">
         {copyStatus && t(copyStatus === 'success' ? 'reader.action.copy.success' : 'reader.action.copyError')}
       </p>
       <p role="status" className="sr-only">
         {rows.some((row) => row.phase === 'confirmed') && t('reader.unsubscribe.success')}
       </p>
       {unsubscribeFailed && (
-        <p role="alert" className="mt-2 px-2 text-xs text-destructive">{t('reader.unsubscribe.error')}</p>
+        <p role="alert" className="mt-2 shrink-0 px-2 text-xs text-destructive">{t('reader.unsubscribe.error')}</p>
       )}
     </div>
   )
