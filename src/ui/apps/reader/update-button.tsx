@@ -7,6 +7,7 @@ import { getUpdateState, installUpdate } from '@/services/updates/browser/update
 import { Button } from '@/ui/components/ui/button'
 
 const updateKey = ['app-update']
+const minimumVisibleProgress = 5
 const updateVisuals = {
   available: { Icon: ArrowDownToLine, label: 'update.install' },
   updating: { Icon: LoaderCircle, label: 'update.installing' },
@@ -29,26 +30,27 @@ export default function UpdateButton() {
 
   if (!data || data.status === 'idle') return null
 
-  const busy = data.status === 'updating'
+  const status = install.isPending ? 'updating' : data.status
+  const busy = status === 'updating'
   const progress = data.status === 'updating' ? data.progress : undefined
-  const status = data.status === 'available' && install.isError ? 'failed' : data.status
-  const { Icon, label } = updateVisuals[status]
+  const { Icon, label } = updateVisuals[status === 'available' && install.isError ? 'failed' : status]
 
   return (
     <Button
       variant="ghost"
       size="icon-lg"
+      className="text-theme-emphasis hover:text-theme-emphasis disabled:opacity-100"
       aria-label={t(label, { version: data.version })}
       aria-busy={busy}
       data-update-trigger
-      disabled={busy || install.isPending}
+      disabled={busy}
       onClick={() => install.mutate()}
     >
-      {progress !== undefined ? (
+      {progress !== undefined && progress >= minimumVisibleProgress ? (
         <span
           aria-hidden
-          className="size-4 rounded-full [mask-image:radial-gradient(transparent_50%,black_53%)]"
-          style={{ background: `conic-gradient(currentColor ${progress}%, transparent 0), var(--color-muted)` }}
+          className="size-4 rounded-full bg-theme-emphasis/25 [mask-image:radial-gradient(transparent_50%,black_53%)]"
+          style={{ backgroundImage: `conic-gradient(currentColor ${progress}%, transparent 0)` }}
         />
       ) : (
         <Icon aria-hidden className={busy ? 'motion-safe:animate-spin' : undefined} />
