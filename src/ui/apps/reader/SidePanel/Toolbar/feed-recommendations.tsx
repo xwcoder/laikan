@@ -1,4 +1,6 @@
-import { Compass, LoaderCircle } from 'lucide-react'
+import {
+  Check, Compass, LoaderCircle, Minus, Plus,
+} from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FeedError } from '@/base/common/feed-error'
@@ -13,6 +15,13 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/ui/components/ui/dialog'
 import { LocalizedDialogClose } from '@/ui/components/localized-dialog-close'
+import { cn } from '@/ui/lib/utils'
+
+const actionLabels = [
+  { state: 'subscribe', label: 'reader.form.buttons.subscribe', Icon: Plus },
+  { state: 'subscribed', label: 'reader.recommendations.subscribed', Icon: Check },
+  { state: 'unsubscribe', label: 'reader.action.unsubscribe', Icon: Minus },
+] as const
 
 function FeedIcon({ source }: { source: RecommendedFeed }) {
   const url = recommendedIcon(source.icon)
@@ -46,9 +55,7 @@ function Recommendation({
   const pending = subscribing || removing
   const disabled = !subscriptionsKnown || subscribing || unsubscribe.isPending
   const error = recommendationError(!!subscribed, unsubscribeFailed, subscribeError)
-  const action = subscribed
-    ? { label: 'reader.action.unsubscribe', variant: 'ghost' as const }
-    : { label: 'reader.form.buttons.subscribe', variant: 'outline' as const }
+  const action = removing ? 'unsubscribe' : subscribed && !subscribing ? 'subscribed' : 'subscribe'
 
   const toggle = () => {
     if (disabled) return
@@ -64,27 +71,61 @@ function Recommendation({
     <li data-recommended-feed={source.id} className="flex items-start gap-3 py-3.5 sm:gap-4">
       <FeedIcon source={source} />
       <div className="min-w-0 flex-1">
-        <h4 className="text-sm leading-snug font-semibold">{source.title}</h4>
+        <div className="flex flex-wrap items-baseline gap-x-1.5">
+          <h4 className="min-w-0 text-sm leading-snug font-semibold wrap-anywhere">{source.title}</h4>
+          <span className="inline-flex items-baseline gap-1.5 text-[11px] leading-none whitespace-nowrap text-muted-foreground">
+            <span aria-hidden>·</span>
+            {t(`reader.recommendations.languages.${source.language}`)}
+          </span>
+        </div>
         <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
           {t(`reader.recommendations.descriptions.${source.id}`)}
-        </p>
-        <p className="mt-1 text-[11px] text-muted-foreground">
-          {t(`reader.recommendations.languages.${source.language}`)}
         </p>
         {error && <p role="alert" className="mt-1.5 text-xs text-destructive">{t(error)}</p>}
       </div>
       <Button
         type="button"
-        variant={action.variant}
+        variant="ghost"
         size="sm"
-        className="min-w-22 self-center aria-disabled:opacity-50"
+        className={cn(
+          'group/recommendation self-center border text-xs aria-disabled:opacity-50',
+          action === 'subscribe' && 'bg-theme-emphasis/10 hover:bg-theme-emphasis/15 dark:hover:bg-theme-emphasis/15',
+        )}
         disabled={!subscriptionsKnown}
         aria-disabled={disabled}
         aria-busy={pending}
         onClick={toggle}
       >
-        {pending && <LoaderCircle aria-hidden className="size-3.5 animate-spin" />}
-        {t(action.label)}
+        {/* Overlap the labels so the longest translation sets the width in every state. */}
+        <span className="grid">
+          {actionLabels.map(({ state, label, Icon }) => {
+            const loading = pending && action === state
+            const ActionIcon = loading ? LoaderCircle : Icon
+            return (
+              <span
+                key={state}
+                className={cn(
+                  'col-start-1 row-start-1 flex items-center justify-center gap-1.5',
+                  state !== action && 'invisible',
+                  state === 'subscribed'
+                    && 'group-hover/recommendation:invisible group-focus-visible/recommendation:invisible',
+                  state === 'unsubscribe' && action === 'subscribed'
+                    && 'group-hover/recommendation:visible group-focus-visible/recommendation:visible',
+                )}
+              >
+                <ActionIcon
+                  aria-hidden
+                  className={cn(
+                    'size-3.5',
+                    state === 'subscribe' ? 'text-theme-emphasis' : 'text-muted-foreground',
+                    loading && 'animate-spin',
+                  )}
+                />
+                {t(label)}
+              </span>
+            )
+          })}
+        </span>
       </Button>
     </li>
   )

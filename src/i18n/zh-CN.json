@@ -49,6 +49,7 @@
     "recommendations": {
       "title": "订阅推荐",
       "description": "浏览内置推荐源并管理订阅。",
+      "subscribed": "已订阅",
       "subscribeError": "订阅失败，请重试。",
       "languages": {
         "zh-CN": "简体中文",

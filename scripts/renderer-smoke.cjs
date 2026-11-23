@@ -673,11 +673,13 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
 
     // The catalog and icons are bundled. Live subscription state comes from the reader.
     const catalogButton = `[aria-label="${en.reader.recommendations.title}"]`
+    const catalogHeader = '[data-feed-recommendations] [data-slot=dialog-header]'
     const recommendationRow = '[data-recommended-feed="meituan"]'
     const recommendationButton = `${recommendationRow} button`
+    const recommendationAction = `document.querySelector(${JSON.stringify(recommendationButton)})`
     const buttonReady = (label) => `(() => {
-      const button = document.querySelector(${JSON.stringify(recommendationButton)})
-      return button?.textContent.trim() === ${JSON.stringify(label)} && button.ariaDisabled === 'false'
+      const button = ${recommendationAction}
+      return button?.innerText.trim() === ${JSON.stringify(label)} && button.ariaDisabled === 'false'
     })()`
     contents.session.enableNetworkEmulation({ offline: true })
     try {
@@ -692,7 +694,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
         return daily?.naturalWidth > 0 && daily.src === morning?.src
       })()`)
       const header = await run(`(() => {
-        const header = document.querySelector('[data-feed-recommendations] [data-slot=dialog-header]')
+        const header = document.querySelector(${JSON.stringify(catalogHeader)})
         const center = (element) => {
           const rect = element.getBoundingClientRect()
           return rect.top + rect.height / 2
@@ -701,6 +703,27 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
       })()`)
       assert.equal(header.height, 52)
       assert.ok(header.closeOffset <= 1, 'The close button should be centered in the header')
+      await hover(catalogHeader)
+      const firstRecommendation = await run(`(() => {
+        const row = document.querySelector('[data-recommended-feed=w3cNews]')
+        const title = row.querySelector('h4')
+        const titleRect = title.getBoundingClientRect()
+        const languageRect = title.nextElementSibling.getBoundingClientRect()
+        const button = row.querySelector('button')
+        const style = getComputedStyle(button)
+        return {
+          languageInline: languageRect.left >= titleRect.right && languageRect.bottom <= titleRect.bottom,
+          border: style.borderTopWidth,
+          shadow: style.boxShadow,
+          plusColor: getComputedStyle(button.querySelector('.lucide-plus')).color,
+        }
+      })()`)
+      assert.deepEqual(firstRecommendation, {
+        languageInline: true,
+        border: '1px',
+        shadow: 'none',
+        plusColor: await resolvedColor('var(--theme-emphasis)'),
+      })
       const groups = await run(`Array.from(document.querySelectorAll('[data-feed-recommendations] section'), section => [
         section.querySelector('h3').textContent.trim(), section.querySelectorAll('[data-recommended-feed]').length,
       ])`)
@@ -724,7 +747,13 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     }
 
     await run(`window.laikan.fetch('/reader/post/feed', ${JSON.stringify({ url: oldRecommendedUrl, title: 'Meituan Engineering' })})`)
+    await wait(buttonReady(en.reader.recommendations.subscribed))
+    const actionWidth = await run(`${recommendationAction}.offsetWidth`)
+    await run(`${recommendationAction}.scrollIntoView({ block: 'center' })`)
+    await hover(recommendationButton)
     await wait(buttonReady(en.reader.action.unsubscribe))
+    await hover(catalogHeader)
+    await wait(buttonReady(en.reader.recommendations.subscribed))
     const [meituan] = await run('window.laikan.fetch("/reader/get/feed/all")')
     const bundledIcon = fs.readFileSync(path.join(__dirname, '../src/ui/assets/feed-icons/meituan.png'), 'base64')
     assert.equal(meituan.icon, `data:image/png;base64,${bundledIcon}`, 'The legacy URL saves the bundled PNG')
@@ -734,8 +763,15 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     const meituanTab = `{ tab: ${meituan.id}, page: 1, size: 50 }`
     const { data: [meituanArticle] } = await run(`window.laikan.fetch('/reader/get/articles', ${meituanTab})`)
     await run(`window.laikan.fetch('/reader/put/article/starred', { id: ${meituanArticle.id}, status: 1 })`)
+    await focusWindow()
+    await run('document.querySelector("[data-recommended-feed=byteByteGo] button").focus()')
+    await wait('document.activeElement.matches("[data-recommended-feed=byteByteGo] button")')
+    tab()
+    await wait(`${recommendationAction}.matches(':focus-visible')`)
+    await wait(buttonReady(en.reader.action.unsubscribe))
     await click(recommendationButton)
     await wait(buttonReady(en.reader.form.buttons.subscribe))
+    assert.equal(await run(`${recommendationAction}.offsetWidth`), actionWidth)
     await wait(`!document.querySelector('[data-feed-id="${meituan.id}"]')`)
 
     failRecommendation = true
@@ -745,6 +781,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     failRecommendation = false
     await click(recommendationButton)
     await wait(buttonReady(en.reader.action.unsubscribe))
+    assert.equal(await run(`${recommendationAction}.matches(':focus-visible')`), true)
     const [reactivated] = await run('window.laikan.fetch("/reader/get/feed/all")')
     assert.equal(reactivated.id, meituan.id, 'An older URL should resume the same subscription')
     assert.equal(reactivated.icon, meituan.icon)
@@ -800,9 +837,10 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
 
     await click(catalogButton)
     await wait(`document.querySelector('[data-recommended-feed=martinFowler] [role=alert]')`)
-    await wait(`document.querySelector(${JSON.stringify(nextButton)})?.textContent.trim() === ${JSON.stringify(en.reader.action.unsubscribe)}`)
+    await hover(catalogHeader)
+    await wait(`document.querySelector(${JSON.stringify(nextButton)})?.innerText.trim() === ${JSON.stringify(en.reader.recommendations.subscribed)}`)
     await click(nextButton)
-    await wait(`document.querySelector(${JSON.stringify(nextButton)})?.textContent.trim() === ${JSON.stringify(en.reader.form.buttons.subscribe)}`)
+    await wait(`document.querySelector(${JSON.stringify(nextButton)})?.innerText.trim() === ${JSON.stringify(en.reader.form.buttons.subscribe)}`)
     await press('Escape')
     await wait('!document.querySelector("[data-feed-recommendations]")')
 

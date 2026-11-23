@@ -49,6 +49,7 @@
     "recommendations": {
       "title": "Recommended feeds",
       "description": "Browse the built-in directory and manage your subscriptions.",
+      "subscribed": "Subscribed",
       "subscribeError": "Couldn't subscribe to this feed. Try again.",
       "languages": {
         "zh-CN": "Simplified Chinese",
