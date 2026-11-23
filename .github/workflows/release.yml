@@ -83,6 +83,17 @@ jobs:
           ditto -x -k "$stem.zip" "$work_dir/zip"
           codesign --verify --deep --strict "$work_dir/来刊.app"
           codesign --verify --deep --strict "$work_dir/zip/来刊.app"
+          if [[ -f scripts/exclude-macos-update-dependencies.cjs ]]; then
+            node_modules/.bin/asar list "$work_dir/zip/来刊.app/Contents/Resources/app.asar" > "$work_dir/asar-files"
+            if grep -Eq '/node_modules/electron-updater(/|$)' "$work_dir/asar-files"; then
+              echo '::error::The macOS app contains the Windows and Linux updater.'
+              exit 1
+            fi
+            if grep -Eq '^/(out|release)(/|$)' "$work_dir/asar-files"; then
+              echo '::error::The macOS app contains cached builds or installer output.'
+              exit 1
+            fi
+          fi
           "$work_dir/来刊.app/Contents/MacOS/来刊" --user-data-dir="$work_dir/profile" > "$work_dir/launch.log" 2>&1 &
           app_pid=$!
           for attempt in {1..30}; do

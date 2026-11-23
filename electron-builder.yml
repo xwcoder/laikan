@@ -7,6 +7,7 @@ files:
   - '!node_modules/**/*.map'
 asar: true
 npmRebuild: false
+beforePack: scripts/exclude-macos-update-dependencies.cjs
 afterPack: scripts/package-macos-updater.cjs
 electronLanguages:
   - en-US

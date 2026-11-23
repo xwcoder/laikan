@@ -25,6 +25,22 @@ function getArchive(cacheDir, workDir) {
   return archive
 }
 
+function trimSparkle(framework, architecture) {
+  const version = fs.realpathSync(path.join(framework, 'Versions', 'Current'))
+  // The native updater does not enable Sparkle's optional XPC services.
+  for (const folder of ['Headers', 'PrivateHeaders', 'Modules', 'XPCServices']) {
+    fs.rmSync(path.join(framework, folder), { recursive: true, force: true })
+    fs.rmSync(path.join(version, folder), { recursive: true, force: true })
+  }
+  for (const filename of ['Sparkle', 'Autoupdate', 'Updater.app/Contents/MacOS/Updater']) {
+    const binary = path.join(version, filename)
+    const thin = `${binary}.thin`
+    execFileSync('lipo', [binary, '-thin', architecture, '-output', thin])
+    fs.chmodSync(thin, fs.statSync(binary).mode & 0o777)
+    fs.renameSync(thin, binary)
+  }
+}
+
 module.exports = function packageMacUpdater(context) {
   const publicKey = process.env.LAIKAN_UPDATE_PUBLIC_KEY
   if (context.electronPlatformName !== 'darwin' || !publicKey) return
@@ -51,14 +67,16 @@ module.exports = function packageMacUpdater(context) {
   try {
     const archive = getArchive(cacheDir, workDir)
     execFileSync('tar', ['-xf', archive, '-C', workDir, 'Sparkle.framework', 'LICENSE'])
-    execFileSync('ditto', [path.join(workDir, 'Sparkle.framework'), path.join(frameworks, 'Sparkle.framework')])
-    fs.copyFileSync(path.join(workDir, 'LICENSE'), path.join(resources, 'Sparkle-LICENSE.txt'))
     execFileSync('xcrun', [
       'clang++', '-arch', architecture, '-fobjc-arc', '-bundle', '-Werror=protocol',
-      '-undefined', 'dynamic_lookup', '-mmacosx-version-min=12.0', '-I', headers, '-F', frameworks,
+      '-undefined', 'dynamic_lookup', '-mmacosx-version-min=12.0', '-I', headers, '-F', workDir,
       '-framework', 'Foundation', '-framework', 'Sparkle', '-Wl,-rpath,@loader_path/../Frameworks',
       path.join(projectDir, 'scripts', 'macos-updater.mm'), '-o', path.join(resources, 'laikan-updater.node'),
     ], { stdio: 'inherit' })
+    const sparkle = path.join(workDir, 'Sparkle.framework')
+    trimSparkle(sparkle, architecture)
+    execFileSync('ditto', [sparkle, path.join(frameworks, 'Sparkle.framework')])
+    fs.copyFileSync(path.join(workDir, 'LICENSE'), path.join(resources, 'Sparkle-LICENSE.txt'))
 
     const plist = path.join(contents, 'Info.plist')
     execFileSync('plutil', ['-replace', 'SUFeedURL', '-string', appcastURL, plist])
