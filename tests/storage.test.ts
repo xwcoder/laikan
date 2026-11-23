@@ -50,6 +50,38 @@ test('distinct IDs survive empty/shared URLs; edits retain the article ID, read 
   assert.equal((await articles.find({ tab: 'all', page: 1, size: 50 })).count, 4)
 })
 
+test('article lists sort by publication or first import time before paginating', async (context) => {
+  const { db, articles } = await setup(context)
+  await db.run("INSERT INTO feeds(id,url,title) VALUES (2,'https://example.com/another-feed','Another feed')")
+  await articles.upsert([
+    article('newest-dated', { pubTime: '2026-11-19T02:00:00.001Z' }),
+    article('tied-dated', { pubTime: '2026-11-19T02:00:00.000Z' }),
+    article('undated'),
+    article('older-published', { pubTime: '2026-11-12T02:00:00.000Z' }),
+    article('invalid-date', { pubTime: 'invalid date', feedId: 2 }),
+  ])
+  await db.exec(`
+    UPDATE articles SET createTime = '2026-11-19 02:00:00', starred = 1;
+    UPDATE articles SET createTime = '2026-11-20 02:00:00', read = 1 WHERE externalId = 'older-published';
+    UPDATE articles SET createTime = '2026-11-19 02:00:01', starred = 0 WHERE externalId = 'invalid-date';
+  `)
+
+  const [firstPage, secondPage, feed, unread, starred] = await Promise.all([
+    articles.find({ tab: 'all', page: 1, size: 3 }),
+    articles.find({ tab: 'all', page: 2, size: 3 }),
+    articles.find({ tab: 1, page: 1, size: 50 }),
+    articles.find({ tab: 'unread', page: 1, size: 50 }),
+    articles.find({ tab: 'starred', page: 1, size: 50 }),
+  ])
+  assert.equal(firstPage.count, 5)
+  assert.deepEqual(firstPage.rows.map(({ externalId }) => externalId), ['invalid-date', 'newest-dated', 'tied-dated'])
+  assert.deepEqual(secondPage.rows.map(({ externalId }) => externalId), ['undated', 'older-published'])
+  const firstFeedOrder = ['newest-dated', 'tied-dated', 'undated', 'older-published']
+  assert.deepEqual(feed.rows.map(({ externalId }) => externalId), firstFeedOrder)
+  assert.deepEqual(unread.rows.map(({ externalId }) => externalId), ['invalid-date', 'newest-dated', 'tied-dated', 'undated'])
+  assert.deepEqual(starred.rows.map(({ externalId }) => externalId), firstFeedOrder)
+})
+
 test('legacy migration retains IDs/state and adopts the original row on first refresh', async (context) => {
   const db = await openTestDatabase(context)
   await db.exec(`
@@ -58,13 +90,16 @@ test('legacy migration retains IDs/state and adopts the original row on first re
       content TEXT NOT NULL, read INTEGER, starred INTEGER, pubTime TEXT, createTime TEXT,
       feedId INTEGER, UNIQUE(url,feedId));
     INSERT INTO feeds(id,url,title) VALUES (1,'https://example.com/feed','Feed');
-    INSERT INTO articles VALUES (7,'https://example.com/one','Old','Old body',1,1,NULL,'2020-01-01',1);
+    INSERT INTO articles VALUES (7,'https://example.com/one','Old','Old body',1,1,
+      'Tue, 31 Dec 2019 22:00:00 GMT','2020-01-01',1);
   `)
   await initReaderSchema(db)
   const articles = createArticleRepository(db)
   assert.equal((await db.get('SELECT subscribed FROM feeds WHERE id = 1'))?.subscribed, 1)
   assert.equal(await db.get('SELECT png FROM feed_icons WHERE feedId = 1'), undefined)
-  assert.equal((await articles.getById(7))?.read, 1)
+  const migrated = await articles.getById(7)
+  assert.equal(migrated?.read, 1)
+  assert.equal(migrated?.pubTime, '2019-12-31T22:00:00.000Z')
   await articles.upsert(article('stable-guid', {
     url: 'https://example.com/one', content: 'Summary', contentSource: 'summary',
   }))

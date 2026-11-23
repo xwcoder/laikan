@@ -232,11 +232,15 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
         return
       }
     }
-    const items = Array.from({ length: request.url === '/empty' ? 0 : fixtureCount }, (_, index) => `
-      <item><title>Fixture article ${index + 1}</title><link>https://example.com/article/${index + 1}</link>
-      <description><![CDATA[<p>Fixture content ${index + 1}</p>${"<p>Reading position fixture.</p>".repeat(40)}<p><a href="/relative">Relative link</a></p>
+    const items = Array.from({ length: request.url === '/empty' ? 0 : fixtureCount }, (_, index) => {
+      const number = fixtureCount - index
+      const published = new Date(Date.UTC(2026, 10, 17, 8, 0, number)).toUTCString()
+      return `
+      <item><title>Fixture article ${number}</title><link>https://example.com/article/${number}</link>
+      <description><![CDATA[<p>Fixture content ${number}</p>${"<p>Reading position fixture.</p>".repeat(40)}<p><a href="/relative">Relative link</a></p>
       <img src="data:," onerror="window.__rssScriptRan = true"><script>window.__rssScriptRan = true</script>]]></description>
-      <pubDate>Tue, 17 Nov 2026 08:00:00 GMT</pubDate></item>`).join('')
+      <pubDate>${published}</pubDate></item>`
+    }).join('')
     response.end(`<?xml version="1.0"?><rss version="2.0"><channel><title>Fixture feed</title>
       <link>https://example.com</link><description>Smoke fixture</description>${items}</channel></rss>`)
   })
@@ -268,6 +272,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await run('document.querySelector("form").requestSubmit()')
     await wait('!document.querySelector("[role=dialog]") && document.querySelectorAll("[data-list-item-id]").length === 50')
     await wait('document.body.textContent.includes("of 52")')
+    assert.match(await run('document.querySelector("[data-article-open]").textContent'), /Fixture article 52/)
     await press('x')
     await wait('document.querySelectorAll("[data-list-item-id] [role=checkbox][data-state=checked]").length === 1')
     await press('x')
@@ -511,6 +516,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     fixtureCount = 55
     await click(refreshButton)
     await wait('document.body.textContent.includes("1–50 of 55")')
+    assert.match(await run('document.querySelector("[data-article-open]").textContent'), /Fixture article 55/)
     const refreshedOffset = await run(`document.querySelector('[data-list-item-id="${anchor.id}"]').getBoundingClientRect().top
       - document.querySelector('.list-container').getBoundingClientRect().top`)
     assert.ok(Math.abs(refreshedOffset - anchor.offset) <= 1, 'New articles should not shift the visible rows')

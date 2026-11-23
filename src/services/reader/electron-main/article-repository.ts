@@ -4,6 +4,7 @@ import { httpUrl } from '@/base/common/url'
 import {
   Article, ArticleDetail, ArticleFilter, ArticleFullText, ArticleListItem,
 } from '@/types/reader'
+import { articleSortOrder } from './schema'
 
 const columns = [
   'title',
@@ -148,9 +149,8 @@ export function createArticleRepository(db: DatabaseClient) {
         ...params,
       )
       const rows = await db.all<ArticleListItem>(
-        `SELECT ${listColumns}, feeds.title AS feedTitle
-         FROM articles LEFT JOIN feeds ON feeds.id = articles.feedId
-         ${where} ORDER BY articles.createTime DESC, articles.id DESC LIMIT ? OFFSET ?`,
+        `SELECT ${listColumns}, (SELECT title FROM feeds WHERE feeds.id = articles.feedId) AS feedTitle
+         FROM articles ${where} ORDER BY ${articleSortOrder} LIMIT ? OFFSET ?`,
         ...params,
         size,
         (page - 1) * size,

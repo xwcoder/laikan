@@ -1,5 +1,7 @@
 import { DatabaseClient } from '@/base/node/database'
 
+export const articleSortOrder = "COALESCE(unixepoch(pubTime, 'subsec'), unixepoch(createTime, 'subsec')) DESC, id ASC"
+
 const articleColumns = `
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   url TEXT NOT NULL,
@@ -48,6 +50,21 @@ async function migrateArticles(db: DatabaseClient) {
   `)
 }
 
+async function normalizeLegacyPublicationTimes(db: DatabaseClient) {
+  // Older versions stored raw feed dates, including RFC 822 timestamps SQLite cannot parse.
+  const articles = await db.all<{ id: number; pubTime: string }>(`
+    SELECT id, pubTime FROM articles
+    WHERE identityKey LIKE 'legacy:%' AND pubTime IS NOT NULL
+      AND pubTime NOT GLOB '????-??-??T??:??:??.???Z'
+  `)
+  for (const { id, pubTime } of articles) {
+    const date = new Date(pubTime)
+    const normalized = Number.isNaN(date.getTime()) ? null : date.toISOString()
+    // eslint-disable-next-line no-await-in-loop -- Keep updates ordered within the migration transaction.
+    await db.run('UPDATE articles SET pubTime = ? WHERE id = ?', normalized, id)
+  }
+}
+
 export async function initReaderSchema(db: DatabaseClient) {
   await db.transaction(async () => {
     await db.exec(`CREATE TABLE IF NOT EXISTS feeds (
@@ -70,6 +87,7 @@ export async function initReaderSchema(db: DatabaseClient) {
       }
     }
     await migrateArticles(db)
+    await normalizeLegacyPublicationTimes(db)
     await db.exec(`
       CREATE TABLE IF NOT EXISTS feed_icons (
         feedId INTEGER PRIMARY KEY REFERENCES feeds(id) ON DELETE CASCADE,
@@ -86,8 +104,10 @@ export async function initReaderSchema(db: DatabaseClient) {
         contentBase TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS articles_feed_read ON articles(feedId, read);
-      CREATE INDEX IF NOT EXISTS articles_read_time ON articles(read, createTime DESC, id DESC);
-      CREATE INDEX IF NOT EXISTS articles_starred_time ON articles(starred, createTime DESC, id DESC);
+      DROP INDEX IF EXISTS articles_read_time;
+      DROP INDEX IF EXISTS articles_starred_time;
+      CREATE INDEX IF NOT EXISTS articles_read_sort_time ON articles(read, ${articleSortOrder});
+      CREATE INDEX IF NOT EXISTS articles_starred_sort_time ON articles(starred, ${articleSortOrder});
     `)
   })
   // Enabling this after copying also preserves any pre-existing orphaned rows.
