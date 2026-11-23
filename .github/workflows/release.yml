@@ -55,7 +55,12 @@ jobs:
         run: npm run make
       - name: Build signed macOS installers
         if: runner.os == 'macOS'
+        env:
+          LAIKAN_UPDATE_PUBLIC_KEY: ${{ vars.LAIKAN_UPDATE_PUBLIC_KEY }}
         run: |
+          if [[ -f scripts/sign-macos-update.cjs ]]; then
+            : "${LAIKAN_UPDATE_PUBLIC_KEY:?Set the LAIKAN_UPDATE_PUBLIC_KEY Actions variable}"
+          fi
           # Use the same signing settings when rebuilding an older tag.
           npm run make -- --mac --arm64 -c.forceCodeSigning=true \
             -c.mac.identity=- -c.mac.hardenedRuntime=false -c.mac.notarize=false
@@ -89,6 +94,16 @@ jobs:
           cat "$work_dir/launch.log"
           echo '::error::The packaged macOS app did not start its renderer.'
           exit 1
+      - name: Sign macOS update archive
+        if: runner.os == 'macOS'
+        env:
+          LAIKAN_UPDATE_PUBLIC_KEY: ${{ vars.LAIKAN_UPDATE_PUBLIC_KEY }}
+          LAIKAN_UPDATE_PRIVATE_KEY: ${{ secrets.LAIKAN_UPDATE_PRIVATE_KEY }}
+        run: |
+          if [[ -f scripts/sign-macos-update.cjs ]]; then
+            : "${LAIKAN_UPDATE_PRIVATE_KEY:?Set the LAIKAN_UPDATE_PRIVATE_KEY Actions secret}"
+            node scripts/sign-macos-update.cjs
+          fi
       - name: Upload release artifacts
         uses: actions/upload-artifact@v7
         with:
@@ -102,6 +117,7 @@ jobs:
             release/*.rpm
             release/*.blockmap
             release/latest*.yml
+            release/appcast.xml
           compression-level: 0
           if-no-files-found: error
           overwrite: true
@@ -126,8 +142,11 @@ jobs:
           stem="release-assets/laikan-$version"
           mac_stem="$stem-mac-arm64"
           mac_installers=("$mac_stem.dmg" "$mac_stem.dmg.blockmap" "$mac_stem.zip" "$mac_stem.zip.blockmap")
-          mac_metadata=release-assets/latest-mac.yml
-          assets=("${mac_installers[@]}" "$mac_metadata")
+          mac_metadata=(release-assets/latest-mac.yml)
+          if [[ -f release-assets/appcast.xml ]]; then
+            mac_metadata+=(release-assets/appcast.xml)
+          fi
+          assets=("${mac_installers[@]}" "${mac_metadata[@]}")
           if [[ "$GITHUB_EVENT_NAME" == push ]]; then
             assets+=(
               "$stem-win-x64.exe" "$stem-win-x64.exe.blockmap" release-assets/latest.yml
@@ -155,7 +174,7 @@ jobs:
               gh release download "$RELEASE_TAG" --dir "$backup_dir" "${patterns[@]}"
             fi
             if gh release upload "$RELEASE_TAG" "${mac_installers[@]}" --clobber &&
-               gh release upload "$RELEASE_TAG" "$mac_metadata" --clobber; then
+               gh release upload "$RELEASE_TAG" "${mac_metadata[@]}" --clobber; then
               exit 0
             fi
             echo '::warning::Upload failed. Restoring previous macOS assets.'

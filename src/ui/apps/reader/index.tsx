@@ -6,6 +6,7 @@ import List from './MainPanel/List'
 import KeyboardShortcutsPanel from './keyboard-shortcuts-panel'
 import useKeyboard from './use-keyboard'
 import SettingsDialog from '../settings'
+import UpdateButton from './update-button'
 
 export default function Reader() {
   const model = useReaderModel()
@@ -17,8 +18,9 @@ export default function Reader() {
       <div className="grid min-h-0 flex-1 grid-cols-[190px_minmax(0,1fr)] lg:grid-cols-[240px_minmax(0,1fr)]">
         <aside className="undraggle flex min-h-0 flex-col text-sidebar-foreground">
           <SidePanel key={model.libraryRevision} model={model} />
-          <div className="shrink-0 px-4 pt-2 pb-4">
+          <div className="flex shrink-0 items-center gap-1 px-4 pt-2 pb-4">
             <SettingsDialog />
+            <UpdateButton />
           </div>
         </aside>
         <div className="undraggle min-h-0 min-w-0 pr-4 pb-4">

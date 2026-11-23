@@ -185,6 +185,11 @@
     },
     "description": "外观和语言的更改会自动保存。"
   },
+  "update": {
+    "install": "更新到 {{version}} 并重启",
+    "installing": "正在更新",
+    "retry": "重试更新"
+  },
   "common": {
     "loading": "加载中…",
     "loadError": "数据加载失败。",
