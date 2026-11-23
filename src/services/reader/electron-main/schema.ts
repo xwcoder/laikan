@@ -71,7 +71,8 @@ export async function initReaderSchema(db: DatabaseClient) {
       id INTEGER PRIMARY KEY AUTOINCREMENT, url TEXT NOT NULL UNIQUE,
       title TEXT NOT NULL, description TEXT, link TEXT,
       createTime TEXT DEFAULT CURRENT_TIMESTAMP, etag TEXT, lastModified TEXT,
-      subscribed INTEGER NOT NULL DEFAULT 1, subscriptionRevision INTEGER NOT NULL DEFAULT 0
+      subscribed INTEGER NOT NULL DEFAULT 1, subscriptionRevision INTEGER NOT NULL DEFAULT 0,
+      subscribedAt INTEGER
     )`)
     const columns = await db.all<{ name: string }>('PRAGMA table_info(feeds)')
     const feedColumns = {
@@ -79,6 +80,7 @@ export async function initReaderSchema(db: DatabaseClient) {
       lastModified: 'TEXT',
       subscribed: 'INTEGER NOT NULL DEFAULT 1',
       subscriptionRevision: 'INTEGER NOT NULL DEFAULT 0',
+      subscribedAt: 'INTEGER',
     }
     for (const [name, definition] of Object.entries(feedColumns)) {
       if (!columns.some((column) => column.name === name)) {

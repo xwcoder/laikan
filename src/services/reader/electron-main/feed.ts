@@ -18,12 +18,14 @@ export const upsert = async (feed: Feed) => {
     url, title, description = '', link = '',
   } = feed
   const saved = await get<FeedToRefresh>(`
-    INSERT INTO feeds (url, title, description, link)
-    VALUES (?, ?, ?, ?)
+    INSERT INTO feeds (url, title, description, link, subscribedAt)
+    VALUES (?, ?, ?, ?, ?)
     ON CONFLICT(url) DO UPDATE SET
-      title = excluded.title, description = excluded.description, link = excluded.link, subscribed = 1
+      title = excluded.title, description = excluded.description, link = excluded.link,
+      subscribedAt = CASE WHEN feeds.subscribed = 0 THEN excluded.subscribedAt ELSE feeds.subscribedAt END,
+      subscribed = 1
     RETURNING ${refreshColumns}
-  `, url, title, description, link)
+  `, url, title, description, link, Date.now())
   await registerFeedIcon(saved!.id, feed)
   return saved!
 }
@@ -51,7 +53,7 @@ export const getAll = async (): Promise<Feed[]> => {
     left join articles as a on f.id = a.feedId and a.read = 0
     where f.subscribed = 1
     group by f.id
-    order by f.createTime desc, f.id desc;
+    order by f.subscribedAt asc, f.id asc;
   `
 
   return (await all<FeedRow>(sql)).map(withIcon)

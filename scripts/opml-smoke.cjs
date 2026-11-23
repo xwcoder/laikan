@@ -51,10 +51,10 @@ module.exports = async function opmlSmoke({ run, wait, openSubscriptionMenu }, b
 
     await choose('Import')
     const saved = await feeds()
-    assert.equal(saved.length, 3)
-    assert.equal(saved.find(feed => feed.url === `${base}/empty`).title, 'Empty feed')
-    assert.equal(saved.find(feed => feed.url === `${base}/invalid`).title, 'Unavailable feed')
-    const imported = saved.find(feed => feed.url === `${base}/opml`)
+    assert.deepEqual(saved.map(feed => feed.url), [`${base}/empty`, `${base}/opml`, `${base}/invalid`])
+    const [empty, imported, unavailable] = saved
+    assert.equal(empty.title, 'Empty feed')
+    assert.equal(unavailable.title, 'Unavailable feed')
     assert.equal(imported.title, 'News & Updates')
     assert.equal(imported.link, `${base}/home`)
     assert.equal(imported.description, 'Testing OPML')
@@ -70,7 +70,7 @@ module.exports = async function opmlSmoke({ run, wait, openSubscriptionMenu }, b
 
     selectedPath = exportPath
     await choose('Import')
-    assert.equal((await feeds()).length, 3)
+    assert.deepEqual((await feeds()).map(feed => feed.id), saved.map(feed => feed.id))
 
     await run(`window.laikan.fetch('/reader/delete/feed', ${imported.id})`)
     await wait(`!document.querySelector('[data-feed-id="${imported.id}"]')`)
@@ -78,7 +78,10 @@ module.exports = async function opmlSmoke({ run, wait, openSubscriptionMenu }, b
     assert.doesNotMatch(fs.readFileSync(exportPath, 'utf8'), /News &amp; Updates/)
     selectedPath = importPath
     await choose('Import')
-    assert.equal((await feeds()).find(feed => feed.url === `${base}/opml`).id, imported.id)
+    const reactivatedOrder = [empty.id, unavailable.id, imported.id]
+    assert.deepEqual((await feeds()).map(feed => feed.id), reactivatedOrder)
+    await wait(`Array.from(document.querySelectorAll('aside [data-feed-id]'), row => row.dataset.feedId)
+      .join(',') === ${JSON.stringify(reactivatedOrder.join(','))}`)
 
     fs.writeFileSync(importPath, `<opml><body><outline xmlUrl="${base}/must-not-save"/>`)
     await choose('Import')
