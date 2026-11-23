@@ -139,6 +139,8 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v7
+        if: github.event_name == 'push'
       - uses: actions/download-artifact@v8
         with:
           pattern: release-*
@@ -204,13 +206,8 @@ jobs:
               exit 0
             fi
           else
-            cat > release-notes.md <<'NOTES'
-          ## macOS 安装
-
-          macOS 安装包使用 ad hoc 签名。首次打开来刊时，如果系统提示无法验证开发者，请在「系统设置 → 隐私与安全」中点按「仍要打开」。[Apple 支持](https://support.apple.com/zh-cn/102445)
-          NOTES
             gh release create "$RELEASE_TAG" --verify-tag --draft --title "$version" \
-              --generate-notes --notes-file release-notes.md
+              --notes-file .github/release-notes.md
           fi
 
           prerelease=false
@@ -218,5 +215,5 @@ jobs:
             prerelease=true
           fi
           gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber
-          gh release edit "$RELEASE_TAG" --draft=false --prerelease="$prerelease"
-
+          gh release edit "$RELEASE_TAG" --draft=false --prerelease="$prerelease" \
+            --notes-file .github/release-notes.md
