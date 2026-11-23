@@ -201,7 +201,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
   let failRecommendation = false
   let recommendationRequests = 0
   const rssRequests = []
-  const queuedRequests = []
+  const recommendationQueueRequests = []
   const { promise: heldRecommendation, resolve: releaseRecommendation } = Promise.withResolvers()
   const server = http.createServer((request, response) => {
     response.setHeader('content-type', 'application/rss+xml')
@@ -269,8 +269,8 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     if (['https://example.com/', 'https://example.com/favicon.ico'].includes(url)) {
       return Promise.resolve(new Response(null, { status: 404 }))
     }
-    if ([heldRecommendationUrl, nextRecommendationUrl, emptyFeedUrl].includes(url)
-      && !options?.headers?.has('if-none-match')) queuedRequests.push(url)
+    if ([heldRecommendationUrl, nextRecommendationUrl].includes(url)
+      && !options?.headers?.has('if-none-match')) recommendationQueueRequests.push(url)
     if (url === heldRecommendationUrl) return networkFetch(`${base}/held-recommendation`, options)
     if (url === nextRecommendationUrl) return networkFetch(emptyFeedUrl, options)
     return networkFetch([recommendedUrl, oldRecommendedUrl].includes(url) ? `${base}/recommendation` : url, options)
@@ -742,11 +742,14 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await input('#feed-title', 'Empty feed')
     await run('document.querySelector("form").requestSubmit()')
     await wait('document.querySelector("button[type=submit]:disabled .lucide-loader-circle")')
-    await run('window.laikan.fetch("/reader/get/feed/all")')
-    assert.deepEqual(queuedRequests, [heldRecommendationUrl], 'The first subscription holds the only slot')
+    // Manual URL preflight can run while the subscription itself waits in the queue.
+    assert.deepEqual(await run('window.laikan.fetch("/reader/get/feed/all")'), [])
+    assert.deepEqual(recommendationQueueRequests, [heldRecommendationUrl], 'The first subscription holds the only slot')
     releaseRecommendation()
     await wait('!document.querySelector("[role=dialog]") && document.body.textContent.includes("Empty feed")')
-    assert.deepEqual(queuedRequests, [heldRecommendationUrl, nextRecommendationUrl, emptyFeedUrl])
+    assert.deepEqual(recommendationQueueRequests, [heldRecommendationUrl, nextRecommendationUrl])
+    const saved = await run('window.laikan.fetch("/reader/get/feed/all")')
+    assert.deepEqual(saved.map(feed => feed.url), [nextRecommendationUrl, emptyFeedUrl])
 
     await click(catalogButton)
     await wait(`document.querySelector('[data-recommended-feed=martinFowler] [role=alert]')`)
