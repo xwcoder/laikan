@@ -58,6 +58,7 @@ if (!process.versions.electron) {
             return {
               dataPath: await window.laikan.fetch('/settings/get', 'dataPath'),
               theme: await window.laikan.fetch('/settings/get', 'theme'),
+              fontSize: await window.laikan.fetch('/settings/get', 'reader.fontSize'),
               appliedTheme: document.documentElement.dataset.theme,
               dark: document.documentElement.classList.contains('dark'),
               savedIcon: feeds.find(feed => feed.title === 'Atom regression')?.icon?.startsWith('data:image/png;base64,'),
@@ -65,9 +66,9 @@ if (!process.versions.electron) {
           })()`)
           assert.deepEqual(restored, {
             dataPath: path.join(process.env.LAIKAN_SMOKE_USER_DATA, 'migrated-library'),
-            theme: 'blue', appliedTheme: 'blue', dark: true, savedIcon: true,
+            theme: 'blue', fontSize: 18, appliedTheme: 'blue', dark: true, savedIcon: true,
           })
-          console.log('Data directory, theme, appearance and stored feed icon restored after restarting Electron')
+          console.log('Data directory, theme, appearance, article font size and stored feed icon restored after restarting Electron')
           app.exit(0)
           return
         }

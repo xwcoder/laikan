@@ -1,32 +1,29 @@
 /* eslint-disable react/no-danger */
 import {
-  MouseEvent, RefObject, useMemo, useState,
+  MouseEvent, RefObject, useLayoutEffect, useMemo, useRef, useState,
 } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ReaderModel } from '@/ui/hooks/use-reader-model'
 import { formatDate } from '@/ui/lib/date'
 import { openExternal } from '@/base/browser/shell'
-import { cn } from '@/ui/lib/utils'
 import { articleContent } from '@/ui/lib/article-content'
 import { externalUrl, httpUrl } from '@/base/common/url'
 import { ArticleDetail } from '@/types/reader'
 import { useLoadFullText } from '@/ui/query/reader'
 import { Button } from '@/ui/components/ui/button'
 
-const fontSizes: Record<number, string> = {
-  12: 'text-[12px]',
-  13: 'text-[13px]',
-  14: 'text-[14px]',
-  15: 'text-[15px]',
-  16: 'text-[16px]',
-  17: 'text-[17px]',
-  18: 'text-[18px]',
-  19: 'text-[19px]',
-  20: 'text-[20px]',
-  21: 'text-[21px]',
-  22: 'text-[22px]',
-  23: 'text-[23px]',
-  24: 'text-[24px]',
+function getReadingAnchor(article: HTMLElement, viewport: HTMLElement) {
+  if (!viewport.scrollTop) return undefined
+  const { left, width } = article.getBoundingClientRect()
+  const x = left + width / 2
+  const y = viewport.getBoundingClientRect().top + 1
+  const element = document.elementFromPoint(x, y)
+  if (!element || !article.contains(element)) return undefined
+
+  const caret = document.caretPositionFromPoint(x, y)
+  if (caret?.offsetNode instanceof Text && element.contains(caret.offsetNode)) {
+    return () => caret.getClientRect()?.top
+  }
+  return () => element.getBoundingClientRect().top
 }
 
 function openArticleLink(event: MouseEvent<HTMLDivElement>, base?: string) {
@@ -111,13 +108,14 @@ function LoadFullTextControl({
   )
 }
 
-export default function Content({ model, article, fullTextButtonRef }: {
-  model: ReaderModel,
+export default function Content({ fontSize, article, fullTextButtonRef }: {
+  fontSize: number,
   article: ArticleDetail,
   fullTextButtonRef: RefObject<HTMLButtonElement | null>,
 }) {
   const { t, i18n } = useTranslation()
   const [showFeed, setShowFeed] = useState(false)
+  const articleRef = useRef<HTMLElement>(null)
   const displayed = showFeed ? article : article.fullText ?? article
   const base = [displayed.contentBase, article.url, article.feedLink, article.feedUrl]
     .map((url) => httpUrl(url ?? undefined)).find(Boolean)
@@ -127,9 +125,22 @@ export default function Content({ model, article, fullTextButtonRef }: {
     [displayed.content, base, article.url, tableLabel],
   )
 
+  useLayoutEffect(() => {
+    const element = articleRef.current
+    const viewport = element?.parentElement
+    if (!element || !viewport) return
+
+    // Keep the text at the top of the viewport in place as the lines rewrap.
+    const anchor = getReadingAnchor(element, viewport)
+    const before = anchor?.()
+    element.style.fontSize = `${fontSize}px`
+    const after = anchor?.()
+    if (before !== undefined && after !== undefined) viewport.scrollTop += after - before
+  }, [fontSize])
+
   return (
-    <article className="mx-auto max-w-4xl px-8 pt-8 pb-16">
-      <h1 className="text-2xl leading-snug font-semibold tracking-tight">{article.title}</h1>
+    <article ref={articleRef} className="mx-auto max-w-4xl px-8 pt-8 pb-16">
+      <h1 className="article-title leading-snug font-semibold tracking-tight">{article.title}</h1>
       <div className="mt-4 mb-8 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
         <span>{article.feedTitle}</span>
         {article.author !== article.feedTitle && <span>{article.author}</span>}
@@ -148,10 +159,7 @@ export default function Content({ model, article, fullTextButtonRef }: {
       </div>
       {!content && <p className="text-sm text-muted-foreground">{t('reader.content.empty')}</p>}
       <div
-        className={cn(
-          'article-content prose max-w-none prose-headings:font-semibold prose-a:break-all',
-          fontSizes[model.fontSize],
-        )}
+        className="article-content prose max-w-none prose-headings:font-semibold prose-a:break-all"
         onClick={(event) => openArticleLink(event, base)}
         role="presentation"
         dangerouslySetInnerHTML={{ __html: content }}

@@ -20,6 +20,8 @@ const shortcuts = [
   ['u', 'u'],
   ['v', 'v'],
   ['f', 'f'],
+  ['+', 'fontIncrease', '='],
+  ['-', 'fontDecrease'],
   ['Shift+i', 'shifti'],
   ['Shift+u', 'shiftu'],
 ] as const
@@ -43,7 +45,7 @@ export default function KeyboardShortcutsPanel({
           <DialogTitle>{t('reader.keyboard.title')}</DialogTitle>
         </DialogHeader>
         <dl className="grid min-h-0 gap-3 overflow-y-auto">
-          {shortcuts.map(([keys, text]) => (
+          {shortcuts.map(([keys, text, alternate]) => (
             <div key={text} className="flex items-center justify-between gap-5">
               <dt className="text-sm text-muted-foreground">{t(`reader.keyboard.keys.${text}`)}</dt>
               <dd className="flex shrink-0 gap-1 text-xs">
@@ -53,6 +55,12 @@ export default function KeyboardShortcutsPanel({
                     <Kbd>{key}</Kbd>
                   </span>
                 ))}
+                {alternate && (
+                  <>
+                    <span className="text-muted-foreground">{t('common.or')}</span>
+                    <Kbd>{alternate}</Kbd>
+                  </>
+                )}
               </dd>
             </div>
           ))}

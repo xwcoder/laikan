@@ -366,7 +366,11 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await wait(`window.laikan.fetch('/reader/get/article', ${firstId}).then(article => article.read === 1)`)
     assert.equal(await run('!!window.__rssScriptRan'), false, 'RSS markup must be sanitized')
     assert.equal(await run('document.querySelectorAll(".article-content script, .article-content [onerror]").length'), 0)
-    assert.equal(await run('getComputedStyle(document.querySelector(".article-content")).fontSize'), '14px')
+    const articleFont = 'getComputedStyle(document.querySelector(".article-content")).fontSize'
+    const savedFont = 'window.laikan.fetch("/settings/get", "reader.fontSize")'
+    const larger = `[aria-label="${en.reader.action.fontIncrease}"]`
+    const smaller = `[aria-label="${en.reader.action.fontDecrease}"]`
+    assert.equal(await run(articleFont), '14px')
 
     // The reading view and its scroll position survive modal interaction and setting writes.
     await run(`(() => {
@@ -378,7 +382,9 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await click('[data-settings-trigger]')
     await wait('document.querySelector("[data-settings-body]")')
     await press('u'); await press('s'); await press('?', true)
+    await press('+', true)
     assert.equal(await run('document.querySelectorAll("[role=dialog]").length'), 1)
+    assert.equal(await run(articleFont), '14px')
     assert.equal((await run(`window.laikan.fetch('/reader/get/article', ${firstId})`)).starred, 1)
     await click('[role=radio][value=light]')
     await wait('!document.documentElement.classList.contains("dark")')
@@ -395,20 +401,53 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     assert.equal(await run('window.__smokeArticle === document.querySelector("article")'), true)
     assert.equal(await run('window.__smokeArticle.parentElement.scrollTop === window.__smokeArticleScroll'), true)
 
-    await click('[aria-label="Larger"]')
-    await wait('getComputedStyle(document.querySelector(".article-content")).fontSize === "15px"')
-    await click('[aria-label="Smaller"]')
-    await wait('getComputedStyle(document.querySelector(".article-content")).fontSize === "14px"')
+    const paragraph = 'document.querySelectorAll(".article-content p")[15]'
+    const paragraphOffset = `${paragraph}.getBoundingClientRect().top - window.__smokeArticle.parentElement.getBoundingClientRect().top`
+    await run(`window.__smokeArticle.parentElement.scrollTop += (${paragraphOffset}) + 4`)
+    const beforeResize = await run(paragraphOffset)
+    await run(`(async () => {
+      window.__fontWrites = 0
+      window.__stopFontWrites = window.laikan.on('/settings/change', () => { window.__fontWrites += 1 })
+      const button = document.querySelector(${JSON.stringify(larger)})
+      button.click()
+      await new Promise(requestAnimationFrame)
+      button.click()
+      button.click()
+    })()`)
+    await wait(`${articleFont} === "17px"`)
+    assert.ok(Math.abs(await run(paragraphOffset) - beforeResize) < 8, 'Changing size should keep the paragraph in view')
+    await wait(`${savedFont}.then(size => size === 17)`)
+    await wait('window.__fontWrites > 0')
+    assert.equal(await run('window.__fontWrites'), 1, 'Rapid adjustments should save only the final size')
+    await run('window.__stopFontWrites()')
+    await click(smaller)
+    await wait(`${articleFont} === "16px"`)
+    await press('+', true)
+    await wait(`${articleFont} === "17px"`)
+    await press('=')
+    await wait(`${articleFont} === "18px" && document.querySelector('[aria-label="Article font size"] [role=status]').textContent === '18 px'`)
+    await snapshot('article-font-size')
+    for (let i = 0; i < 7; i += 1) await press('+', true)
+    await wait(`${articleFont} === "24px" && document.querySelector(${JSON.stringify(larger)}).disabled`)
+    assert.equal(await run(`document.querySelector(${JSON.stringify(smaller)}).disabled`), false)
+    assert.ok(await run('parseFloat(getComputedStyle(document.querySelector("article h1")).fontSize) > 24'))
+    for (let i = 0; i < 13; i += 1) await press('-')
+    await wait(`${articleFont} === "12px" && document.querySelector(${JSON.stringify(smaller)}).disabled`)
+    assert.equal(await run(`document.querySelector(${JSON.stringify(larger)}).disabled`), false)
+    for (let i = 0; i < 6; i += 1) await press('=')
+    await wait(`${articleFont} === "18px" && ${savedFont}.then(size => size === 18)`)
     await click('[aria-label="Mark as unread"]')
     await wait(`document.querySelector('[aria-label="Mark as read"]')`)
     await click('[aria-label="Back to list"]')
     await wait('document.querySelector("[data-list-item-id]")')
+    assert.equal(await press('+', true), true, 'Font shortcuts should be inactive in the article list')
     await press('g'); await press('i')
     await wait('document.querySelectorAll("[data-list-item-id]").length === 50')
     const readingIds = await run('Array.from(document.querySelectorAll("[data-list-item-id]")).slice(0, 2).map(row => Number(row.dataset.listItemId))')
     const readingTitles = await run(`Promise.all(${JSON.stringify(readingIds)}.map(id => window.laikan.fetch('/reader/get/article', id).then(article => article.title)))`)
     await click(`[data-list-item-id="${readingIds[0]}"] button:last-child`)
     await wait(`document.querySelector('article h1')?.textContent === ${JSON.stringify(readingTitles[0])}`)
+    assert.equal(await run(articleFont), '18px', 'Article size should carry over to the next article')
     await wait(`document.querySelector('[aria-label="Mark as unread"]')?.disabled === false`)
     await press('j')
     await wait(`document.querySelector('article h1')?.textContent === ${JSON.stringify(readingTitles[1])}`)
@@ -508,6 +547,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await wait('document.querySelectorAll("[data-list-item-id] [role=checkbox][data-state=checked]").length === 0')
     await press('?', true)
     await wait('document.querySelector("[role=dialog]")?.textContent.includes("Keyboard shortcuts")')
+    assert.ok(await run('document.querySelector("[role=dialog]").textContent.includes("Increase font size while reading")'))
     await click('[role=dialog] button[aria-label=Close]')
     await wait('!document.querySelector("[role=dialog]")')
 

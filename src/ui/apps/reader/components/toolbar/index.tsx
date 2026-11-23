@@ -1,7 +1,8 @@
 import {
-  ArrowLeft, ExternalLink, Mail, MailOpen, Star, AArrowDown, AArrowUp,
+  ArrowLeft, ExternalLink, Mail, MailOpen, Star,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { readerFontSize } from '@/base/common/reader-font-size'
 import { ReaderModel } from '@/ui/hooks/use-reader-model'
 import { ArticleListItem } from '@/types/reader'
 import { IconButton } from '@/ui/components/icon-button'
@@ -63,20 +64,26 @@ export function ArticleToolbar({ model }: { model: ReaderModel }) {
       >
         <ExternalLink />
       </IconButton>
-      <div className="ml-auto flex">
+      <div className="ml-auto flex items-center" role="group" aria-label={t('reader.action.fontSize')}>
         <IconButton
           label={t('reader.action.fontDecrease')}
-          disabled={model.fontSize <= 12 || model.updatingFont}
+          aria-keyshortcuts="-"
+          disabled={model.fontSize <= readerFontSize.min}
           onClick={() => model.changeFont(-1)}
         >
-          <AArrowDown />
+          <span aria-hidden="true">A−</span>
         </IconButton>
+        <span className="w-12 text-center text-xs text-muted-foreground tabular-nums" role="status">
+          {model.fontSize}
+          {' px'}
+        </span>
         <IconButton
           label={t('reader.action.fontIncrease')}
-          disabled={model.fontSize >= 24 || model.updatingFont}
+          aria-keyshortcuts="plus = Shift+="
+          disabled={model.fontSize >= readerFontSize.max}
           onClick={() => model.changeFont(1)}
         >
-          <AArrowUp />
+          <span aria-hidden="true">A+</span>
         </IconButton>
       </div>
     </div>

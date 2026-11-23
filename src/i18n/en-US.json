@@ -26,8 +26,9 @@
         "title": "Copy url",
         "success": "Copied"
       },
-      "fontIncrease": "Larger",
-      "fontDecrease": "Smaller",
+      "fontSize": "Article font size",
+      "fontIncrease": "Increase article font size",
+      "fontDecrease": "Decrease article font size",
       "star": "Add star",
       "unstar": "Remove star",
       "back": "Back to list",
@@ -157,6 +158,8 @@
         "u": "Close item",
         "v": "Open item in browser",
         "f": "Load or toggle full article",
+        "fontIncrease": "Increase font size while reading",
+        "fontDecrease": "Decrease font size while reading",
         "shifti": "Mark as read",
         "shiftu": "Mark as unread"
       }
@@ -200,6 +203,7 @@
     "cancel": "Cancel",
     "close": "Close",
     "then": "then",
+    "or": "or",
     "reader": "Reader",
     "settings": "Settings",
     "toggleTheme": "Toggle light / dark theme",

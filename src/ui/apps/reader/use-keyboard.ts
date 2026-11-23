@@ -6,11 +6,11 @@ import { openExternal } from '@/base/browser/shell'
 import { useAppStore } from '@/ui/store'
 import { useReaderStore } from '@/ui/store/reader'
 
-const isEditing = (event: KeyboardEvent) => event.isComposing
-  || event.metaKey
-  || event.ctrlKey
-  || event.altKey
-  || !!(event.target as HTMLElement).closest('input, textarea, select, [contenteditable="true"]')
+function isEditing(event: KeyboardEvent) {
+  const { target } = event
+  return event.isComposing || event.metaKey || event.ctrlKey || event.altKey
+    || (target instanceof HTMLElement && (target.isContentEditable || !!target.closest('input, textarea, select')))
+}
 
 const shouldIgnore = (event: KeyboardEvent, showHelp: boolean) => isEditing(event)
   || (!showHelp && !!document.querySelector('[role="dialog"], [role="alertdialog"], [role="menu"]'))
@@ -34,6 +34,11 @@ function getActions(model: ReaderModel, fullTextButton: HTMLButtonElement | null
     '*n': () => model.select([]),
   }
   if (fullTextButton && !fullTextButton.disabled) actions.f = () => fullTextButton.click()
+  if (model.opened) {
+    actions['-'] = () => model.changeFont(-1)
+    actions['+'] = () => model.changeFont(1)
+    actions['='] = actions['+']
+  }
   return actions
 }
 
@@ -47,7 +52,8 @@ async function run(action: () => unknown) {
 
 const shortcutKey = (sequence: string, event: KeyboardEvent) => {
   const key = event.key.toLowerCase()
-  return sequence ? `${sequence}${key}` : event.shiftKey ? `shift+${key}` : key
+  if (sequence) return `${sequence}${key}`
+  return event.shiftKey && key !== '+' ? `shift+${key}` : key
 }
 
 export default function useKeyboard(

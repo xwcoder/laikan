@@ -26,8 +26,9 @@
         "title": "复制链接",
         "success": "已复制到剪贴板"
       },
-      "fontIncrease": "更大",
-      "fontDecrease": "更小",
+      "fontSize": "正文字号",
+      "fontIncrease": "增大正文字号",
+      "fontDecrease": "缩小正文字号",
       "star": "添加星标",
       "unstar": "取消星标",
       "back": "返回列表",
@@ -157,6 +158,8 @@
         "u": "关闭条目",
         "v": "浏览器中打开",
         "f": "加载全文或在原文和订阅内容间切换",
+        "fontIncrease": "阅读时增大字号",
+        "fontDecrease": "阅读时缩小字号",
         "shifti": "标记为已读",
         "shiftu": "标记为未读"
       }
@@ -200,6 +203,7 @@
     "cancel": "取消",
     "close": "关闭",
     "then": "然后",
+    "or": "或",
     "reader": "阅读器",
     "settings": "设置",
     "toggleTheme": "切换明暗主题",

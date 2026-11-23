@@ -4,6 +4,7 @@ import { app } from 'electron'
 import _get from 'lodash.get'
 import _set from 'lodash.set'
 import { readJSON, writeJSONAtomically } from '@/base/node/fs'
+import { normalizeReaderFontSize } from '@/base/common/reader-font-size'
 import { defaultTheme, isTheme } from '@/base/common/themes'
 import { Settings } from '@/types/settings'
 
@@ -26,6 +27,7 @@ export const get = (path?: string) => path ? _get(settings, path) : settings
 
 export const set = (path: string, value: any) => {
   if (path === 'theme' && !isTheme(value)) throw new TypeError('Unknown theme')
+  if (path === 'reader.fontSize' && value !== normalizeReaderFontSize(value)) throw new TypeError('Invalid reader font size')
   const oldValue = get(path)
 
   const nextSettings = structuredClone(settings)

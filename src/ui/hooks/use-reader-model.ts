@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { QueryClient, useQuery, useQueryClient } from '@tanstack/react-query'
+import { normalizeReaderFontSize, readerFontSize } from '@/base/common/reader-font-size'
 import { ArticleListItem, ArticlePage } from '@/types/reader'
 import { useReaderStore } from '@/ui/store/reader'
 import {
@@ -12,7 +13,7 @@ import {
   useStarArticle,
   useUnsubscribe,
 } from '@/ui/query/reader'
-import { useSettings, useUpdateSettings } from '@/ui/query/settings'
+import { settingsOptions, useSettings, useUpdateSettings } from '@/ui/query/settings'
 
 type ReaderState = ReturnType<typeof useReaderStore.getState>
 const emptyArticles: ArticleListItem[] = []
@@ -110,6 +111,35 @@ function leaveUnsubscribedFeed(id: number) {
   if (current.opened && current.activeId !== null) current.open(current.activeId)
 }
 
+function useReaderFontSize(client: QueryClient) {
+  const settings = useSettings()
+  const { mutate } = useUpdateSettings()
+  const [pending, setPending] = useState<{ value: number } | null>(null)
+  const fontSize = pending?.value ?? normalizeReaderFontSize(settings.data?.reader?.fontSize)
+
+  useEffect(() => {
+    if (!pending) return undefined
+    const timeout = window.setTimeout(() => {
+      mutate({ path: 'reader.fontSize', value: pending.value }, {
+        // An earlier save may finish after the reader has already chosen another size.
+        onSettled: () => setPending((current) => (current === pending ? null : current)),
+      })
+    }, 200)
+    return () => window.clearTimeout(timeout)
+  }, [mutate, pending])
+
+  const changeFont = (direction: 1 | -1) => {
+    const saved = normalizeReaderFontSize(client.getQueryData(settingsOptions.queryKey)?.reader?.fontSize)
+    setPending((current) => {
+      const previous = current?.value ?? saved
+      const value = normalizeReaderFontSize(previous + direction * readerFontSize.step)
+      return value === previous ? current : { value }
+    })
+  }
+
+  return { fontSize, changeFont }
+}
+
 export function useReaderModel() {
   const state = useReaderStore()
   const client = useQueryClient()
@@ -126,13 +156,11 @@ export function useReaderModel() {
     enabled: !opened || !client.getQueryData(listOptions.queryKey),
   })
   const detail = useQuery({ ...articleOptions(activeId, libraryRevision), enabled: opened && activeId !== null })
-  const settings = useSettings()
-  const updateSettings = useUpdateSettings()
+  const font = useReaderFontSize(client)
   const refresh = useRefreshFeeds()
   const unsubscribe = useUnsubscribe(leaveUnsubscribedFeed)
   const articles = list.data?.data ?? emptyArticles
   const activeArticle = opened ? detail.data : articles.find((article) => article.id === activeId)
-  const fontSize = Math.max(12, Math.min(24, settings.data?.reader?.fontSize ?? 14))
   const actions = useArticleActions(state, articles, activeArticle)
   const navigation = useNavigation(state, list.data, list.isFetching || actions.writing)
   useSelectionSync(state, list.isPlaceholderData ? undefined : list.data)
@@ -142,28 +170,21 @@ export function useReaderModel() {
     if (tab === 'unread') state.resetUnreadView()
     refresh.mutate()
   }
-  const changeFont = (delta: number) => updateSettings.mutate({
-    path: 'reader.fontSize',
-    value: Math.max(12, Math.min(24, fontSize + delta)),
-  })
-
   return {
     ...state,
     ...navigation,
     ...actions,
+    ...font,
     feeds,
     unreadCount,
     list,
     detail,
     articles,
     activeArticle,
-    fontSize,
     count: list.data?.count ?? 0,
     refresh,
     refreshList,
-    changeFont,
     unsubscribe,
-    updatingFont: updateSettings.isPending,
   }
 }
 

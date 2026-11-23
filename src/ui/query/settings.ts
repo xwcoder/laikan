@@ -31,6 +31,14 @@ export function useUpdateSettings() {
     networkMode: 'always',
     scope: { id: 'settings-write' },
     mutationFn: ({ path, value }: SettingUpdate) => settingsService.set(path, value),
-    onSuccess: () => client.invalidateQueries({ queryKey: settingsOptions.queryKey }),
+    onSuccess: (_, update) => {
+      if (update.path === 'reader.fontSize') {
+        client.setQueryData(settingsOptions.queryKey, (settings) => settings && ({
+          ...settings,
+          reader: { ...settings.reader, fontSize: update.value },
+        }))
+      }
+      return client.invalidateQueries({ queryKey: settingsOptions.queryKey })
+    },
   })
 }
