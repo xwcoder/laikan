@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useReaderModel } from '@/ui/hooks/use-reader-model'
 import SidePanel from './SidePanel'
 import Article from './MainPanel/Article'
@@ -11,7 +11,8 @@ import UpdateButton from './update-button'
 export default function Reader() {
   const model = useReaderModel()
   const [showKeyboard, setShowKeyboard] = useState(false)
-  useKeyboard(model, showKeyboard, setShowKeyboard)
+  const fullTextButtonRef = useRef<HTMLButtonElement | null>(null)
+  useKeyboard(model, showKeyboard, setShowKeyboard, fullTextButtonRef)
 
   return (
     <>
@@ -26,7 +27,7 @@ export default function Reader() {
         <div className="undraggle min-h-0 min-w-0 pr-4 pb-4">
           <div className="flex h-full flex-col overflow-hidden rounded-xl border bg-card text-card-foreground shadow-xs">
             <List key={`${model.libraryRevision}:${model.tab}`} model={model} />
-            {model.opened && <Article model={model} />}
+            {model.opened && <Article model={model} fullTextButtonRef={fullTextButtonRef} />}
           </div>
         </div>
       </div>

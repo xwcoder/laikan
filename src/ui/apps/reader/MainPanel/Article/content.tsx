@@ -1,5 +1,7 @@
 /* eslint-disable react/no-danger */
-import { MouseEvent, useMemo, useState } from 'react'
+import {
+  MouseEvent, RefObject, useMemo, useState,
+} from 'react'
 import { useTranslation } from 'react-i18next'
 import { ReaderModel } from '@/ui/hooks/use-reader-model'
 import { formatDate } from '@/ui/lib/date'
@@ -42,15 +44,16 @@ function openArticleLink(event: MouseEvent<HTMLDivElement>, base?: string) {
 }
 
 function FullTextControls({
-  article, showFeed, toggle, hasContent,
+  article, showFeed, toggle, hasContent, buttonRef,
 }: {
   article: ArticleDetail, showFeed: boolean, toggle: () => void, hasContent: boolean,
+  buttonRef: RefObject<HTMLButtonElement | null>,
 }) {
   const { t } = useTranslation()
   const load = useLoadFullText()
   if (article.fullText) {
     return (
-      <Button className="mb-6" variant="outline" size="sm" onClick={toggle}>
+      <Button ref={buttonRef} aria-keyshortcuts="F" className="mb-6" variant="outline" size="sm" onClick={toggle}>
         {t(showFeed ? 'reader.content.showFullText' : 'reader.content.showFeed')}
       </Button>
     )
@@ -58,7 +61,15 @@ function FullTextControls({
   if (!httpUrl(article.contentUrl || article.url) || (article.contentSource === 'full' && hasContent)) return null
   return (
     <>
-      <Button className="mb-6" variant="outline" size="sm" disabled={load.isPending} onClick={() => load.mutate(article.id!)}>
+      <Button
+        ref={buttonRef}
+        aria-keyshortcuts="F"
+        className="mb-6"
+        variant="outline"
+        size="sm"
+        disabled={load.isPending}
+        onClick={() => load.mutate(article.id!)}
+      >
         {t(load.isPending ? 'common.loading' : 'reader.content.loadFullText')}
       </Button>
       {(load.isError || load.data === null) && (
@@ -68,7 +79,11 @@ function FullTextControls({
   )
 }
 
-export default function Content({ model, article }: { model: ReaderModel, article: ArticleDetail }) {
+export default function Content({ model, article, fullTextButtonRef }: {
+  model: ReaderModel,
+  article: ArticleDetail,
+  fullTextButtonRef: RefObject<HTMLButtonElement | null>,
+}) {
   const { t, i18n } = useTranslation()
   const [showFeed, setShowFeed] = useState(false)
   const displayed = showFeed ? article : article.fullText ?? article
@@ -93,8 +108,9 @@ export default function Content({ model, article }: { model: ReaderModel, articl
       <FullTextControls
         article={article}
         showFeed={showFeed}
-        toggle={() => setShowFeed(!showFeed)}
+        toggle={() => setShowFeed((value) => !value)}
         hasContent={!!content}
+        buttonRef={fullTextButtonRef}
       />
       {!content && <p className="text-sm text-muted-foreground">{t('reader.content.empty')}</p>}
       <div

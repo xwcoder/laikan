@@ -155,6 +155,7 @@
         "o": "Open item",
         "u": "Close item",
         "v": "Open item in browser",
+        "f": "Load or toggle full article",
         "shifti": "Mark as read",
         "shiftu": "Mark as unread"
       }

@@ -138,6 +138,9 @@ module.exports = async function rssSmoke(contents) {
   }
   const clickButton = (label) => run(`Array.from(document.querySelectorAll('button')).find(element =>
     (element.getAttribute('aria-label') || element.textContent.trim()) === ${JSON.stringify(label)}).click()`)
+  const press = (key, repeat = false) => run(`document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {
+    key: ${JSON.stringify(key)}, repeat: ${repeat}, bubbles: true, cancelable: true
+  }))`)
   try {
     const preview = await ipc('/reader/get/feed/preflight', `${base}/atom`)
     assert.equal(preview.title, 'Atom feed')
@@ -230,7 +233,7 @@ module.exports = async function rssSmoke(contents) {
     await wait('document.querySelector("article [role=status]")?.textContent.includes("load the full article")')
     assert.equal(await run('document.querySelector(".article-content").textContent'), 'Summary only')
     canServeOriginal = true
-    await clickButton('Load full article')
+    await press('f')
     await wait('document.querySelector(".article-content")?.textContent.includes("原文样例")')
     const loaded = await detail(secondId)
     assert.equal(loaded.contentSource, 'summary')
@@ -240,10 +243,17 @@ module.exports = async function rssSmoke(contents) {
     assert.equal(loaded.fullText.contentBase, `${base}/original/article.html`)
     assert.ok(loaded.fullText.content.includes(`${base}/original/media/photo.jpg`))
     assert.equal(requests.some(item => item.path.startsWith('/extraction-probe/')), false)
+    await press('f', true)
+    assert.ok(await run('document.querySelector(".article-content").textContent.includes("原文样例")'), 'Holding f does not toggle content')
+    await press('f')
+    await wait('document.querySelector(".article-content").textContent === "Summary only"')
+    await press('f')
+    await wait('document.querySelector(".article-content").textContent.includes("原文样例")')
     await clickButton('Show feed content')
     assert.equal(await run('document.querySelector(".article-content").textContent'), 'Summary only')
     await clickButton('Show full article')
     await clickButton('Back to list')
+    assert.equal(await press('f'), true, 'Full-text shortcut is inactive in the article list')
     await chooseArticle(secondId)
     assert.ok(await run('document.querySelector(".article-content").textContent.includes("原文样例")'))
     assert.equal(requests.filter(item => item.path === '/full').length, 2, 'Reopening reuses the stored full text')

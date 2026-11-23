@@ -1,5 +1,5 @@
 import {
-  useEffect, useRef, Dispatch, SetStateAction,
+  useEffect, useRef, Dispatch, RefObject, SetStateAction,
 } from 'react'
 import { ReaderModel } from '@/ui/hooks/use-reader-model'
 import { openExternal } from '@/base/browser/shell'
@@ -15,7 +15,7 @@ const isEditing = (event: KeyboardEvent) => event.isComposing
 const shouldIgnore = (event: KeyboardEvent, showHelp: boolean) => isEditing(event)
   || (!showHelp && !!document.querySelector('[role="dialog"], [role="alertdialog"], [role="menu"]'))
 
-function getActions(model: ReaderModel) {
+function getActions(model: ReaderModel, fullTextButton: HTMLButtonElement | null) {
   const { activeId } = useReaderStore.getState()
   const actions: Record<string, () => unknown> = {
     j: () => model.move(1),
@@ -33,6 +33,7 @@ function getActions(model: ReaderModel) {
     '*a': () => model.select(model.articles.map((article) => article.id!)),
     '*n': () => model.select([]),
   }
+  if (fullTextButton && !fullTextButton.disabled) actions.f = () => fullTextButton.click()
   return actions
 }
 
@@ -53,6 +54,7 @@ export default function useKeyboard(
   model: ReaderModel,
   showHelp: boolean,
   setHelp: Dispatch<SetStateAction<boolean>>,
+  fullTextButtonRef: RefObject<HTMLButtonElement | null>,
 ) {
   const modelRef = useRef(model)
   const helpRef = useRef(showHelp)
@@ -77,7 +79,6 @@ export default function useKeyboard(
       }
       if (helpRef.current) return
       const key = event.key.toLowerCase()
-      const actions = getActions(modelRef.current)
       if (key === 'g' || key === '*') {
         sequence = key
         clearTimeout(timer)
@@ -87,9 +88,11 @@ export default function useKeyboard(
       }
       const shortcut = shortcutKey(sequence, event)
       clear()
-      if (actions[shortcut]) {
+      if (shortcut === 'f' && event.repeat) return
+      const action = getActions(modelRef.current, fullTextButtonRef.current)[shortcut]
+      if (action) {
         event.preventDefault()
-        run(actions[shortcut])
+        run(action)
       }
     }
     document.addEventListener('keydown', keydown)
@@ -99,5 +102,5 @@ export default function useKeyboard(
       document.removeEventListener('keydown', keydown)
       window.removeEventListener('blur', clear)
     }
-  }, [setHelp])
+  }, [setHelp, fullTextButtonRef])
 }

@@ -8,7 +8,7 @@ const extractorPage = `data:text/html;charset=utf-8,${encodeURIComponent(extract
 
 export async function extractArticle(page: ArticlePage): Promise<string> {
   await app.whenReady()
-  const { webContents } = new WebContentsView({
+  const view = new WebContentsView({
     webPreferences: {
       preload: join(__dirname, '../preload/article-extractor.js'),
       sandbox: true,
@@ -18,6 +18,7 @@ export async function extractArticle(page: ArticlePage): Promise<string> {
       partition: 'article-extractor',
     },
   })
+  const { webContents } = view
   webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
   webContents.on('will-navigate', (event) => event.preventDefault())
   webContents.session.webRequest.onBeforeRequest({ urls: ['<all_urls>'] }, ({ url }, respond) => {
@@ -35,6 +36,7 @@ export async function extractArticle(page: ArticlePage): Promise<string> {
     return await Promise.race([content, timeout])
   } finally {
     timer.abort()
-    if (!webContents.isDestroyed()) webContents.close()
+    // Keep the unattached view alive until the extraction finishes.
+    if (!webContents.isDestroyed()) view.webContents.close()
   }
 }

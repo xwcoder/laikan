@@ -19,6 +19,7 @@ const shortcuts = [
   ['o', 'o'],
   ['u', 'u'],
   ['v', 'v'],
+  ['f', 'f'],
   ['Shift+i', 'shifti'],
   ['Shift+u', 'shiftu'],
 ] as const
