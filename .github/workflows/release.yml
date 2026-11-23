@@ -3,21 +3,35 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag to rebuild for macOS
+        required: true
+        type: string
 
 permissions:
   contents: read
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
 
 jobs:
   Release:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        os: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '["macos-latest"]' || '["macos-latest", "ubuntu-latest", "windows-latest"]') }}
     runs-on: ${{ matrix.os }}
     permissions:
       contents: write
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
@@ -32,8 +46,64 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install --no-install-recommends -y rpm
       - name: Publish
+        if: runner.os != 'macOS'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: npm run publish
+      - name: Build signed macOS installers
+        if: runner.os == 'macOS'
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          node -e 'if (process.env.RELEASE_TAG !== `v${require("./package.json").version}`) throw Error("Tag must match the package version")'
+          # Use the same signing settings when rebuilding an older tag.
+          npm run make -- --mac --arm64 -c.forceCodeSigning=true \
+            -c.mac.identity=- -c.mac.hardenedRuntime=false -c.mac.notarize=false
+      - name: Verify macOS installers
+        if: runner.os == 'macOS'
+        run: |
+          stem="release/laikan-${RELEASE_TAG#v}-mac-arm64"
+          work_dir=$(mktemp -d)
+          mount_dir="$work_dir/volume"
+          app_pid=''
+          cleanup() {
+            if [[ -n "$app_pid" ]]; then kill "$app_pid" 2>/dev/null || true; fi
+            hdiutil detach "$mount_dir" >/dev/null 2>&1 || true
+            rm -rf "$work_dir"
+          }
+          trap cleanup EXIT
+          mkdir "$mount_dir"
+          hdiutil attach -readonly -nobrowse -mountpoint "$mount_dir" "$stem.dmg"
+          ditto "$mount_dir/来刊.app" "$work_dir/来刊.app"
+          ditto -x -k "$stem.zip" "$work_dir/zip"
+          codesign --verify --deep --strict "$work_dir/来刊.app"
+          codesign --verify --deep --strict "$work_dir/zip/来刊.app"
+          "$work_dir/来刊.app/Contents/MacOS/来刊" --user-data-dir="$work_dir/profile" > "$work_dir/launch.log" 2>&1 &
+          app_pid=$!
+          for attempt in {1..30}; do
+            if [[ -s "$work_dir/profile/laikan.db" ]] && pgrep -P "$app_pid" -f '来刊 Helper \(Renderer\)' >/dev/null; then
+              exit 0
+            fi
+            sleep 0.5
+          done
+          cat "$work_dir/launch.log"
+          echo '::error::The packaged macOS app did not start its renderer.'
+          exit 1
+      - name: Publish macOS installers
+        if: runner.os == 'macOS'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          stem="release/laikan-${RELEASE_TAG#v}-mac-arm64"
+          for artifact in "$stem.dmg" "$stem.dmg.blockmap" "$stem.zip" "$stem.zip.blockmap" release/latest-mac.yml; do
+            test -s "$artifact"
+          done
+          if [[ "$GITHUB_EVENT_NAME" == push ]] && ! gh release view "$RELEASE_TAG" --json tagName >/dev/null; then
+            gh release create "$RELEASE_TAG" --verify-tag --draft --title "${RELEASE_TAG#v}" ||
+              gh release view "$RELEASE_TAG" --json tagName >/dev/null
+          fi
+          gh release upload "$RELEASE_TAG" "$stem.dmg" "$stem.dmg.blockmap" "$stem.zip" "$stem.zip.blockmap" --clobber
+          gh release upload "$RELEASE_TAG" release/latest-mac.yml --clobber
 

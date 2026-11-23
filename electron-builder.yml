@@ -14,6 +14,9 @@ artifactName: ${name}-${version}-${os}-${arch}.${ext}
 mac:
   category: public.app-category.news
   icon: assets/icons/icon.icns
+  identity: '-'
+  hardenedRuntime: false
+  notarize: false
   target:
     - dmg
     - zip
