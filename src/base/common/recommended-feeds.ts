@@ -8,7 +8,99 @@ export type RecommendedFeed = {
 
 export const recommendedGroups: readonly { id: string; feeds: readonly RecommendedFeed[] }[] = [
   {
-    id: 'development',
+    id: 'webPlatformAndFrontend',
+    feeds: [
+      {
+        id: 'w3cNews',
+        title: 'W3C News',
+        url: 'https://www.w3.org/news/feed/',
+        language: 'en',
+        icon: 'w3c-news',
+      },
+      {
+        id: 'chrome',
+        title: 'Google Chrome',
+        url: 'https://blog.google/products-and-platforms/products/chrome/rss/',
+        language: 'en',
+        icon: 'chrome',
+      },
+      {
+        id: 'webDevBlog',
+        title: 'web.dev Blog',
+        url: 'https://web.dev/static/blog/feed.xml',
+        language: 'en',
+        icon: 'web-dev',
+      },
+      {
+        id: 'webDevArticles',
+        title: 'web.dev Articles',
+        url: 'https://web.dev/articles/feed.xml',
+        language: 'en',
+        icon: 'web-dev',
+      },
+      {
+        id: 'cssTricks',
+        title: 'CSS-Tricks',
+        url: 'https://css-tricks.com/feed/',
+        language: 'en',
+        icon: 'css-tricks',
+      },
+    ],
+  },
+  {
+    id: 'nodejs',
+    feeds: [
+      {
+        id: 'nodeWeekly',
+        title: 'Node Weekly',
+        url: 'https://nodeweekly.com/rss/',
+        language: 'en',
+        icon: 'node-weekly',
+      },
+      {
+        id: 'nodejsBlog',
+        title: 'Node.js Blog',
+        url: 'https://nodejs.org/en/feed/blog.xml',
+        language: 'en',
+        icon: 'nodejs',
+      },
+      {
+        id: 'platformatic',
+        title: 'Platformatic Blog',
+        url: 'https://blog.platformatic.dev/rss.xml',
+        language: 'en',
+        icon: 'platformatic',
+      },
+      {
+        id: 'joyeeCheung',
+        title: 'Joyee Cheung’s Blog',
+        url: 'https://joyeecheung.github.io/blog/atom.xml',
+        language: 'en',
+        icon: 'joyee-cheung',
+      },
+    ],
+  },
+  {
+    id: 'fullStackDevelopment',
+    feeds: [
+      {
+        id: 'epicWebDev',
+        title: 'Epic Web Dev',
+        url: 'https://www.epicweb.dev/rss.xml',
+        language: 'en',
+        icon: 'epic-web-dev',
+      },
+      {
+        id: 'evilMartians',
+        title: 'Martian Chronicles (Evil Martians)',
+        url: 'https://evilmartians.com/chronicles.atom',
+        language: 'en',
+        icon: 'evil-martians',
+      },
+    ],
+  },
+  {
+    id: 'softwareArchitecture',
     feeds: [
       {
         id: 'martinFowler',
@@ -32,6 +124,44 @@ export const recommendedGroups: readonly { id: string; feeds: readonly Recommend
         icon: 'meituan',
       },
       {
+        id: 'infoqArchitecture',
+        title: 'InfoQ · Architecture & Design',
+        url: 'https://feed.infoq.com/architecture-design/',
+        language: 'en',
+        icon: 'infoq',
+      },
+    ],
+  },
+  {
+    id: 'highPerformanceSystems',
+    feeds: [
+      {
+        id: 'danielLemire',
+        title: 'Daniel Lemire',
+        url: 'https://lemire.me/blog/feed/',
+        language: 'en',
+        icon: 'daniel-lemire',
+      },
+      {
+        id: 'tigerBeetle',
+        title: 'TigerBeetle Blog',
+        url: 'https://tigerbeetle.com/blog/atom.xml',
+        language: 'en',
+        icon: 'tigerbeetle',
+      },
+      {
+        id: 'planetScale',
+        title: 'PlanetScale Blog',
+        url: 'https://planetscale.com/blog/feed.atom',
+        language: 'en',
+        icon: 'planetscale',
+      },
+    ],
+  },
+  {
+    id: 'aiAndDataEngineering',
+    feeds: [
+      {
         id: 'simonWillison',
         title: 'Simon Willison',
         url: 'https://simonwillison.net/atom/entries/',
@@ -39,32 +169,30 @@ export const recommendedGroups: readonly { id: string; feeds: readonly Recommend
         icon: 'simon-willison',
       },
       {
+        id: 'infoqAi',
+        title: 'InfoQ · AI, ML & Data Engineering',
+        url: 'https://feed.infoq.com/ai-ml-data-eng/',
+        language: 'en',
+        icon: 'infoq',
+      },
+    ],
+  },
+  {
+    id: 'engineeringNewsAndEssays',
+    feeds: [
+      {
+        id: 'ruanyifeng',
+        title: '阮一峰的网络日志',
+        url: 'https://www.ruanyifeng.com/blog/atom.xml',
+        language: 'zh-CN',
+        icon: 'ruanyifeng',
+      },
+      {
         id: 'tonsky',
         title: 'tonsky.me',
         url: 'https://tonsky.me/atom.xml',
         language: 'en',
         icon: 'tonsky',
-      },
-      {
-        id: 'webDevBlog',
-        title: 'web.dev Blog',
-        url: 'https://web.dev/static/blog/feed.xml',
-        language: 'en',
-        icon: 'web-dev',
-      },
-      {
-        id: 'webDevArticles',
-        title: 'web.dev Articles',
-        url: 'https://web.dev/articles/feed.xml',
-        language: 'en',
-        icon: 'web-dev',
-      },
-      {
-        id: 'chrome',
-        title: 'Google Chrome',
-        url: 'https://blog.google/products-and-platforms/products/chrome/rss/',
-        language: 'en',
-        icon: 'chrome',
       },
       {
         id: 'infoqChina',
@@ -80,32 +208,11 @@ export const recommendedGroups: readonly { id: string; feeds: readonly Recommend
         language: 'en',
         icon: 'infoq',
       },
-      {
-        id: 'infoqArchitecture',
-        title: 'InfoQ · Architecture & Design',
-        url: 'https://feed.infoq.com/architecture-design/',
-        language: 'en',
-        icon: 'infoq',
-      },
-      {
-        id: 'infoqAi',
-        title: 'InfoQ · AI, ML & Data Engineering',
-        url: 'https://feed.infoq.com/ai-ml-data-eng/',
-        language: 'en',
-        icon: 'infoq',
-      },
     ],
   },
   {
     id: 'technology',
     feeds: [
-      {
-        id: 'ruanyifeng',
-        title: '阮一峰的网络日志',
-        url: 'https://www.ruanyifeng.com/blog/atom.xml',
-        language: 'zh-CN',
-        icon: 'ruanyifeng',
-      },
       {
         id: 'sspai',
         title: '少数派',

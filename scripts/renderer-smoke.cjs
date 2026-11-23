@@ -682,9 +682,10 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     contents.session.enableNetworkEmulation({ offline: true })
     try {
       await click(catalogButton)
-      await wait('document.querySelectorAll("[data-recommended-feed]").length === 28')
-      await wait('document.querySelector("[data-recommended-feed=martinFowler] img")?.naturalWidth > 0')
-      await wait('document.querySelector("[data-recommended-feed=infoqChina] img")?.naturalWidth > 0')
+      await wait('document.querySelectorAll("[data-recommended-feed]").length === 39')
+      await wait(`Array.from(document.querySelectorAll('[data-recommended-feed]')).every(
+        row => row.querySelector('img')?.naturalWidth > 0,
+      )`)
       await wait(`(() => {
         const daily = document.querySelector('[data-recommended-feed=zhihuDaily] img')
         const morning = document.querySelector('[data-recommended-feed=zhihuMorning] img')
@@ -704,8 +705,14 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
         section.querySelector('h3').textContent.trim(), section.querySelectorAll('[data-recommended-feed]').length,
       ])`)
       assert.deepEqual(groups, [
-        [en.reader.recommendations.groups.development, 12],
-        [en.reader.recommendations.groups.technology, 3],
+        [en.reader.recommendations.groups.webPlatformAndFrontend, 5],
+        [en.reader.recommendations.groups.nodejs, 4],
+        [en.reader.recommendations.groups.fullStackDevelopment, 2],
+        [en.reader.recommendations.groups.softwareArchitecture, 4],
+        [en.reader.recommendations.groups.highPerformanceSystems, 3],
+        [en.reader.recommendations.groups.aiAndDataEngineering, 2],
+        [en.reader.recommendations.groups.engineeringNewsAndEssays, 4],
+        [en.reader.recommendations.groups.technology, 2],
         [en.reader.recommendations.groups.scienceAndHumanities, 5],
         [en.reader.recommendations.groups.zhihu, 3],
         [en.reader.recommendations.groups.douban, 5],

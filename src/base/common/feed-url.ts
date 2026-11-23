@@ -1,6 +1,7 @@
 import { httpUrl } from './url'
 
 const knownAliases = new Map<string, readonly string[]>([
+  ['https://www.w3.org/news/feed/', ['https://www.w3.org/news/feed']],
   ['https://tech.meituan.com/rss.xml', ['https://tech.meituan.com/feed/', 'https://tech.meituan.com/feed']],
   ['https://blog.google/products-and-platforms/products/chrome/rss/', ['https://blog.google/products/chrome/rss/']],
   ['https://web.dev/static/blog/feed.xml', ['https://web.dev/feed.xml', 'https://web.dev/blog/feed.xml']],

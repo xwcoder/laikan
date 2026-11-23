@@ -56,9 +56,15 @@
         "en": "English"
       },
       "groups": {
-        "development": "Software development",
-        "technology": "Technology and digital life",
-        "scienceAndHumanities": "Science and the humanities",
+        "webPlatformAndFrontend": "Web platform and frontend",
+        "nodejs": "Node.js ecosystem",
+        "fullStackDevelopment": "Full-stack development",
+        "softwareArchitecture": "Software architecture and system design",
+        "highPerformanceSystems": "High-performance systems and databases",
+        "aiAndDataEngineering": "AI and data engineering",
+        "engineeringNewsAndEssays": "Tech news and engineering essays",
+        "technology": "Tech products and digital life",
+        "scienceAndHumanities": "Science, humanities, and society",
         "zhihu": "Zhihu",
         "douban": "Douban"
       },
@@ -90,7 +96,18 @@
         "doubanMovieReviews": "Popular long-form reviews of films and television on Douban.",
         "doubanWeeklyMovies": "Douban’s weekly chart of well-reviewed films.",
         "doubanMusicReviews": "Popular music reviews voted up by Douban listeners.",
-        "publicDomainReview": "Essays and curiosities from public-domain archives."
+        "publicDomainReview": "Essays and curiosities from public-domain archives.",
+        "w3cNews": "Updates on W3C’s web standards, working groups, and announcements.",
+        "cssTricks": "Practical techniques for CSS layout, styling, and frontend development.",
+        "nodeWeekly": "A weekly roundup of Node.js news, articles, and tools.",
+        "nodejsBlog": "Official Node.js project announcements, releases, and community updates.",
+        "platformatic": "Node.js backend architecture, performance, and production practices.",
+        "joyeeCheung": "Deep dives into the internals of Node.js and V8.",
+        "epicWebDev": "Hands-on full-stack web tutorials on React, TypeScript, and testing.",
+        "evilMartians": "Field notes from Evil Martians on full-stack development, developer tools, and product engineering.",
+        "danielLemire": "Experiments in algorithms, low-level performance, and data processing.",
+        "tigerBeetle": "Engineering notes on building a high-performance database for financial transactions.",
+        "planetScale": "MySQL, PostgreSQL, and the performance and operation of production databases."
       }
     },
     "transfer": {

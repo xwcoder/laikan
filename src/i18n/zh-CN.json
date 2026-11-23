@@ -56,9 +56,15 @@
         "en": "英文"
       },
       "groups": {
-        "development": "软件开发",
-        "technology": "科技与数字生活",
-        "scienceAndHumanities": "科学与人文",
+        "webPlatformAndFrontend": "Web 平台与前端",
+        "nodejs": "Node.js 生态",
+        "fullStackDevelopment": "全栈开发",
+        "softwareArchitecture": "软件架构与系统设计",
+        "highPerformanceSystems": "高性能系统与数据库",
+        "aiAndDataEngineering": "AI 与数据工程",
+        "engineeringNewsAndEssays": "技术动态与工程随笔",
+        "technology": "科技产品与数字生活",
+        "scienceAndHumanities": "科学、人文与社会",
         "zhihu": "知乎",
         "douban": "豆瓣"
       },
@@ -90,7 +96,18 @@
         "doubanMovieReviews": "豆瓣用户选出的热门长影评。",
         "doubanWeeklyMovies": "每周更新的口碑电影榜单。",
         "doubanMusicReviews": "豆瓣听众选出的热门乐评。",
-        "publicDomainReview": "从公共领域档案中发掘作品与历史。"
+        "publicDomainReview": "从公共领域档案中发掘作品与历史。",
+        "w3cNews": "W3C 的 Web 标准进展、工作组动态与公告。",
+        "cssTricks": "CSS 布局、样式与前端开发的实战技巧。",
+        "nodeWeekly": "每周整理 Node.js 新闻、技术文章和工具。",
+        "nodejsBlog": "Node.js 官方的项目公告、版本发布与社区动态。",
+        "platformatic": "Node.js 后端架构、性能与生产环境实践。",
+        "joyeeCheung": "深入解析 Node.js 和 V8 的内部实现与运行机制。",
+        "epicWebDev": "全栈 Web 开发的实战教程，涵盖 React、TypeScript 和测试。",
+        "evilMartians": "Evil Martians 分享全栈开发、开发者工具和产品工程经验。",
+        "danielLemire": "用基准测试探究算法、底层性能和数据处理。",
+        "tigerBeetle": "构建高性能金融交易数据库的工程实践。",
+        "planetScale": "MySQL、PostgreSQL 与生产数据库的性能和运维实践。"
       }
     },
     "transfer": {
