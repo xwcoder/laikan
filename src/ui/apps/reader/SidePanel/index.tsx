@@ -68,7 +68,7 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
     }
   }
 
-  const cancelSubscription = async (id: number, trigger: HTMLButtonElement) => {
+  const cancelSubscription = async (id: number, trigger: HTMLButtonElement, focusVisible: boolean) => {
     if (removing.current || unsubscribe.isPending) return
     removing.current = true
     const hadFocus = document.activeElement === trigger || !!document.activeElement?.closest('[data-feed-menu]')
@@ -85,7 +85,9 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
     }
 
     const focused = document.activeElement
-    if (hadFocus && (focused === trigger || focused === document.body)) allTab.current?.focus()
+    if (hadFocus && (focused === trigger || focused === document.body)) {
+      allTab.current?.focus({ preventScroll: true, focusVisible })
+    }
     setPhase(id, 'confirmed')
   }
 

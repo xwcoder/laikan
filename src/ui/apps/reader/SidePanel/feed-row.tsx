@@ -22,20 +22,21 @@ function SidebarFeedIcon({ icon }: Pick<Feed, 'icon'>) {
 
 type FeedActions = {
   onCopy: (url: string) => Promise<boolean>
-  onUnsubscribe: (id: number, trigger: HTMLButtonElement) => void
+  onUnsubscribe: (id: number, trigger: HTMLButtonElement, focusVisible: boolean) => void
 }
 
 const actionsPosition = 'absolute right-1 flex items-center'
 const menuItemClass = 'flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm whitespace-nowrap outline-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0'
 
 function SidebarFeedMenu({
-  feed, busy, markFeedRead, onCopy, onUnsubscribe,
+  feed, busy, markFeedRead, onCopy, onUnsubscribe, onCloseAutoFocus,
 }: {
   feed: Feed
   busy: boolean
   markFeedRead: ReaderModel['markFeedRead']
   onCopy: () => Promise<void>
   onUnsubscribe: () => void
+  onCloseAutoFocus: (event: Event) => void
 }) {
   const { t } = useTranslation()
   return (
@@ -44,6 +45,7 @@ function SidebarFeedMenu({
         data-feed-menu={feed.id}
         align="end"
         sideOffset={4}
+        onCloseAutoFocus={onCloseAutoFocus}
         className="undraggle z-50 min-w-44 rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
       >
         <DropdownMenu.Item
@@ -78,6 +80,7 @@ function SidebarFeedActions({
   const { t } = useTranslation()
   const { feed, phase } = row
   const trigger = useRef<HTMLButtonElement | null>(null)
+  const keyboardFocus = useRef(false)
   const [copiedAt, setCopiedAt] = useState<number | null>(null)
   const copied = copiedAt !== null
 
@@ -103,6 +106,8 @@ function SidebarFeedActions({
     <div
       data-feed-actions
       data-feed-copied={copied || undefined}
+      onPointerDownCapture={() => { keyboardFocus.current = false }}
+      onKeyDownCapture={() => { keyboardFocus.current = true }}
       className={cn(
         actionsPosition,
         'pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100',
@@ -116,17 +121,16 @@ function SidebarFeedActions({
           <Button
             ref={trigger}
             variant="ghost"
-            size={copied ? 'sm' : 'icon-sm'}
+            size="icon-sm"
             aria-label={t('reader.action.feedMenu', { title: feed.title })}
             className={cn(
               'hover:bg-background focus-visible:ring-inset dark:hover:bg-background',
-              copied && 'text-xs text-theme-emphasis',
+              copied && 'text-theme-emphasis',
             )}
             disabled={pending}
             aria-busy={pending || undefined}
           >
             {copied ? <Check aria-hidden /> : <Ellipsis aria-hidden />}
-            {copied && <span aria-hidden>{t('reader.action.copied')}</span>}
           </Button>
         </DropdownMenu.Trigger>
         <SidebarFeedMenu
@@ -137,7 +141,13 @@ function SidebarFeedActions({
             if (await onCopy(feed.url)) setCopiedAt(Date.now())
           }}
           onUnsubscribe={() => {
-            if (trigger.current) onUnsubscribe(feed.id!, trigger.current)
+            if (trigger.current) onUnsubscribe(feed.id!, trigger.current, keyboardFocus.current)
+          }}
+          onCloseAutoFocus={(event) => {
+            if (!keyboardFocus.current) {
+              event.preventDefault()
+              trigger.current?.focus({ preventScroll: true, focusVisible: false })
+            }
           }}
         />
       </DropdownMenu.Root>
@@ -192,7 +202,7 @@ export default function SidebarFeedRow({
             className={cn(
               'w-full justify-start px-2 hover:bg-transparent focus-visible:ring-inset dark:hover:bg-transparent',
               'aria-pressed:[&>svg]:text-theme-emphasis',
-              confirmed ? 'pr-9' : 'group-hover:pr-9 group-has-[:focus-visible]:pr-9 group-has-[[data-state=open]]:pr-9 group-has-[[data-feed-copied]]:pr-24',
+              confirmed ? 'pr-9' : 'group-hover:pr-9 group-has-[:focus-visible]:pr-9 group-has-[[data-state=open]]:pr-9 group-has-[[data-feed-copied]]:pr-9',
             )}
             onClick={() => model.changeTab(id)}
           >

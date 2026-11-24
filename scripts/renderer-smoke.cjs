@@ -48,6 +48,11 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await wait(`${element}.matches(':hover')`)
     return point
   }
+  const mouseClick = async (selector) => {
+    const point = await hover(selector)
+    contents.sendInputEvent({ type: 'mouseDown', button: 'left', clickCount: 1, ...point })
+    contents.sendInputEvent({ type: 'mouseUp', button: 'left', clickCount: 1, ...point })
+  }
   const hoverWithoutTooltip = async (selector) => {
     await hover(selector)
     await new Promise(resolve => setTimeout(resolve, 450))
@@ -659,13 +664,30 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await press('g'); await press('i')
     assert.equal(await run(`${feedElement}.ariaPressed`), 'true', 'An open menu blocks reader shortcuts')
     await snapshot('feed-actions-menu-dark-en')
-    await click(copyButton)
-    await wait(`!document.querySelector('${feedMenu}') && ${rowElement}.textContent.includes(${JSON.stringify(en.reader.action.copied)})`)
+    await run(`document.querySelector(${JSON.stringify(copyButton)}).focus()`)
+    await press('Enter')
+    await wait(`!document.querySelector('${feedMenu}') && ${rowElement}.querySelector('[data-feed-copied]')`)
     assert.equal(await require('electron').clipboard.readText(), `${base}/rss`)
     assert.ok(await run(`${menuElement}.querySelector('.lucide-check') && document.activeElement === ${menuElement}`))
+    assert.equal(await run(`${menuElement}.matches(':focus-visible')`), true, 'Keyboard selection keeps the focus indicator')
+    assert.equal(await run(`${menuElement}.textContent.trim()`), '', 'Copy success uses only the check icon')
+    const menuWidth = await run(`${menuElement}.getBoundingClientRect().width`)
+    await wait(`${menuElement}.querySelector('.lucide-ellipsis') && !${rowElement}.querySelector('[data-feed-copied]')`)
+    assert.equal(await run(`${menuElement}.getBoundingClientRect().width`), menuWidth)
+
+    await mouseClick(menuButton)
+    await wait(`document.querySelector('${feedMenu}')`)
+    await mouseClick(copyButton)
+    await wait(`!document.querySelector('${feedMenu}') && ${rowElement}.querySelector('[data-feed-copied]')`)
+    await wait(`document.activeElement === ${menuElement} && !${menuElement}.matches(':focus-visible')`)
+    await wait(`getComputedStyle(${menuElement}).boxShadow === 'none'`)
+    assert.equal(await run(`${menuElement}.textContent.trim()`), '')
+    assert.equal(await run(`${menuElement}.getBoundingClientRect().width`), menuWidth)
     await snapshot('feed-address-copied-dark-en')
-    await wait(`${menuElement}.querySelector('.lucide-ellipsis') && !${rowElement}.hasAttribute('data-feed-copied')
-      && !${rowElement}.querySelector('[data-feed-copied]')`)
+    await wait(`${menuElement}.querySelector('.lucide-ellipsis') && !${rowElement}.querySelector('[data-feed-copied]')`)
+    await hover(menuButton)
+    assert.equal(await run(`${menuElement}.matches(':focus-visible')`), false, 'The restored more icon stays free of a mouse focus ring')
+    assert.equal(await run(`getComputedStyle(${menuElement}).boxShadow`), 'none')
 
     const { DatabaseSync } = require('node:sqlite')
     const db = new DatabaseSync(path.join(process.env.YIKAN_SMOKE_USER_DATA, 'yikan.db'), { timeout: 1000 })
@@ -729,10 +751,11 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
       assert.ok(await run(`${menuElement}.querySelector('.lucide-ellipsis') && !${leavingRow} && !${rowElement}.querySelector('.lucide-check')`))
       unsubscribeDb.exec('DROP TRIGGER reject_unsubscribe')
 
-      await openFeedMenu()
+      await mouseClick(menuButton)
+      await wait(`document.querySelector('${feedMenu}')`)
       unsubscribeDb.exec('BEGIN IMMEDIATE')
       try {
-        await click(unsubscribeButton)
+        await mouseClick(unsubscribeButton)
         await wait(`${menuElement}?.ariaBusy === 'true'`)
         assert.ok(await run(`${menuElement}.querySelector('.lucide-ellipsis') && ${menuElement}.disabled`))
         assert.equal(await run(`!!${rowElement}.querySelector('.lucide-check, .animate-spin')`), false)
@@ -749,6 +772,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
       await wait(`${leavingRow}?.inert && getComputedStyle(${leavingRow}).opacity !== '1'`)
     }
     await wait('document.activeElement.matches("[data-tab=all]") && !document.querySelector("[data-feed-id]")')
+    await wait('!document.querySelector("[data-tab=all]").matches(":focus-visible") && getComputedStyle(document.querySelector("[data-tab=all]")).boxShadow === "none"')
     await wait('document.querySelectorAll("[data-list-item-id]").length === 50')
     assert.equal(await run('!!document.querySelector("[role=alertdialog]")'), false)
     assert.deepEqual(await run('window.yikan.fetch("/reader/get/feed/all")'), [])
