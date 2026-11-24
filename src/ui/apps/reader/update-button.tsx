@@ -38,7 +38,7 @@ export default function UpdateButton() {
   return (
     <Button
       variant="ghost"
-      size="icon-lg"
+      size="icon-sm"
       className="text-theme-emphasis hover:text-theme-emphasis disabled:opacity-100"
       aria-label={t(label, { version: data.version })}
       aria-busy={busy}

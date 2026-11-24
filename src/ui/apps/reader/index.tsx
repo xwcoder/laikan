@@ -19,7 +19,7 @@ export default function Reader() {
       <div className="grid min-h-0 flex-1 grid-cols-[190px_minmax(0,1fr)] lg:grid-cols-[240px_minmax(0,1fr)]">
         <aside className="undraggle flex min-h-0 flex-col text-sidebar-foreground">
           <SidePanel key={model.libraryRevision} model={model} />
-          <div className="flex shrink-0 items-center gap-1 px-4 pt-2 pb-4">
+          <div className="flex shrink-0 items-center gap-1 px-4 pb-4">
             <SettingsDialog />
             <UpdateButton />
           </div>

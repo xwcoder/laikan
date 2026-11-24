@@ -170,7 +170,7 @@ export default function SettingsDialog() {
       <DialogTrigger asChild>
         <Button
           variant="ghost"
-          size="icon-lg"
+          size="icon-sm"
           aria-label={t('common.settings')}
           data-settings-trigger
         >
