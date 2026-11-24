@@ -80,6 +80,14 @@
   --feed-list-fade-size: 12px;
   container: sidebar-feed-list / scroll-state;
   scroll-padding-block: var(--feed-list-fade-size);
+  scrollbar-color: color-mix(in oklab, var(--sidebar-foreground) 48%, transparent) transparent;
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+}
+
+.sidebar-feed-list > * {
+  /* Keep rows aligned with the toolbar while the scrollport extends into the sidebar padding. */
+  max-inline-size: 100cqi;
 }
 
 .sidebar-feed-list::before,

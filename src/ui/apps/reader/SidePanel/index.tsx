@@ -92,7 +92,7 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col px-3 pt-3">
+    <div className="@container flex min-h-0 flex-1 flex-col px-3 pt-3">
       <div className="shrink-0 space-y-1">
         {tabs.map(({ tab, Icon }) => (
           <Button
@@ -119,7 +119,7 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
       <div className="shrink-0">
         <FeedToolbar model={model} />
       </div>
-      <div className="sidebar-feed-list mt-2 mb-3 min-h-0 overflow-y-auto overscroll-y-contain">
+      <div className="sidebar-feed-list mt-2 -me-3 mb-3 min-h-0 overflow-y-auto overscroll-y-contain">
         {!model.feeds.data && (model.feeds.isPending || model.feeds.isError) ? (
           <AsyncState error={model.feeds.isError} retry={() => model.feeds.refetch()} />
         ) : rows.length ? (
