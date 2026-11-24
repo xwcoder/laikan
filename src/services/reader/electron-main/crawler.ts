@@ -91,7 +91,7 @@ export const startCrawler = () => {
     } catch (error) {
       if (!(error instanceof ReaderLibraryChangedError)) logger.error('[Reader] Crawl error', error)
     } finally {
-      timer = setTimeout(crawl, 15 * 60e3)
+      timer = setTimeout(crawl, 60 * 60e3)
     }
   }
   timer = setTimeout(crawl, 3e3)
