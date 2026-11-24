@@ -45,8 +45,9 @@ function SidebarFeedMenu({
         data-feed-menu={feed.id}
         align="end"
         sideOffset={4}
+        collisionPadding={12}
         onCloseAutoFocus={onCloseAutoFocus}
-        className="undraggle z-50 min-w-44 rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+        className="undraggle z-50 min-w-40 rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
       >
         <DropdownMenu.Item
           className={menuItemClass}

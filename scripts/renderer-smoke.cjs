@@ -664,6 +664,27 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await press('g'); await press('i')
     assert.equal(await run(`${feedElement}.ariaPressed`), 'true', 'An open menu blocks reader shortcuts')
     await snapshot('feed-actions-menu-dark-en')
+    const readerWindow = contents.getOwnerBrowserWindow()
+    const readerBounds = readerWindow.getBounds()
+    const viewportWidth = await run('innerWidth')
+    try {
+      readerWindow.setSize(600, readerBounds.height)
+      await wait('innerWidth === 600')
+      await run('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))')
+      const menuInset = `(() => {
+        const bounds = document.querySelector('${feedMenu}').getBoundingClientRect()
+        return bounds.left >= 8 && bounds.right <= innerWidth - 8
+      })()`
+      assert.equal(await run(menuInset), true, 'Resizing keeps the open menu inset from the window edges')
+      await press('Escape')
+      await wait(`!document.querySelector('${feedMenu}')`)
+      await openFeedMenu()
+      await wait(menuInset)
+      await snapshot('feed-actions-menu-narrow-dark-en')
+    } finally {
+      readerWindow.setBounds(readerBounds)
+    }
+    await wait(`innerWidth === ${viewportWidth}`)
     await run(`document.querySelector(${JSON.stringify(copyButton)}).focus()`)
     await press('Enter')
     await wait(`!document.querySelector('${feedMenu}') && ${rowElement}.querySelector('[data-feed-copied]')`)
