@@ -623,6 +623,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     const feedElement = `document.querySelector(${JSON.stringify(feedButton)})`
     const menuElement = `document.querySelector(${JSON.stringify(menuButton)})`
     const rowBackground = `getComputedStyle(${rowElement}).backgroundColor`
+    const menuBackground = `getComputedStyle(${menuElement}).backgroundColor`
     const actionsStyle = `getComputedStyle(${rowElement}.querySelector('[data-feed-actions]'))`
     const transparent = 'rgba(0, 0, 0, 0)'
     const currentBackground = await resolvedColor('var(--sidebar-current)')
@@ -637,8 +638,22 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     assert.equal(await run(`${menuElement}.hasAttribute('title')`), false)
     assert.ok(await run(`!!${menuElement}.querySelector('.lucide-ellipsis')`))
     assert.equal(await run(rowBackground), highlight)
-    assert.notEqual(await run(`getComputedStyle(${menuElement}).backgroundColor`), transparent)
-    await hover('[data-tab=all]')
+    for (const appearance of ['light', 'dark']) {
+      await run(`window.yikan.fetch('/settings/set', { path: 'appearance', value: '${appearance}' })`)
+      await wait(`document.documentElement.classList.contains('dark') === ${appearance === 'dark'}`)
+      const hoverColor = await resolvedColor('color-mix(in oklab, var(--sidebar-foreground) 6%, transparent)')
+      const openColor = await resolvedColor('color-mix(in oklab, var(--sidebar-foreground) 10%, transparent)')
+      await hover(feedButton)
+      await hover(menuButton)
+      await wait(`${menuBackground} === ${JSON.stringify(hoverColor)}`)
+      await mouseClick(menuButton)
+      await wait(`${menuElement}.ariaExpanded === 'true' && ${menuBackground} === ${JSON.stringify(openColor)}`)
+      await hover(copyButton)
+      assert.equal(await run(menuBackground), openColor)
+      await press('Escape')
+      await wait(`${menuElement}.ariaExpanded === 'false' && ${menuBackground} === '${transparent}'`)
+    }
+    await mouseClick('[data-tab=all]')
     await wait(`${rowBackground} === '${transparent}' && ${actionsStyle}.opacity === '0'`)
 
     const point = await hover(feedButton)
@@ -706,6 +721,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     assert.equal(await run(`${menuElement}.getBoundingClientRect().width`), menuWidth)
     await snapshot('feed-address-copied-dark-en')
     await wait(`${menuElement}.querySelector('.lucide-ellipsis') && !${rowElement}.querySelector('[data-feed-copied]')`)
+    await hover(feedButton)
     await hover(menuButton)
     assert.equal(await run(`${menuElement}.matches(':focus-visible')`), false, 'The restored more icon stays free of a mouse focus ring')
     assert.equal(await run(`getComputedStyle(${menuElement}).boxShadow`), 'none')

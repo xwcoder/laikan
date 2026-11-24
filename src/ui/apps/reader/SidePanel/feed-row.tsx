@@ -125,7 +125,8 @@ function SidebarFeedActions({
             size="icon-sm"
             aria-label={t('reader.action.feedMenu', { title: feed.title })}
             className={cn(
-              'hover:bg-background focus-visible:ring-inset dark:hover:bg-background',
+              'hover:bg-sidebar-foreground/6 dark:hover:bg-sidebar-foreground/6 focus-visible:ring-inset',
+              'aria-expanded:bg-sidebar-foreground/10 aria-expanded:hover:bg-sidebar-foreground/10',
               copied && 'text-theme-emphasis',
             )}
             disabled={pending}
