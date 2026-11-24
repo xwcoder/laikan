@@ -45,7 +45,7 @@ function useFeedRows(feeds: Feed[] | undefined) {
 
 export default function SidePanel({ model }: { model: ReaderModel }) {
   const { t } = useTranslation()
-  const [copyStatus, setCopyStatus] = useState<'success' | 'error' | null>(null)
+  const [copyFailed, setCopyFailed] = useState(false)
   const [unsubscribeFailed, setUnsubscribeFailed] = useState(false)
   const allTab = useRef<HTMLButtonElement | null>(null)
   const removing = useRef(false)
@@ -58,18 +58,20 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
   ] as const
 
   const copy = async (url: string) => {
+    setCopyFailed(false)
     try {
       await navigator.clipboard.writeText(url)
-      setCopyStatus('success')
+      return true
     } catch {
-      setCopyStatus('error')
+      setCopyFailed(true)
+      return false
     }
   }
 
   const cancelSubscription = async (id: number, trigger: HTMLButtonElement) => {
     if (removing.current || unsubscribe.isPending) return
     removing.current = true
-    const hadFocus = document.activeElement === trigger
+    const hadFocus = document.activeElement === trigger || !!document.activeElement?.closest('[data-feed-menu]')
     setUnsubscribeFailed(false)
     setPhase(id, 'pending')
     try {
@@ -134,13 +136,16 @@ export default function SidePanel({ model }: { model: ReaderModel }) {
         )}
       </div>
       <p role="status" className="shrink-0 px-2 text-xs text-muted-foreground empty:sr-only">
-        {copyStatus && t(copyStatus === 'success' ? 'reader.action.copy.success' : 'reader.action.copyError')}
+        {copyFailed && t('reader.action.copyError')}
       </p>
       <p role="status" className="sr-only">
         {rows.some((row) => row.phase === 'confirmed') && t('reader.unsubscribe.success')}
       </p>
       {unsubscribeFailed && (
         <p role="alert" className="mt-2 shrink-0 px-2 text-xs text-destructive">{t('reader.unsubscribe.error')}</p>
+      )}
+      {model.markFeedRead.isError && (
+        <p role="alert" className="mt-2 shrink-0 px-2 text-xs text-destructive">{t('reader.markFeedRead.error')}</p>
       )}
     </div>
   )

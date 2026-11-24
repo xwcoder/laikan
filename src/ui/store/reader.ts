@@ -12,6 +12,7 @@ type ReaderState = {
   unreadVersion: number
   retainedUnreadIds: ReadonlySet<number>
   retainUnread: (ids: number[]) => void
+  forgetUnread: (ids: number[]) => void
   resetUnreadView: () => void
   changeLibrary: (revision: number) => void
   changeTab: (tab: Tab | number) => void
@@ -48,6 +49,13 @@ export const useReaderStore = create<ReaderState>((set) => ({
       ? { retainedUnreadIds: new Set([...state.retainedUnreadIds, ...ids]) }
       : state
   )),
+  forgetUnread: (ids) => {
+    const removed = new Set(ids)
+    set((state) => (state.tab === 'unread' ? {
+      unreadVersion: state.unreadVersion + 1,
+      retainedUnreadIds: new Set([...state.retainedUnreadIds].filter((id) => !removed.has(id))),
+    } : state))
+  },
   resetUnreadView: () => set(clearUnreadView),
   changeLibrary: (revision) => set((state) => ({
     ...initialView,

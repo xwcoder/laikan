@@ -1,7 +1,8 @@
 import {
-  Check, Copy, Minus, Rss,
+  Check, CheckCheck, Copy, Ellipsis, Minus, Rss,
 } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { DropdownMenu } from 'radix-ui'
 import { useTranslation } from 'react-i18next'
 import { Feed } from '@/types/reader'
 import { ReaderModel } from '@/ui/hooks/use-reader-model'
@@ -20,23 +21,78 @@ function SidebarFeedIcon({ icon }: Pick<Feed, 'icon'>) {
 }
 
 type FeedActions = {
-  onCopy: (url: string) => void
+  onCopy: (url: string) => Promise<boolean>
   onUnsubscribe: (id: number, trigger: HTMLButtonElement) => void
 }
 
-const actionsPosition = 'pointer-events-none absolute right-1 flex'
+const actionsPosition = 'absolute right-1 flex items-center'
+const menuItemClass = 'flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm whitespace-nowrap outline-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0'
+
+function SidebarFeedMenu({
+  feed, busy, markFeedRead, onCopy, onUnsubscribe,
+}: {
+  feed: Feed
+  busy: boolean
+  markFeedRead: ReaderModel['markFeedRead']
+  onCopy: () => Promise<void>
+  onUnsubscribe: () => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <DropdownMenu.Portal>
+      <DropdownMenu.Content
+        data-feed-menu={feed.id}
+        align="end"
+        sideOffset={4}
+        className="undraggle z-50 min-w-44 rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+      >
+        <DropdownMenu.Item
+          className={menuItemClass}
+          disabled={!feed.unreadCount || busy || markFeedRead.isPending}
+          onSelect={() => markFeedRead.mutate(feed.id!)}
+        >
+          <CheckCheck aria-hidden />
+          {t('reader.action.markFeedRead')}
+        </DropdownMenu.Item>
+        <DropdownMenu.Item className={menuItemClass} onSelect={onCopy}>
+          <Copy aria-hidden />
+          {t('reader.action.copyFeedUrl')}
+        </DropdownMenu.Item>
+        <DropdownMenu.Separator className="-mx-1 my-1 h-px bg-border" />
+        <DropdownMenu.Item
+          className={menuItemClass}
+          disabled={busy || markFeedRead.isPending}
+          onSelect={onUnsubscribe}
+        >
+          <Minus aria-hidden />
+          {t('reader.action.unsubscribe')}
+        </DropdownMenu.Item>
+      </DropdownMenu.Content>
+    </DropdownMenu.Portal>
+  )
+}
 
 function SidebarFeedActions({
-  row, busy, onCopy, onUnsubscribe,
-}: FeedActions & { row: FeedRow; busy: boolean }) {
+  row, busy, markFeedRead, onCopy, onUnsubscribe,
+}: FeedActions & { row: FeedRow; busy: boolean; markFeedRead: ReaderModel['markFeedRead'] }) {
   const { t } = useTranslation()
   const { feed, phase } = row
+  const trigger = useRef<HTMLButtonElement | null>(null)
+  const [copiedAt, setCopiedAt] = useState<number | null>(null)
+  const copied = copiedAt !== null
+
+  useEffect(() => {
+    if (copiedAt === null) return undefined
+    const timeout = window.setTimeout(() => setCopiedAt(null), 1500)
+    return () => window.clearTimeout(timeout)
+  }, [copiedAt])
+
   if (phase === 'confirmed') {
     return (
       <div
         data-feed-actions
         aria-hidden
-        className={cn(actionsPosition, 'size-8 items-center justify-center text-theme-emphasis')}
+        className={cn(actionsPosition, 'pointer-events-none size-8 justify-center text-theme-emphasis')}
       >
         <Check className="size-4" />
       </div>
@@ -46,33 +102,46 @@ function SidebarFeedActions({
   return (
     <div
       data-feed-actions
+      data-feed-copied={copied || undefined}
       className={cn(
         actionsPosition,
-        'opacity-0 group-hover:pointer-events-auto group-hover:opacity-100',
-        'has-focus-visible:pointer-events-auto has-focus-visible:opacity-100',
+        'pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100',
+        'group-has-[:focus-visible]:pointer-events-auto group-has-[:focus-visible]:opacity-100',
+        'has-[[data-state=open]]:pointer-events-auto has-[[data-state=open]]:opacity-100',
+        copied && 'pointer-events-auto opacity-100',
       )}
     >
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        aria-label={t('reader.action.copy.title')}
-        className="hover:bg-background focus-visible:ring-inset dark:hover:bg-background"
-        onClick={() => onCopy(feed.url)}
-      >
-        <Copy />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        aria-label={t('reader.action.unsubscribe')}
-        title={t('reader.action.unsubscribe')}
-        className="hover:bg-background aria-disabled:opacity-50 focus-visible:ring-inset dark:hover:bg-background"
-        aria-disabled={pending || busy}
-        aria-busy={pending || undefined}
-        onClick={(event) => onUnsubscribe(feed.id!, event.currentTarget)}
-      >
-        <Minus aria-hidden />
-      </Button>
+      <DropdownMenu.Root>
+        <DropdownMenu.Trigger asChild>
+          <Button
+            ref={trigger}
+            variant="ghost"
+            size={copied ? 'sm' : 'icon-sm'}
+            aria-label={t('reader.action.feedMenu', { title: feed.title })}
+            className={cn(
+              'hover:bg-background focus-visible:ring-inset dark:hover:bg-background',
+              copied && 'text-xs text-theme-emphasis',
+            )}
+            disabled={pending}
+            aria-busy={pending || undefined}
+          >
+            {copied ? <Check aria-hidden /> : <Ellipsis aria-hidden />}
+            {copied && <span aria-hidden>{t('reader.action.copied')}</span>}
+          </Button>
+        </DropdownMenu.Trigger>
+        <SidebarFeedMenu
+          feed={feed}
+          busy={busy}
+          markFeedRead={markFeedRead}
+          onCopy={async () => {
+            if (await onCopy(feed.url)) setCopiedAt(Date.now())
+          }}
+          onUnsubscribe={() => {
+            if (trigger.current) onUnsubscribe(feed.id!, trigger.current)
+          }}
+        />
+      </DropdownMenu.Root>
+      <span role="status" className="sr-only">{copied && t('reader.action.copy.success')}</span>
     </div>
   )
 }
@@ -113,7 +182,8 @@ export default function SidebarFeedRow({
           data-feed-id={id}
           className={cn(
             'group relative mb-1 flex items-center rounded-md transition-colors',
-            model.tab === id ? 'bg-sidebar-current' : 'hover:bg-sidebar-accent has-focus-visible:bg-sidebar-accent',
+            model.tab === id ? 'bg-sidebar-current'
+              : 'hover:bg-sidebar-accent has-focus-visible:bg-sidebar-accent has-[[data-state=open]]:bg-sidebar-accent',
           )}
         >
           <Button
@@ -122,14 +192,14 @@ export default function SidebarFeedRow({
             className={cn(
               'w-full justify-start px-2 hover:bg-transparent focus-visible:ring-inset dark:hover:bg-transparent',
               'aria-pressed:[&>svg]:text-theme-emphasis',
-              confirmed ? 'pr-9' : 'group-hover:pr-16 group-has-[[data-feed-actions]_:focus-visible]:pr-16',
+              confirmed ? 'pr-9' : 'group-hover:pr-9 group-has-[:focus-visible]:pr-9 group-has-[[data-state=open]]:pr-9 group-has-[[data-feed-copied]]:pr-24',
             )}
             onClick={() => model.changeTab(id)}
           >
             <SidebarFeedIcon icon={feed.icon} />
             <span className={cn('truncate', !!feed.unreadCount && 'font-semibold')}>{feed.title}</span>
             {!!feed.unreadCount && !confirmed && (
-              <span className="ml-auto text-xs tabular-nums group-hover:hidden group-has-[[data-feed-actions]_:focus-visible]:hidden">
+              <span className="ml-auto text-xs tabular-nums group-hover:hidden group-has-[:focus-visible]:hidden group-has-[[data-state=open]]:hidden group-has-[[data-feed-copied]]:hidden">
                 {feed.unreadCount}
               </span>
             )}
@@ -137,6 +207,7 @@ export default function SidebarFeedRow({
           <SidebarFeedActions
             row={row}
             busy={model.unsubscribe.isPending}
+            markFeedRead={model.markFeedRead}
             onCopy={onCopy}
             onUnsubscribe={onUnsubscribe}
           />

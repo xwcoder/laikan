@@ -17,6 +17,10 @@
       "nextArticle": "Next article"
     },
     "action": {
+      "feedMenu": "More actions for {{title}}",
+      "markFeedRead": "Mark all as read",
+      "copyFeedUrl": "Copy feed address",
+      "copied": "Copied",
       "unsubscribe": "Unsubscribe",
       "markRead": "Mark as read",
       "markUnread": "Mark as unread",
@@ -41,6 +45,9 @@
       "partial": "{{succeeded}} synced, {{failed}} failed",
       "error": "Couldn't sync feeds.",
       "empty": "No feeds to sync."
+    },
+    "markFeedRead": {
+      "error": "Unable to mark this feed as read. Please try again."
     },
     "unsubscribe": {
       "success": "Unsubscribed.",

@@ -7,7 +7,7 @@ import { extractArticle } from './extract-article'
 
 const repository = createArticleRepository(database)
 export const {
-  getById, upsert, find, countUnread, starred, markRead,
+  getById, upsert, find, countUnread, starred, markRead, markFeedRead,
 } = repository
 const requests = new Map<string, Promise<ArticleFullText>>()
 

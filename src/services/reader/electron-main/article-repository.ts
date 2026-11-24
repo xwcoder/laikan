@@ -173,6 +173,15 @@ export function createArticleRepository(db: DatabaseClient) {
       ...ids,
     )
   }
+  const markFeedRead = async (feedId: number) => {
+    if (!Number.isSafeInteger(feedId) || feedId < 1) throw new TypeError('Invalid feed ID')
+    // One statement captures every existing row, including read rows retained in the unread view.
+    const rows = await db.all<{ id: number }>(
+      'UPDATE articles SET read = 1 WHERE feedId = ? RETURNING id',
+      feedId,
+    )
+    return rows.map(({ id }) => id)
+  }
   return {
     getById,
     saveFullText,
@@ -181,5 +190,6 @@ export function createArticleRepository(db: DatabaseClient) {
     countUnread,
     starred,
     markRead,
+    markFeedRead,
   }
 }

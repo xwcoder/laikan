@@ -50,6 +50,48 @@ test('distinct IDs survive empty/shared URLs; edits retain the article ID, read 
   assert.equal((await articles.find({ tab: 'all', page: 1, size: 50 })).count, 4)
 })
 
+test('marking a feed read covers its full history and leaves later arrivals unread', async (context) => {
+  const { db, articles } = await setup(context)
+  await db.run("INSERT INTO feeds(id,url,title) VALUES (2,'https://example.com/another-feed','Another feed')")
+  const history = Array.from({ length: 1001 }, (_, index) => article(`history-${index}`))
+  await articles.upsert([...history, article('another-feed', { feedId: 2 })])
+  const { rows: [first] } = await articles.find({ tab: 1, page: 1, size: 50 })
+  await articles.markRead([first.id!], 1)
+  await articles.starred(first.id!, 1)
+
+  const marking = articles.markFeedRead(1)
+  const arriving = articles.upsert(article('arrived-later', { pubTime: '2000-01-01T00:00:00.000Z' }))
+  const ids = await marking
+  await arriving
+  assert.equal(ids.length, 1001)
+  assert.ok(ids.includes(first.id!), 'Already-read rows are included so the UI can remove retained rows')
+  assert.equal(await articles.countUnread(), 2)
+  assert.equal((await articles.find({ tab: 1, page: 1, size: 50 })).count, 1002)
+  assert.equal((await articles.getById(first.id!))?.starred, 1)
+  const { rows: unread } = await articles.find({ tab: 'unread', page: 1, size: 50 })
+  assert.deepEqual(new Set(unread.map(({ externalId }) => externalId)), new Set(['another-feed', 'arrived-later']))
+
+  await articles.upsert(history[0])
+  assert.equal((await articles.getById(first.id!))?.read, 1, 'Refreshing history preserves the read state')
+  await articles.markFeedRead(1)
+  await articles.markFeedRead(1)
+  assert.equal(await articles.countUnread(), 1)
+  assert.deepEqual(await articles.markFeedRead(999), [])
+  await assert.rejects(articles.markFeedRead(0), /Invalid feed ID/)
+})
+
+test('a failed feed read update leaves every article unread', async (context) => {
+  const { db, articles } = await setup(context)
+  await articles.upsert([article('one'), article('two'), article('three')])
+  await db.exec(`CREATE TRIGGER reject_feed_read BEFORE UPDATE OF read ON articles WHEN OLD.externalId = 'two'
+    BEGIN SELECT RAISE(ABORT,'Rejected read update'); END`)
+  await assert.rejects(articles.markFeedRead(1), /Rejected read update/)
+  assert.equal(await articles.countUnread(), 3)
+  await db.exec('DROP TRIGGER reject_feed_read')
+  await articles.markFeedRead(1)
+  assert.equal(await articles.countUnread(), 0)
+})
+
 test('article lists sort by publication or first import time before paginating', async (context) => {
   const { db, articles } = await setup(context)
   await db.run("INSERT INTO feeds(id,url,title) VALUES (2,'https://example.com/another-feed','Another feed')")

@@ -57,8 +57,9 @@ function updateArticles(
   patch: Pick<Partial<ArticleListItem>, 'read' | 'starred'>,
 ) {
   const keys = readerKeys(revision)
+  const targets = new Set(ids)
   const update = <T extends ArticleListItem>(article: T): T => (
-    ids.includes(article.id!) ? { ...article, ...patch } : article
+    targets.has(article.id!) ? { ...article, ...patch } : article
   )
   client.setQueriesData<ArticlePage>({ queryKey: keys.articles }, (page) => (
     page ? { ...page, data: page.data.map(update) } : page
@@ -205,6 +206,23 @@ export function useMarkRead() {
       if (status === 1 && state.unreadVersion === unreadVersion) state.retainUnread(ids)
     },
     onSuccess: (_, { ids, status }) => updateArticles(client, revision, ids, { read: status }),
+  })
+}
+
+export function useMarkFeedRead() {
+  const client = useQueryClient()
+  const revision = useReaderStore((state) => state.libraryRevision)
+  return useMutation({
+    mutationKey: [...readerKeys(revision).all, 'feed-read'],
+    scope: { id: `reader-write:${revision}` },
+    meta: { inlineError: true, libraryRevision: revision },
+    mutationFn: (id: number) => articleService.markFeedRead(id, revision),
+    onSuccess: (ids) => {
+      const state = useReaderStore.getState()
+      if (revision !== state.libraryRevision) return undefined
+      state.forgetUnread(ids)
+      return updateArticles(client, revision, ids, { read: 1 })
+    },
   })
 }
 

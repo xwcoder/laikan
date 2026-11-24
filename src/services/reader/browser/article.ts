@@ -19,3 +19,7 @@ export const starred = (id: number, status: 0 | 1, revision: number): Promise<vo
 export const markRead = (ids: number[], status: 0 | 1, revision: number): Promise<void> => (
   fetch('/reader/put/article/read', { ids, status }, revision)
 )
+
+export const markFeedRead = (id: number, revision: number): Promise<number[]> => (
+  fetch('/reader/put/feed/read', id, revision)
+)

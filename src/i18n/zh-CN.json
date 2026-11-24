@@ -17,6 +17,10 @@
       "nextArticle": "下一篇"
     },
     "action": {
+      "feedMenu": "{{title}} 的更多操作",
+      "markFeedRead": "全部标为已读",
+      "copyFeedUrl": "复制订阅地址",
+      "copied": "已复制",
       "unsubscribe": "取消订阅",
       "markRead": "标记为已读",
       "markUnread": "标记为未读",
@@ -41,6 +45,9 @@
       "partial": "{{succeeded}} 个成功，{{failed}} 个失败",
       "error": "无法同步订阅源。",
       "empty": "暂无可同步的订阅源。"
+    },
+    "markFeedRead": {
+      "error": "无法将此订阅源全部标为已读，请重试。"
     },
     "unsubscribe": {
       "success": "已取消订阅。",

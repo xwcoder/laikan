@@ -604,26 +604,35 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     const feedId = Number(await run('document.querySelector("[data-feed-id]").dataset.feedId'))
     const feedRow = `[data-feed-id="${feedId}"]`
     const feedButton = `${feedRow} > button`
-    const copyButton = `${feedRow} [aria-label="${en.reader.action.copy.title}"]`
-    const unsubscribeButton = `${feedRow} [aria-label="${en.reader.action.unsubscribe}"]`
+    const menuButton = `${feedRow} [aria-haspopup="menu"]`
+    const feedMenu = `[data-feed-menu="${feedId}"]`
+    const markFeedReadButton = `${feedMenu} [role=menuitem]:first-child`
+    const copyButton = `${feedMenu} [role=menuitem]:nth-child(2)`
+    const unsubscribeButton = `${feedMenu} [role=menuitem]:last-child`
+    const openFeedMenu = async () => {
+      await run(`document.querySelector(${JSON.stringify(menuButton)}).focus()`)
+      await press('Enter')
+      await wait(`document.querySelector(${JSON.stringify(feedMenu)})`)
+    }
     const rowElement = `document.querySelector(${JSON.stringify(feedRow)})`
     const feedElement = `document.querySelector(${JSON.stringify(feedButton)})`
+    const menuElement = `document.querySelector(${JSON.stringify(menuButton)})`
     const rowBackground = `getComputedStyle(${rowElement}).backgroundColor`
     const actionsStyle = `getComputedStyle(${rowElement}.querySelector('[data-feed-actions]'))`
     const transparent = 'rgba(0, 0, 0, 0)'
     const currentBackground = await resolvedColor('var(--sidebar-current)')
     assert.equal(await run('getComputedStyle(document.querySelector("[data-tab][aria-pressed=true]")).backgroundColor'), currentBackground)
 
-    // Real mouse movement must preserve the row highlight across both action buttons.
+    // The compact menu shares the row highlight and needs no tooltip.
     await hover(feedButton)
     await wait(`${rowBackground} !== '${transparent}' && ${rowElement}.getAnimations().length === 0`)
     const highlight = await run(rowBackground)
     assert.notEqual(highlight, currentBackground, 'Hover and selection use distinct sidebar colors')
-    for (const selector of [copyButton, unsubscribeButton]) {
-      await hoverWithoutTooltip(selector)
-      assert.equal(await run(rowBackground), highlight)
-      assert.notEqual(await run(`getComputedStyle(document.querySelector(${JSON.stringify(selector)})).backgroundColor`), transparent)
-    }
+    await hoverWithoutTooltip(menuButton)
+    assert.equal(await run(`${menuElement}.hasAttribute('title')`), false)
+    assert.ok(await run(`!!${menuElement}.querySelector('.lucide-ellipsis')`))
+    assert.equal(await run(rowBackground), highlight)
+    assert.notEqual(await run(`getComputedStyle(${menuElement}).backgroundColor`), transparent)
     await hover('[data-tab=all]')
     await wait(`${rowBackground} === '${transparent}' && ${actionsStyle}.opacity === '0'`)
 
@@ -639,39 +648,101 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await focusWindow()
     await wait(`document.activeElement === ${feedElement}`)
     tab()
-    await wait(`document.activeElement.matches(${JSON.stringify(copyButton)}) && ${actionsStyle}.opacity === '1'`)
+    await wait(`document.activeElement.matches(${JSON.stringify(menuButton)}) && ${actionsStyle}.opacity === '1'`)
     tab(['shift'])
-    await wait(`document.activeElement === ${feedElement} && ${actionsStyle}.opacity === '0'`)
+    await wait(`document.activeElement === ${feedElement} && ${actionsStyle}.opacity === '1'`)
+
+    await openFeedMenu()
+    assert.deepEqual(await run(`Array.from(document.querySelectorAll('${feedMenu} [role=menuitem]'), item => item.textContent.trim())`),
+      [en.reader.action.markFeedRead, en.reader.action.copyFeedUrl, en.reader.action.unsubscribe])
+    assert.equal(await run(`document.querySelectorAll('${feedMenu} [role=menuitem] > svg').length`), 3)
+    await press('g'); await press('i')
+    assert.equal(await run(`${feedElement}.ariaPressed`), 'true', 'An open menu blocks reader shortcuts')
+    await snapshot('feed-actions-menu-dark-en')
+    await click(copyButton)
+    await wait(`!document.querySelector('${feedMenu}') && ${rowElement}.textContent.includes(${JSON.stringify(en.reader.action.copied)})`)
+    assert.equal(await require('electron').clipboard.readText(), `${base}/rss`)
+    assert.ok(await run(`${menuElement}.querySelector('.lucide-check') && document.activeElement === ${menuElement}`))
+    await snapshot('feed-address-copied-dark-en')
+    await wait(`${menuElement}.querySelector('.lucide-ellipsis') && !${rowElement}.hasAttribute('data-feed-copied')
+      && !${rowElement}.querySelector('[data-feed-copied]')`)
+
+    const { DatabaseSync } = require('node:sqlite')
+    const db = new DatabaseSync(path.join(process.env.YIKAN_SMOKE_USER_DATA, 'yikan.db'), { timeout: 1000 })
+    try {
+      db.exec(`UPDATE articles SET read = 0 WHERE feedId = ${feedId}`)
+      await click('[data-tab=unread]')
+      await wait('document.querySelector("[data-tab=unread]").ariaPressed === "true"')
+      await click(refreshButton)
+      await wait('document.body.textContent.includes("1–50 of 55") && document.querySelector("[data-tab=unread] span")?.textContent === "55"')
+      await openFeedMenu()
+      db.exec(`CREATE TRIGGER reject_feed_read BEFORE UPDATE OF read ON articles
+        WHEN OLD.feedId = ${feedId} BEGIN SELECT RAISE(ABORT, 'Test feed read failure'); END`)
+      await click(markFeedReadButton)
+      await wait(`document.querySelector('aside [role=alert]')?.textContent === ${JSON.stringify(en.reader.markFeedRead.error)}`)
+      assert.equal(await run('window.yikan.fetch("/reader/get/articles/unread-count")'), 55)
+      db.exec('DROP TRIGGER reject_feed_read')
+
+      const openedId = await run('Number(document.querySelector("[data-list-item-id]").dataset.listItemId)')
+      await click(`[data-list-item-id="${openedId}"] [data-article-open]`)
+      await wait(`window.yikan.fetch('/reader/get/article', ${openedId}).then(article => article.read === 1)`)
+      const openedTitle = await run('document.querySelector("article h1").textContent')
+      const openedScroll = await run(`(() => {
+        const viewport = document.querySelector('.article-content').closest('[tabindex="-1"]')
+        viewport.scrollTop = 200
+        return viewport.scrollTop
+      })()`)
+      await openFeedMenu()
+      await click(markFeedReadButton)
+      await wait('!document.querySelector("[data-feed-menu]") && !document.querySelector("[data-tab=unread] span")')
+      assert.equal(await run('document.querySelector("article h1").textContent'), openedTitle)
+      assert.equal(await run(`document.querySelector('.article-content').closest('[tabindex="-1"]').scrollTop`), openedScroll)
+      assert.equal(await run('window.yikan.fetch("/reader/get/articles/unread-count")'), 0)
+      assert.equal(await run('!!document.querySelector("[role=alertdialog], [role=dialog]")'), false)
+      await openFeedMenu()
+      assert.equal(await run(`document.querySelector('${markFeedReadButton}').ariaDisabled`), 'true')
+      await press('Escape')
+      await click('[aria-label="Back to list"]')
+      await wait(`!document.querySelector('[data-list-item-id]') && document.body.textContent.includes(${JSON.stringify(en.reader.list.empty)})`)
+
+      await click(feedButton)
+      await wait('document.querySelectorAll("[data-list-item-id].text-muted-foreground").length === 50')
+      fixtureCount = 56
+      await click(refreshButton)
+      await wait('document.body.textContent.includes("1–50 of 56") && document.querySelector("[data-tab=unread] span")?.textContent === "1"')
+      assert.equal(await run('window.yikan.fetch("/reader/get/articles/unread-count")'), 1)
+    } finally {
+      db.close()
+    }
 
     const articleBeforeUnsubscribe = await run(`window.yikan.fetch('/reader/get/article', ${firstId})`)
     const unreadBefore = await run('window.yikan.fetch("/reader/get/articles/unread-count")')
-    const { DatabaseSync } = require('node:sqlite')
-    const db = new DatabaseSync(path.join(process.env.YIKAN_SMOKE_USER_DATA, 'yikan.db'), { timeout: 1000 })
-    const unsubscribeElement = `document.querySelector(${JSON.stringify(unsubscribeButton)})`
+    const unsubscribeDb = new DatabaseSync(path.join(process.env.YIKAN_SMOKE_USER_DATA, 'yikan.db'), { timeout: 1000 })
     const leavingRow = `document.querySelector('[data-feed-leaving="${feedId}"]')`
-    await run(`document.querySelector(${JSON.stringify(unsubscribeButton)}).focus()`)
+    await openFeedMenu()
     try {
-      db.exec(`CREATE TRIGGER reject_unsubscribe BEFORE UPDATE OF subscribed ON feeds
+      unsubscribeDb.exec(`CREATE TRIGGER reject_unsubscribe BEFORE UPDATE OF subscribed ON feeds
         WHEN OLD.id = ${feedId} AND NEW.subscribed = 0
         BEGIN SELECT RAISE(ABORT, 'Test unsubscribe failure'); END`)
       await click(unsubscribeButton)
       await wait(`document.querySelector('aside [role=alert]')?.textContent === ${JSON.stringify(en.reader.unsubscribe.error)}`)
-      assert.ok(await run(`${unsubscribeElement}.querySelector('.lucide-minus') && !${leavingRow} && !${rowElement}.querySelector('.lucide-check')`))
-      db.exec('DROP TRIGGER reject_unsubscribe')
+      assert.ok(await run(`${menuElement}.querySelector('.lucide-ellipsis') && !${leavingRow} && !${rowElement}.querySelector('.lucide-check')`))
+      unsubscribeDb.exec('DROP TRIGGER reject_unsubscribe')
 
-      db.exec('BEGIN IMMEDIATE')
+      await openFeedMenu()
+      unsubscribeDb.exec('BEGIN IMMEDIATE')
       try {
         await click(unsubscribeButton)
-        await wait(`${unsubscribeElement}?.ariaBusy === 'true'`)
-        assert.ok(await run(`${unsubscribeElement}.querySelector('.lucide-minus') && ${unsubscribeElement}.ariaDisabled === 'true'`))
+        await wait(`${menuElement}?.ariaBusy === 'true'`)
+        assert.ok(await run(`${menuElement}.querySelector('.lucide-ellipsis') && ${menuElement}.disabled`))
         assert.equal(await run(`!!${rowElement}.querySelector('.lucide-check, .animate-spin')`), false)
       } finally {
-        db.exec('ROLLBACK')
+        unsubscribeDb.exec('ROLLBACK')
       }
       await wait(`${rowElement}?.querySelector('.lucide-check') && !${rowElement}.matches(':hover')
         && ${actionsStyle}.opacity === '1' && getComputedStyle(${leavingRow}).opacity === '1'`)
     } finally {
-      db.close()
+      unsubscribeDb.close()
     }
     if (!await run('matchMedia("(prefers-reduced-motion: reduce)").matches')) {
       assert.equal(await run(`getComputedStyle(${leavingRow}).transitionDelay`), '0.15s')
@@ -681,7 +752,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await wait('document.querySelectorAll("[data-list-item-id]").length === 50')
     assert.equal(await run('!!document.querySelector("[role=alertdialog]")'), false)
     assert.deepEqual(await run('window.yikan.fetch("/reader/get/feed/all")'), [])
-    assert.equal((await run('window.yikan.fetch("/reader/get/articles", { tab: "all", page: 1, size: 50 })')).count, 55)
+    assert.equal((await run('window.yikan.fetch("/reader/get/articles", { tab: "all", page: 1, size: 50 })')).count, 56)
     assert.deepEqual(await run(`window.yikan.fetch('/reader/get/article', ${firstId})`), articleBeforeUnsubscribe)
     assert.equal(articleBeforeUnsubscribe.feedTitle, 'Fixture feed')
     assert.equal(await run('window.yikan.fetch("/reader/get/articles/unread-count")'), unreadBefore)

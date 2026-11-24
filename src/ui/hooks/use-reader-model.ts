@@ -8,6 +8,7 @@ import {
   articlesOptions,
   feedsOptions,
   unreadCountOptions,
+  useMarkFeedRead,
   useMarkRead,
   useRefreshFeeds,
   useStarArticle,
@@ -158,11 +159,13 @@ export function useReaderModel() {
   const detail = useQuery({ ...articleOptions(activeId, libraryRevision), enabled: opened && activeId !== null })
   const font = useReaderFontSize(client)
   const refresh = useRefreshFeeds()
+  const markFeedRead = useMarkFeedRead()
   const unsubscribe = useUnsubscribe(leaveUnsubscribedFeed)
   const articles = list.data?.data ?? emptyArticles
   const activeArticle = opened ? detail.data : articles.find((article) => article.id === activeId)
   const actions = useArticleActions(state, articles, activeArticle)
-  const navigation = useNavigation(state, list.data, list.isFetching || actions.writing)
+  const writing = actions.writing || markFeedRead.isPending
+  const navigation = useNavigation(state, list.data, list.isFetching || writing)
   useSelectionSync(state, list.isPlaceholderData ? undefined : list.data)
 
   const refreshList = () => {
@@ -174,6 +177,7 @@ export function useReaderModel() {
     ...state,
     ...navigation,
     ...actions,
+    writing,
     ...font,
     feeds,
     unreadCount,
@@ -185,6 +189,7 @@ export function useReaderModel() {
     refresh,
     refreshList,
     unsubscribe,
+    markFeedRead,
   }
 }
 
