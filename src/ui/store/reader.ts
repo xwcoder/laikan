@@ -3,6 +3,7 @@ import { Tab } from '@/types/reader'
 
 type ReaderState = {
   tab: Tab | number
+  tabVisit: number
   page: number
   size: number
   activeId: number | null
@@ -39,6 +40,7 @@ const initialView = {
 // Only client UI state lives here. IPC data belongs to the Query cache.
 export const useReaderStore = create<ReaderState>((set) => ({
   tab: 'unread',
+  tabVisit: 0,
   ...initialView,
   size: 50,
   libraryRevision: 0,
@@ -61,12 +63,14 @@ export const useReaderStore = create<ReaderState>((set) => ({
     ...initialView,
     ...clearUnreadView(state),
     tab: 'unread',
+    tabVisit: state.tabVisit + 1,
     libraryRevision: revision,
   })),
   changeTab: (tab) => set((state) => ({
     ...initialView,
     ...(state.tab === 'unread' || tab === 'unread' ? clearUnreadView(state) : {}),
     tab,
+    tabVisit: state.tabVisit + 1,
   })),
   changePage: (page, activeId = null) => set({ page, activeId, selectedIds: [] }),
   activate: (activeId) => set((state) => (state.activeId === activeId ? state : { activeId })),

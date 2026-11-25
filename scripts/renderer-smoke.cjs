@@ -538,6 +538,15 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await press('u')
     const rowBeforeSwitch = `[data-list-item-id="${readBeforeSwitch}"]`
     await wait(`document.querySelector('${rowBeforeSwitch}')?.classList.contains('text-muted-foreground')`)
+    await run('document.querySelectorAll("[data-article-open]")[22].focus()')
+    await wait('document.querySelector(".list-container").scrollTop > 0')
+    await press('g'); await press('i')
+    await wait(`document.body.textContent.includes('1–48 of 48') && !document.querySelector('${rowBeforeSwitch}')`)
+    await wait('document.querySelector("[data-list-item-id]").classList.contains("border-l-theme-emphasis") && document.querySelector(".list-container").scrollTop === 0')
+    await press('j')
+    await wait('document.activeElement === document.querySelectorAll("[data-article-open]")[1]')
+    await press('k')
+    await wait('document.activeElement === document.querySelector("[data-article-open]")')
     await press('g'); await press('a')
     await wait('document.querySelector("[data-tab=all]").ariaPressed === "true"')
     await press('g'); await press('i')
@@ -884,7 +893,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
         [en.reader.recommendations.groups.fullStackDevelopment, 2],
         [en.reader.recommendations.groups.softwareArchitecture, 4],
         [en.reader.recommendations.groups.highPerformanceSystems, 3],
-        [en.reader.recommendations.groups.aiAndDataEngineering, 2],
+        [en.reader.recommendations.groups.aiAndDataEngineering, 1],
         [en.reader.recommendations.groups.engineeringNewsAndEssays, 4],
         [en.reader.recommendations.groups.technology, 2],
         [en.reader.recommendations.groups.scienceAndHumanities, 5],

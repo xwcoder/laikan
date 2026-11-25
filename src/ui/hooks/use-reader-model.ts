@@ -21,12 +21,12 @@ const emptyArticles: ArticleListItem[] = []
 
 function useSelectionSync(state: ReaderState, result: ArticlePage | undefined) {
   const {
-    opened, tab, page, size,
+    opened, tabVisit, page, size,
   } = state
   useEffect(() => {
     if (opened || !result) return
     const current = useReaderStore.getState()
-    if (current.opened || current.tab !== tab || current.page !== page) return
+    if (current.opened || current.tabVisit !== tabVisit || current.page !== page) return
     const lastPage = Math.max(1, Math.ceil(result.count / size))
     if (page > lastPage) {
       current.changePage(lastPage)
@@ -36,7 +36,7 @@ function useSelectionSync(state: ReaderState, result: ArticlePage | undefined) {
     if (!ids.includes(current.activeId!)) current.activate(ids[0] ?? null)
     const selected = current.selectedIds.filter((id) => ids.includes(id))
     if (selected.length !== current.selectedIds.length) current.select(selected)
-  }, [result, opened, tab, page, size])
+  }, [result, opened, tabVisit, page, size])
 }
 
 async function getPageTarget(client: QueryClient, state: ReaderState, result: ArticlePage, direction: 1 | -1) {
