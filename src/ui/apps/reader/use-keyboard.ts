@@ -25,8 +25,7 @@ function getActions(model: ReaderModel, fullTextButton: HTMLButtonElement | null
     s: () => model.toggleStar(activeId),
     v: () => model.opened && model.activeArticle && openExternal(model.activeArticle.url),
     x: () => activeId !== null && model.toggleSelected(activeId),
-    'shift+i': () => model.markRead(1),
-    'shift+u': () => model.markRead(0),
+    m: model.toggleRead,
     gi: () => model.changeTab('unread'),
     gs: () => model.changeTab('starred'),
     ga: () => model.changeTab('all'),
@@ -94,7 +93,7 @@ export default function useKeyboard(
       }
       const shortcut = shortcutKey(sequence, event)
       clear()
-      if (shortcut === 'f' && event.repeat) return
+      if (event.repeat && (shortcut === 'f' || shortcut === 'm')) return
       const action = getActions(modelRef.current, fullTextButtonRef.current)[shortcut]
       if (action) {
         event.preventDefault()

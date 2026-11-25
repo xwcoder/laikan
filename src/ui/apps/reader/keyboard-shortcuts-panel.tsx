@@ -14,6 +14,7 @@ const shortcuts = [
   ['* n', 'deselect'],
   ['x', 'x'],
   ['s', 's'],
+  ['m', 'm'],
   ['j', 'j'],
   ['k', 'k'],
   ['o', 'o'],
@@ -22,8 +23,6 @@ const shortcuts = [
   ['f', 'f'],
   ['+', 'fontIncrease', '='],
   ['-', 'fontDecrease'],
-  ['Shift+i', 'shifti'],
-  ['Shift+u', 'shiftu'],
 ] as const
 
 export default function KeyboardShortcutsPanel({

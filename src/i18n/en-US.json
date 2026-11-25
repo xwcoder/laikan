@@ -175,6 +175,7 @@
         "deselect": "Deselect All",
         "x": "Select/Deselect item",
         "s": "Toggle star",
+        "m": "Toggle read/unread",
         "j": "Next item",
         "k": "Previous item",
         "o": "Open item",
@@ -182,9 +183,7 @@
         "v": "Open item in browser",
         "f": "Load or toggle full article",
         "fontIncrease": "Increase font size while reading",
-        "fontDecrease": "Decrease font size while reading",
-        "shifti": "Mark as read",
-        "shiftu": "Mark as unread"
+        "fontDecrease": "Decrease font size while reading"
       }
     }
   },

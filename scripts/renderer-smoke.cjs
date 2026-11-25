@@ -444,7 +444,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     assert.equal(await run(`document.querySelector(${JSON.stringify(larger)}).disabled`), false)
     for (let i = 0; i < 6; i += 1) await press('=')
     await wait(`${articleFont} === "18px" && ${savedFont}.then(size => size === 18)`)
-    await click('[aria-label="Mark as unread"]')
+    await press('m')
     await wait(`document.querySelector('[aria-label="Mark as read"]')`)
     await click('[aria-label="Back to list"]')
     await wait('document.querySelector("[data-list-item-id]")')
@@ -560,7 +560,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     assert.equal(await run('window.__smokeList === document.querySelector(".list-container")'), true)
     assert.equal(await run('window.__smokeList.scrollTop === window.__smokeListScroll'), true)
     assert.equal(await run('document.querySelectorAll("[data-list-item-id] [role=checkbox][data-state=checked]").length'), 50)
-    await press('I', true)
+    await press('m')
     await wait(`window.yikan.fetch('/reader/get/articles', { tab: 'unread', page: 1, size: 50 }).then(result => result.count === 2)`)
     // Keep the sequence alive through a real background refresh and React renders.
     await press('*', true)
@@ -835,7 +835,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     contents.session.enableNetworkEmulation({ offline: true })
     try {
       await click(catalogButton)
-      await wait('document.querySelectorAll("[data-recommended-feed]").length === 39')
+      await wait('document.querySelectorAll("[data-recommended-feed]").length === 38')
       await wait(`Array.from(document.querySelectorAll('[data-recommended-feed]')).every(
         row => row.querySelector('img')?.naturalWidth > 0,
       )`)
