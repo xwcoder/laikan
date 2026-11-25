@@ -168,13 +168,6 @@ export const recommendedGroups: readonly { id: string; feeds: readonly Recommend
         language: 'en',
         icon: 'simon-willison',
       },
-      {
-        id: 'infoqAi',
-        title: 'InfoQ · AI, ML & Data Engineering',
-        url: 'https://feed.infoq.com/ai-ml-data-eng/',
-        language: 'en',
-        icon: 'infoq',
-      },
     ],
   },
   {
