@@ -76,13 +76,16 @@
   -webkit-app-region: no-drag;
 }
 
+.reader-scrollbar {
+  scrollbar-color: color-mix(in oklab, currentColor 48%, transparent) transparent;
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+}
+
 .sidebar-feed-list {
   --feed-list-fade-size: 12px;
   container: sidebar-feed-list / scroll-state;
   scroll-padding-block: var(--feed-list-fade-size);
-  scrollbar-color: color-mix(in oklab, var(--sidebar-foreground) 48%, transparent) transparent;
-  scrollbar-width: thin;
-  scrollbar-gutter: stable;
 }
 
 .sidebar-feed-list > * {

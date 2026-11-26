@@ -31,7 +31,7 @@ export default function List({ model }: { model: ReaderModel }) {
           onScroll={rememberPosition}
           onFocus={onFocus}
           onBlur={onBlur}
-          className="list-container min-h-0 flex-1 overflow-y-auto pb-6 [overflow-anchor:none]"
+          className="list-container reader-scrollbar min-h-0 flex-1 overflow-y-auto pb-6 [overflow-anchor:none]"
         >
           {articles.length ? (
             articles.map((article) => <Item key={article.id} model={model} article={article} />)

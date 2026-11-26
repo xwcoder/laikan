@@ -27,7 +27,7 @@ export default function Article({ model, fullTextButtonRef }: {
           key={article.id}
           ref={focusArticle}
           tabIndex={-1}
-          className="min-h-0 flex-1 overflow-y-auto outline-none"
+          className="reader-scrollbar min-h-0 flex-1 overflow-y-auto outline-none"
         >
           <Content fontSize={model.fontSize} article={article} fullTextButtonRef={fullTextButtonRef} />
         </div>
