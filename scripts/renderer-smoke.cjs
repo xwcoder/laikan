@@ -371,6 +371,36 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     const articleViewport = 'document.querySelector("article").parentElement'
     const articleFocused = `document.activeElement === ${articleViewport}`
     assert.ok(await run(articleFocused), 'Opening an article should focus its scroll area')
+    const pageStep = await run(`${articleViewport}.clientHeight * 0.75`)
+    const maxScroll = await run(`${articleViewport}.scrollHeight - ${articleViewport}.clientHeight`)
+    const scrollWithSpace = (count, shiftKey = false) => run(`new Promise((resolve, reject) => {
+      const viewport = ${articleViewport}
+      const start = viewport.scrollTop
+      const dispatched = []
+      const timeout = setTimeout(() => reject(new Error('Article scroll did not finish')), 5000)
+      viewport.addEventListener('scrollend', () => {
+        clearTimeout(timeout)
+        resolve({ start, dispatched, immediate, end: viewport.scrollTop })
+      }, { once: true })
+      for (let index = 0; index < ${count}; index++) {
+        dispatched.push(document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {
+          key: ' ', shiftKey: ${shiftKey}, bubbles: true, cancelable: true
+        })))
+      }
+      const immediate = viewport.scrollTop
+    })`)
+    const down = await scrollWithSpace(1)
+    assert.deepEqual(down.dispatched, [false], 'Space should cancel the default scroll')
+    if (!await run('matchMedia("(prefers-reduced-motion: reduce)").matches')) {
+      assert.equal(down.immediate, down.start, 'Space should animate rather than jump')
+    }
+    assert.ok(Math.abs(down.end - down.start - pageStep) <= 1, 'Space should scroll down 75%')
+    const up = await scrollWithSpace(1, true)
+    assert.deepEqual(up.dispatched, [false], 'Shift+Space should cancel the default scroll')
+    assert.ok(Math.abs(up.end - down.start) <= 1, 'Shift+Space should scroll back up 75%')
+    const repeated = await scrollWithSpace(2)
+    assert.ok(Math.abs(repeated.end - Math.min(repeated.start + 2 * pageStep, maxScroll)) <= 1,
+      'Two quick presses should scroll two increments')
     await wait(`window.yikan.fetch('/reader/get/article', ${firstId}).then(article => article.read === 1)`)
     assert.equal(await run('!!window.__rssScriptRan'), false, 'RSS markup must be sanitized')
     assert.equal(await run('document.querySelectorAll(".article-content script, .article-content [onerror]").length'), 0)
@@ -407,7 +437,7 @@ module.exports = async function rendererSmoke(contents, nativeTheme) {
     await click('[role=dialog] > button[aria-label=Close]')
     await wait('!document.querySelector("[role=dialog]")')
     assert.equal(await run('window.__smokeArticle === document.querySelector("article")'), true)
-    assert.equal(await run('window.__smokeArticle.parentElement.scrollTop === window.__smokeArticleScroll'), true)
+    assert.equal(await run(`${articleViewport}.scrollTop`), await run('window.__smokeArticleScroll'))
 
     const paragraph = 'document.querySelectorAll(".article-content p")[15]'
     const paragraphOffset = `${paragraph}.getBoundingClientRect().top - window.__smokeArticle.parentElement.getBoundingClientRect().top`
