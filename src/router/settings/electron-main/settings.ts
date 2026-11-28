@@ -10,7 +10,7 @@ router.use('get', (_, path) => (
 
 router.use('set', (_, { path, value }: { path: string, value: unknown }) => {
   if (path === 'dataPath') return changeDataPath(value)
-  if (!['appearance', 'theme', 'locale', 'reader.fontSize'].includes(path)) {
+  if (!['appearance', 'theme', 'locale', 'reader.fontSize', 'reader.refreshInterval'].includes(path)) {
     throw new TypeError('Unknown setting')
   }
   return settingService.set(path, value)

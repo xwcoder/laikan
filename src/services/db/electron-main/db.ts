@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
+import { EventEmitter } from 'node:events'
 import { randomUUID } from 'node:crypto'
 import { constants, Stats } from 'node:fs'
 import {
@@ -44,6 +45,15 @@ export const isCurrentLibrary = (revision = getLibraryRevision()) => revision ==
 
 export function withReaderLibrary<T>(operation: () => T, revision = getLibraryRevision()): T {
   return libraryContext.run(revision, operation)
+}
+
+// Runs outside any stale library context, for work that always targets the active library.
+export const withCurrentLibrary = <T>(operation: () => T): T => libraryContext.run(libraryRevision, operation)
+
+const libraryEvents = new EventEmitter()
+export const onLibraryChange = (listener: () => void) => {
+  libraryEvents.on('change', listener)
+  return () => libraryEvents.off('change', listener)
 }
 
 let connection = openReaderDatabase(databasePath(settingService.get('dataPath')), true)
@@ -130,6 +140,7 @@ async function switchDatabase(directory: string) {
   const next = await prepareDatabase(directory, destination, migrating)
   connection = Promise.resolve(next)
   if (!migrating) libraryRevision += 1
+  libraryEvents.emit('change')
 
   try {
     await (await oldConnection).close()

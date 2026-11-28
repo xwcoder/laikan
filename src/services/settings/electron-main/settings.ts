@@ -5,6 +5,7 @@ import _get from 'lodash.get'
 import _set from 'lodash.set'
 import { readJSON, writeJSONAtomically } from '@/base/node/fs'
 import { normalizeReaderFontSize } from '@/base/common/reader-font-size'
+import { isRefreshInterval } from '@/base/common/refresh-interval'
 import { defaultTheme, isTheme } from '@/base/common/themes'
 import { Settings } from '@/types/settings'
 
@@ -28,6 +29,7 @@ export const get = (path?: string) => path ? _get(settings, path) : settings
 export const set = (path: string, value: any) => {
   if (path === 'theme' && !isTheme(value)) throw new TypeError('Unknown theme')
   if (path === 'reader.fontSize' && value !== normalizeReaderFontSize(value)) throw new TypeError('Invalid reader font size')
+  if (path === 'reader.refreshInterval' && !isRefreshInterval(value)) throw new TypeError('Invalid refresh interval')
   const oldValue = get(path)
 
   const nextSettings = structuredClone(settings)
@@ -43,6 +45,8 @@ export const set = (path: string, value: any) => {
 type changeListener = (path: string, newValue: any, oldValue: any) => void
 
 export const on = (eventName: 'change', listener: changeListener): EventEmitter => emitter.on(eventName, listener)
+
+export const off = (eventName: 'change', listener: changeListener): EventEmitter => emitter.off(eventName, listener)
 
 app.whenReady()
   .then(() => {

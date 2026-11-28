@@ -18,7 +18,9 @@ import {
 } from '@/ui/components/ui/dialog'
 import { ErrorAlert } from '@/ui/components/error-alert'
 import { LocalizedDialogClose } from '@/ui/components/localized-dialog-close'
+import { normalizeRefreshInterval } from '@/base/common/refresh-interval'
 import ThemeSelect from './theme-select'
+import RefreshIntervalSelect from './refresh-interval-select'
 
 const appearanceOptions: Appearance[] = ['light', 'dark', 'auto']
 const optionsLayout = 'flex flex-wrap gap-x-4 gap-y-3'
@@ -156,6 +158,15 @@ function SettingsContent() {
             </div>
           ))}
         </RadioGroup>
+        <Label htmlFor="settings-refresh-interval" className="mt-2 @min-[25rem]:mt-0">
+          {t('settings.refreshInterval.title')}
+        </Label>
+        <RefreshIntervalSelect
+          value={saving?.path === 'reader.refreshInterval'
+            ? saving.value
+            : normalizeRefreshInterval(data?.reader?.refreshInterval)}
+          onChange={(value) => update.mutate({ path: 'reader.refreshInterval', value })}
+        />
       </div>
       <Separator />
       <DataDirectorySettings settings={data} update={directoryUpdate} savingSettings={savingSettings} />

@@ -2,6 +2,7 @@ import {
   queryOptions, useMutation, useQuery, useQueryClient,
 } from '@tanstack/react-query'
 import * as settingsService from '@/services/settings/browser/settings'
+import { RefreshInterval } from '@/base/common/refresh-interval'
 import { ThemeId } from '@/base/common/themes'
 import { normalizeLocale } from '@/i18n'
 import { Appearance, Locale } from '@/types/settings'
@@ -23,6 +24,7 @@ type SettingUpdate =
   | { path: 'locale'; value: Locale }
   | { path: 'dataPath'; value: string }
   | { path: 'reader.fontSize'; value: number }
+  | { path: 'reader.refreshInterval'; value: RefreshInterval }
 
 export function useUpdateSettings() {
   const client = useQueryClient()

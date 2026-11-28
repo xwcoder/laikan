@@ -105,6 +105,7 @@ export async function initReaderSchema(db: DatabaseClient) {
         content TEXT NOT NULL,
         contentBase TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value);
       CREATE INDEX IF NOT EXISTS articles_feed_read ON articles(feedId, read);
       DROP INDEX IF EXISTS articles_read_time;
       DROP INDEX IF EXISTS articles_starred_time;

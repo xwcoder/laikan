@@ -1,3 +1,4 @@
+import { RefreshInterval } from '@/base/common/refresh-interval'
 import { ThemeId } from '@/base/common/themes'
 
 export type Appearance = 'light' | 'dark' | 'auto'
@@ -9,5 +10,5 @@ export type Settings = {
   theme: ThemeId
   defaultDataPath: string
   dataPath: string
-  reader?: { fontSize?: number }
+  reader?: { fontSize?: number; refreshInterval?: RefreshInterval }
 }

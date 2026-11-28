@@ -202,6 +202,13 @@
     "locale": {
       "title": "Language"
     },
+    "refreshInterval": {
+      "title": "Auto refresh",
+      "manual": "Manual only",
+      "minutes": "Every {{count}} minutes",
+      "hours_one": "Every hour",
+      "hours_other": "Every {{count}} hours"
+    },
     "dataPath": {
       "title": "Data directory",
       "browserBtn": "Browse",
@@ -210,7 +217,7 @@
       "applying": "Applying…",
       "applied": "Data directory applied."
     },
-    "description": "Appearance and language changes are saved automatically."
+    "description": "Changes are saved automatically, except for the data directory."
   },
   "update": {
     "install": "Update to {{version}} and restart",
